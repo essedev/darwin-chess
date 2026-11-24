@@ -23,3 +23,11 @@ Iterazione stimata intorno a 1 centesimo, tetto 2 $/giorno. Il client usa l'API 
 ## 2026-11-24: Lichess come misura esterna, non come filtro
 
 Le partite su Lichess sono troppo lente per decidere le generazioni (centinaia al giorno contro migliaia necessarie), ma danno un rating che l'agente non può falsificare. Chess.com è escluso: non ammette bot.
+
+## 2026-11-24: dashboard in stile diretta essenziale (concept D)
+
+Su quattro direzioni (laboratorio denso, genealogia editoriale, diretta da secondo schermo, diretta essenziale) la scelta è D: scacchiera al centro con i due giocatori e lo storico delle mosse, sottotitoli dell'agente, generazione corrente in evidenza in alto, storia delle generazioni a sinistra, a destra solo due carte (SPRT in parole semplici, spesa). Scartate A (troppi elementi per uno schermo da guardare), B (la storia da sola non dice cosa succede adesso: resta come spunto per una pagina secondaria) e C (stesso spirito di D, ma con più rumore). Il concept è in `docs/concepts/concept-a-dashboard.html`.
+
+## 2026-11-24: pezzi cburnett e icone Lucide
+
+Pezzi cburnett, il set classico di Lichess e Wikipedia, scelto a vista fra sette set con licenza verificata nel COPYING.md di lila. È GPLv2+: va bene per un progetto personale, ma se il repo diventasse pubblico con un'altra licenza gli SVG restano GPL e vanno dichiarati a parte. Icone Lucide perché sono già il set dei componenti shadcn: un secondo set sarebbe incoerente.

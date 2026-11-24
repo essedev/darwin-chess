@@ -51,6 +51,10 @@
 			ma plausibile: Elo, ipotesi dell'agente, tempi, costi (Haiku 5.5, circa 1,4 cent
 			a iterazione). Il testo dell'agente è in inglese perché lui scrive in inglese.
 			Verifica: Chromium via preview, desktop e 390px, entrambi i temi.
+
+			Scelta: D (Diretta essenziale, giro 4) con i pezzi cburnett e le icone Lucide. A, B e C
+			   restano nel file come storia del concept. Aperto: la pagina "Storia delle generazioni"
+			   (lo spunto è B) e i valori finali dei token, da fissare quando D entra nel codice.
 		-->
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1046,7 +1050,7 @@
 			renderPiecePicker();
 			const saved = load();
 			root.dataset.theme = saved.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-			pick(DESC[location.hash.slice(1)] ? location.hash.slice(1) : 'a');
+			pick(DESC[location.hash.slice(1)] ? location.hash.slice(1) : 'd');
 		</script>
 	</body>
 </html>

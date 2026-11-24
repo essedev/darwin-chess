@@ -27,6 +27,8 @@ Regole specifiche di questo progetto. Per gli standard trasversali vedi il CLAUD
 
 - Componenti funzionali, feature in `src/features/<nome>/` con i propri hook.
 - TanStack Query per lo stato server, `EventSource` per il live, `useState` per lo stato UI.
+- Icone solo Lucide (`lucide-react`, lo stesso set dei componenti shadcn): un solo spessore del tratto, 16 px nel testo e 20 px nei controlli, e solo dove aggiungono significato.
+- Pezzi degli scacchi: set cburnett, SVG in `frontend/public/pieces/cburnett/` con il file di licenza (GPLv2+, Colin M.L. Burnett); niente caricamento da CDN esterni.
 - Ogni vista gestisce loading, empty, error e success.
 - `cursor-pointer` esplicito sugli elementi interattivi (Tailwind v4 lo toglie dai button).
 - Niente `max-width` sui contenuti. Mobile curato dalla prima schermata.
