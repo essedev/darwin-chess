@@ -33,6 +33,10 @@
 			Giro 2: Simone sceglie lo stile di C, con elementi chiari, meno roba, più rifinito.
 			   Aggiunta D; A, B e C restano finché non vengono tolte.
 
+			Giro 3: in D la generazione corrente diventa evidente in alto e a sinistra entra la
+			   storia (curva Elo + elenco delle generazioni con il candidato in gara in cima). La
+			   carta del campione a destra esce: la storia la sostituisce.
+
 			Mappatura sul codice di oggi (fattibilità, non piano): ogni blocco legge una
 			tabella di docs/DATABASE_SCHEMA.md (generations, rating_snapshots, experiments,
 			gate_results, matches, games, llm_calls, agent_events); il live viaggia su SSE.
@@ -255,7 +259,7 @@
 			/* D: Diretta essenziale */
 			body[data-base='d'] { --bg: #f4f3ef; --surface: #ffffff; --raise: #f4f2ec; --text: #121214; --muted: #6b6b72; --line: rgb(0 0 0 / 0.08); --accent: #c2650a; --good: #16803c; --bad: #c0362c; --warn: #b7791f; --sq-l: #e6e1d3; --sq-d: #8b9a7c; --hl: rgb(242 163 58 / 0.38); }
 			:root[data-theme='dark'] body[data-base='d'] { --bg: #0c0c0e; --surface: #151518; --raise: #1d1d21; --text: #f3f3f4; --muted: #8e8e97; --line: rgb(255 255 255 / 0.08); --accent: #f2a33a; --good: #5fd68a; --bad: #f2776b; --warn: #f2c14e; --sq-l: #d9d3c4; --sq-d: #77876a; --hl: rgb(242 163 58 / 0.38); }
-			.lay-d { padding: 24px 32px 40px; display: grid; grid-template-columns: minmax(0, 1fr) 340px; grid-template-rows: auto 1fr; gap: 28px 40px; min-height: calc(100vh - 40px); font-family: 'Space Grotesk', var(--sans); }
+			.lay-d { padding: 24px 32px 40px; display: grid; grid-template-columns: 270px minmax(0, 1fr) 320px; grid-template-rows: auto 1fr; gap: 28px 36px; min-height: calc(100vh - 40px); font-family: 'Space Grotesk', var(--sans); }
 			.lay-d .d-top { grid-column: 1 / -1; display: flex; align-items: center; gap: 16px; }
 			.lay-d .d-brand { font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
 			.lay-d .d-pill { display: inline-flex; align-items: center; gap: 7px; height: 26px; padding: 0 11px; border-radius: 13px; font-size: 12px; font-weight: 600; background: color-mix(in srgb, var(--bad) 14%, transparent); color: var(--bad); }
@@ -298,6 +302,23 @@
 			.lay-d .spark text { fill: var(--muted); font: 10px var(--mono); }
 			.lay-d .spark circle { fill: var(--accent); }
 			.lay-d .board-empty { display: grid !important; align-content: center; padding: 32px 40px; }
+			.lay-d .d-gen { display: flex; align-items: baseline; gap: 10px; padding-left: 16px; margin-left: 4px; border-left: 1px solid var(--line); }
+			.lay-d .d-gen b { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+			.lay-d .d-gen span { font-size: 13px; color: var(--muted); }
+			.lay-d .d-hist { display: grid; gap: 14px; align-content: start; min-width: 0; }
+			.lay-d .h-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+			.lay-d .h-row { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 10px; border-radius: 10px; }
+			.lay-d .h-row.now { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+			.lay-d .h-tag { font: 500 12px var(--mono); color: var(--muted); }
+			.lay-d .h-row.now .h-tag { color: var(--accent); }
+			.lay-d .h-main { min-width: 0; }
+			.lay-d .h-main b { display: block; font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+			.lay-d .h-main span { display: block; font-size: 11px; color: var(--muted); }
+			.lay-d .h-main span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+			.lay-d .h-main span span { display: inline; }
+			.lay-d .h-main span .up { color: var(--good); }
+			.lay-d .h-val { font: 500 13px var(--mono); font-variant-numeric: tabular-nums; }
+			.lay-d .h-foot { font-size: 12px; color: var(--muted); padding: 0 10px; }
 			.lay-d .d-more { font-size: 13px; color: var(--muted); text-decoration: none; padding: 4px 2px; }
 			.lay-d .d-more:hover { color: var(--text); }
 			.lay-d .d-checks { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 12px; }
@@ -308,6 +329,8 @@
 			/* Narrow screens */
 			@media (max-width: 1100px) {
 				.lay-d { grid-template-columns: 1fr; }
+				.lay-d .d-hist { order: 3; }
+				.lay-d .d-side { order: 2; }
 				.lay-d .d-col { width: min(100%, 640px); min-width: 0; }
 				.lay-a { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: 'top top' 'banner banner' 'side side' 'board board' 'elo elo' 'stream stream' 'gens gens'; }
 				.lay-a .a-stream { max-height: 420px; }
@@ -322,6 +345,7 @@
 			@media (max-width: 600px) {
 				.lay-d { padding: 16px 16px 32px; gap: 20px; }
 				.lay-d .d-top { flex-wrap: wrap; }
+				.lay-d .d-gen { border-left: 0; padding-left: 0; margin-left: 0; flex-basis: 100%; order: 3; }
 				.lay-d .d-phase { margin-left: 0; flex-basis: 100%; }
 				.lay-d .d-caption p { font-size: 17px; }
 				.lay-a { padding: 0; grid-template-columns: 1fr; grid-template-areas: 'top' 'banner' 'side' 'board' 'elo' 'stream' 'gens'; }
@@ -460,9 +484,11 @@
 		<main class="lay-d" data-only="d">
 			<div class="d-top">
 				<span class="d-brand">darwin-chess</span>
+				<span class="d-gen" data-slot="dgen"></span>
 				<span class="d-pill" data-slot="dpill"></span>
 				<span class="d-phase" data-slot="dphase"></span>
 			</div>
+			<aside class="d-hist" data-slot="dhist"></aside>
 			<div class="d-stage">
 				<div class="d-col">
 					<div class="d-player" data-slot="dtop"></div>
@@ -472,10 +498,8 @@
 				<div class="d-caption" data-slot="dcaption"></div>
 			</div>
 			<aside class="d-side">
-				<section class="d-card" data-slot="dchamp"></section>
 				<section class="d-card" data-slot="dsprt"></section>
 				<section class="d-card" data-slot="dcost"></section>
-				<a class="d-more" href="#b" onclick="pick('b'); return false">Storia delle generazioni &rarr;</a>
 			</aside>
 		</main>
 
@@ -859,6 +883,15 @@
 					fill('dtop', `<span class="sw" style="background:#16140f"></span><div class="who"><b>Campione gen-${g.n}</b><span>Elo ${g.elo}</span></div><div class="pts"><b>${state.sprt.l}</b><span>vinte</span></div>`);
 					fill('dbottom', `<span class="sw" style="background:#fbfaf7"></span><div class="who"><b>Candidato #${state.exp.id}</b><span>${state.exp.hyp}</span></div><div class="pts"><b>${state.sprt.w}</b><span>vinte</span></div>`);
 				}
+				const tried = GENS.slice(0, state.champ).reduce((a, x) => a + x.tried, 0);
+				fill('dgen', isDay1 ? '<b>Generazione 0</b><span>nessun campione, si scrivono le regole</span>' : `<b>Generazione ${g.n}</b><span>in gara il candidato per la ${g.n + 1}</span>`);
+				const nowRow = isDay1
+					? `<li class="h-row now"><span class="h-tag">#${state.exp.id}</span><div class="h-main"><b>Genesi: le regole</b><span>perft 11 posizioni su 12</span></div><span class="h-val"></span></li>`
+					: `<li class="h-row now"><span class="h-tag">#${state.exp.id}</span><div class="h-main"><b>In gara per gen-${g.n + 1}</b><span>${state.exp.hyp}</span></div><span class="h-val" style="font-size:11px;color:var(--muted)">${state.sprt.games} part.</span></li>`;
+				const rows = GENS.slice(0, state.champ).reverse().map((x) => `<li class="h-row"><span class="h-tag">gen-${x.n}</span><div class="h-main"><b title="${x.hyp}">${x.hyp}</b><span>${x.n === 1 ? 'batte il casuale' : `<span class="up">${x.gain.split(' ')[0]} Elo</span>`} · ${x.tried} tentativi</span></div><span class="h-val">${x.elo}</span></li>`).join('');
+				const seed = '<li class="h-row"><span class="h-tag">gen-0</span><div class="h-main"><b>Il seme vuoto</b><span>21 nov</span></div><span class="h-val"></span></li>';
+				fill('dhist', `<div class="d-card"><div class="d-q">Come sta andando</div>${isDay1 ? '<div class="d-verdict" style="margin:0">Nessun campione ancora</div>' : `<div class="d-big"><b>${g.elo}</b><span>Elo · gen-${g.n}</span></div>${dSpark(state)}`}</div>
+					<ol class="h-list">${nowRow}${rows}${seed}</ol><div class="h-foot">${isDay1 ? `${state.exp.id - 1} tentativi, nessuno promosso` : `${tried} tentativi, ${state.champ} promossi`}</div>`);
 				const lastEv = events[events.length - 1];
 				fill('dcaption', `<div class="lbl"><i></i>${isBudget ? 'Agente in pausa' : 'L\'agente pensa'}</div><p>${state.caption}</p>${lastEv ? `<div class="last">${lastEv[0]} · ${lastEv[2]}</div>` : ''}`);
 				fill('dchamp', isDay1
