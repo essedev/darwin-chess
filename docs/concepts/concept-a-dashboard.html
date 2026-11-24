@@ -37,6 +37,11 @@
 			   storia (curva Elo + elenco delle generazioni con il candidato in gara in cima). La
 			   carta del campione a destra esce: la storia la sostituisce.
 
+			Giro 4: in D lo storico delle mosse a fianco della scacchiera (sotto, in orizzontale,
+			   sugli schermi stretti) e il selettore dei set di pezzi (pannello in basso a destra,
+			   solo in D). I pezzi vengono dal CDN di Lichess per il confronto; nel prodotto si
+			   copiano gli SVG nel repo con la loro licenza (COPYING.md di lila).
+
 			Mappatura sul codice di oggi (fattibilità, non piano): ogni blocco legge una
 			tabella di docs/DATABASE_SCHEMA.md (generations, rating_snapshots, experiments,
 			gate_results, matches, games, llm_calls, agent_events); il live viaggia su SSE.
@@ -91,6 +96,7 @@
 			.sq { position: relative; display: grid; place-items: center; background: var(--sq-l); }
 			.sq.d { background: var(--sq-d); }
 			.sq.hl::after { content: ''; position: absolute; inset: 0; background: var(--hl); }
+			.sq .pi { position: relative; z-index: 1; width: 92%; height: 92%; pointer-events: none; }
 			.sq .pc { position: relative; z-index: 1; font-size: min(9cqw, 64px); line-height: 1; }
 			.boardwrap { container-type: inline-size; }
 			.pc.w { color: #fbfaf7; text-shadow: 0 0 1px #000, 0 0 1px #000, 0 1px 2px rgb(0 0 0 / 0.5); }
@@ -272,7 +278,23 @@
 			.lay-d .d-dots i { width: 18px; height: 4px; border-radius: 2px; background: var(--line); }
 			.lay-d .d-dots i.on { background: var(--accent); }
 			.lay-d .d-stage { min-width: 0; display: grid; justify-items: center; align-content: start; gap: 18px; }
-			.lay-d .d-col { width: min(100%, calc(100vh - 370px)); min-width: 300px; display: grid; gap: 10px; }
+			.lay-d .d-col { width: min(100%, calc(100vh - 370px + 146px)); min-width: 300px; display: grid; grid-template-columns: minmax(0, 1fr) 130px; grid-template-areas: 'top .' 'board moves' 'bottom .'; gap: 10px 16px; }
+			.lay-d .d-col > [data-slot='dtop'] { grid-area: top; }
+			.lay-d .d-col > .boardwrap { grid-area: board; }
+			.lay-d .d-col > [data-slot='dbottom'] { grid-area: bottom; }
+			.lay-d .d-moves { grid-area: moves; position: relative; overflow: auto; scrollbar-width: none; font: 12px/1 var(--mono); font-variant-numeric: tabular-nums; mask-image: linear-gradient(to bottom, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%); padding: 20px 0; }
+			.lay-d .d-moves::-webkit-scrollbar { display: none; }
+			.lay-d .mr { display: grid; grid-template-columns: 26px 1fr 1fr; align-items: center; height: 26px; }
+			.lay-d .mr .n { color: var(--muted); font-size: 11px; }
+			.lay-d .mr span:not(.n) { padding: 4px 6px; border-radius: 6px; color: color-mix(in srgb, var(--text) 80%, transparent); }
+			.lay-d .mr .cur { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--text); font-weight: 500; }
+			.lay-d .mr .fut { opacity: 0.22; }
+			.pieces { position: fixed; right: 12px; bottom: 12px; z-index: 100; display: grid; gap: 8px; padding: 12px; border-radius: 12px; background: #111; color: #ccc; font: 12px/1.4 var(--mono); width: 250px; }
+			.pieces div { display: flex; flex-wrap: wrap; gap: 5px; }
+			.pieces button { font: inherit; border: 0; padding: 4px 8px; border-radius: 6px; background: #262626; color: #eee; }
+			.pieces button[aria-pressed='true'] { background: #eee; color: #111; }
+			.pieces p { margin: 0; color: #888; }
+			body[data-chrome='off'] .pieces { display: none; }
 			.lay-d .d-col .boardwrap { border-radius: 10px; overflow: hidden; box-shadow: 0 0 0 1px var(--line), 0 12px 32px -12px rgb(0 0 0 / 0.35); }
 			.lay-d .d-player { display: flex; align-items: center; gap: 12px; padding: 0 2px; min-height: 40px; }
 			.lay-d .d-player .sw { width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--muted) 60%, transparent); flex: none; }
@@ -331,7 +353,9 @@
 				.lay-d { grid-template-columns: 1fr; }
 				.lay-d .d-hist { order: 3; }
 				.lay-d .d-side { order: 2; }
-				.lay-d .d-col { width: min(100%, 640px); min-width: 0; }
+				.lay-d .d-col { width: min(100%, 640px); min-width: 0; grid-template-columns: 1fr; grid-template-areas: 'top' 'board' 'moves' 'bottom'; }
+				.lay-d .d-moves { display: flex; gap: 2px; overflow-x: auto; padding: 0 24px; mask-image: linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%); }
+				.lay-d .mr { flex: none; display: flex; gap: 2px; }
 				.lay-a { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: 'top top' 'banner banner' 'side side' 'board board' 'elo elo' 'stream stream' 'gens gens'; }
 				.lay-a .a-stream { max-height: 420px; }
 				.lay-b { grid-template-columns: 1fr; }
@@ -493,6 +517,7 @@
 				<div class="d-col">
 					<div class="d-player" data-slot="dtop"></div>
 					<div class="boardwrap" data-slot="board"></div>
+					<div class="d-moves" data-slot="dmoves"></div>
 					<div class="d-player" data-slot="dbottom"></div>
 				</div>
 				<div class="d-caption" data-slot="dcaption"></div>
@@ -502,6 +527,12 @@
 				<section class="d-card" data-slot="dcost"></section>
 			</aside>
 		</main>
+
+		<div class="pieces" data-only="d">
+			<span>pezzi</span>
+			<div data-pieces></div>
+			<p data-piece-license></p>
+		</div>
 
 		<script>
 			const DESC = {
@@ -604,6 +635,32 @@
 			const fill = (slot, html) => $all(slot).forEach((el) => (el.innerHTML = html));
 			const eur = (x) => '$' + x.toFixed(2).replace('.', ',');
 
+			// Piece sets: name -> license (from lila COPYING.md). 'unicode' is the old glyph board.
+			const PIECESETS = {
+				cburnett: 'cburnett · GPLv2+ · il classico di Lichess e Wikipedia',
+				chessnut: 'chessnut · Apache 2.0 · moderno, la licenza più libera',
+				merida: 'merida · GPLv2+ · tradizionale da libro',
+				maestro: 'maestro · CC BY-NC-SA 4.0 · elegante, non commerciale',
+				cardinal: 'cardinal · CC BY-NC-SA 4.0 · morbido, non commerciale',
+				staunty: 'staunty · CC BY-NC-SA 4.0 · Staunton 2D, non commerciale',
+				california: 'california · CC BY-NC-SA 4.0 · pulito, non commerciale',
+				unicode: 'unicode · i glifi del font di sistema (giro 1-3)'
+			};
+			let PIECESET = 'cburnett';
+			try { PIECESET = localStorage.getItem('concept:pieces') || 'cburnett'; } catch {}
+			function renderPiecePicker() {
+				document.querySelector('[data-pieces]').innerHTML = Object.keys(PIECESETS).map((k) => `<button data-set="${k}" aria-pressed="${k === PIECESET}">${k}</button>`).join('');
+				document.querySelector('[data-piece-license]').textContent = PIECESETS[PIECESET];
+			}
+			document.querySelector('[data-pieces]').addEventListener('click', (e) => {
+				const b = e.target.closest('[data-set]');
+				if (!b) return;
+				PIECESET = b.dataset.set;
+				try { localStorage.setItem('concept:pieces', PIECESET); } catch {}
+				renderPiecePicker();
+				renderBoard();
+			});
+
 			function boardHTML(fen, from, to) {
 				const rows = fen.split('/');
 				let out = '';
@@ -620,7 +677,10 @@
 					const name = 'abcdefgh'[f] + (8 - r);
 					const dark = (r + f) % 2 === 1;
 					const hl = name === from || name === to;
-					const piece = p ? `<span class="pc ${p === p.toUpperCase() ? 'w' : 'b'}">${GLYPH[p.toLowerCase()]}︎</span>` : '';
+					const white = p && p === p.toUpperCase();
+					const piece = !p ? '' : PIECESET === 'unicode' || !document.body.dataset.base.startsWith('d')
+						? `<span class="pc ${white ? 'w' : 'b'}">${GLYPH[p.toLowerCase()]}\uFE0E</span>`
+						: `<img class="pi" alt="" src="https://lichess1.org/assets/piece/${PIECESET}/${white ? 'w' : 'b'}${p.toUpperCase()}.svg">`;
 					const co = (r === 7 ? `<span class="co f">${'abcdefgh'[f]}</span>` : '') + (f === 0 ? `<span class="co r">${8 - r}</span>` : '');
 					return `<div class="sq${dark ? ' d' : ''}${hl ? ' hl' : ''}">${piece}${co}</div>`;
 				}
@@ -788,6 +848,7 @@
 				if (state === STATES.day1) {
 					fill('board', perftHTML());
 					fill('moves', '');
+					fill('dmoves', '');
 					fill('players', '');
 					fill('gameno', 'Genesi: nessuna partita');
 					return;
@@ -800,6 +861,19 @@
 					mv += `<span class="n">${i / 2 + 1}.</span><span${cur(i)}>${GAME[i][0]}</span><span${cur(i + 1)}>${GAME[i + 1]?.[0] ?? ''}</span>`;
 				}
 				fill('moves', `<div class="moves">${mv}</div>`);
+				let dm = '';
+				for (let i = 0; i < GAME.length; i += 2) {
+					const cls = (k) => (k === ply - 1 ? ' class="cur"' : k >= ply ? ' class="fut"' : '');
+					if (i >= ply) break;
+					dm += `<div class="mr"><span class="n">${i / 2 + 1}</span><span${cls(i)}>${GAME[i][0]}</span>${i + 1 < ply ? `<span${cls(i + 1)}>${GAME[i + 1][0]}</span>` : ''}</div>`;
+				}
+				fill('dmoves', dm);
+				$all('dmoves').forEach((el) => {
+					const c = el.querySelector('.cur');
+					if (!c) return (el.scrollTop = el.scrollLeft = 0);
+					if (el.scrollWidth > el.clientWidth + 4) el.scrollLeft = c.parentElement.offsetLeft - el.clientWidth / 2;
+					else el.scrollTop = c.parentElement.offsetTop - el.clientHeight / 2;
+				});
 				const g = GENS[state.champ - 1];
 				fill('players', `<div><span class="pc w" style="font-size:14px">♚︎</span> #${state.exp.id} candidato</div><div><span class="pc b" style="font-size:14px">♚︎</span> gen-${g.n} campione</div><div class="muted">8+0,08 s</div>`);
 				fill('gameno', `Partita ${state.gameNo} dello SPRT${ply === GAME.length ? ' · 1-0 matto' : ''}`);
@@ -969,6 +1043,7 @@
 				else if (/^\d$/.test(k)) pick(`${base(body.dataset.v)}${k}`);
 				else pick(k);
 			});
+			renderPiecePicker();
 			const saved = load();
 			root.dataset.theme = saved.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
 			pick(DESC[location.hash.slice(1)] ? location.hash.slice(1) : 'a');
