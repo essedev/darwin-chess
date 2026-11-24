@@ -1,0 +1,13 @@
+# Services grow with the milestones (docs/ROADMAP.md). Today: only the agent sandbox.
+services:
+  lab:
+    build: ./lab
+    image: darwin-lab
+    network_mode: none
+    read_only: true
+    tmpfs:
+      - /tmp
+    volumes:
+      - ./genome:/genome
+    cpus: 2
+    mem_limit: 4g

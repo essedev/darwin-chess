@@ -1,0 +1,11 @@
+---
+paths:
+  - "backend/src/darwin/referee/**/*.py"
+  - "lab/**"
+  - "docker-compose.yml"
+---
+- L'arbitro è il confine di fiducia: non importa da `darwin.orchestrator` né da `darwin.api`.
+- Ogni binario del genoma gira in un container effimero proprio: `--network none`, 1 CPU, sola lettura.
+- Il perft si verifica su posizioni casuali, non solo su quelle standard (i conteggi noti si scrivono a mano).
+- All'agente arriva solo il `detail` pubblico del verdetto, mai output interno.
+- Il sandbox non riceve mai rete, Stockfish o codice dell'arbitro.

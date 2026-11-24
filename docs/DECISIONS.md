@@ -1,0 +1,25 @@
+# Decisioni
+
+## 2026-11-24: l'LLM costruisce la macchina, la rete impara gli scacchi
+
+Haiku conosce a memoria le tecniche dei motori (alfa-beta, transposition table, NNUE), quindi un motore scritto solo da lui misura la capacità di applicare conoscenza nota, non di scoprire. La valutazione la impara invece una rete dalle partite del motore contro se stesso, partendo da zero: quello che sa viene dai dati. Architettura libera per l'agente, con il vincolo di un budget di CPU per generazione: in pratica porta allo stile Stockfish (alfa-beta + NNUE in CPU).
+
+## 2026-11-24: arbitro immutabile, motori in container effimeri
+
+L'agente ha pieno controllo sul genoma ma nessun accesso all'arbitro. Ogni processo motore gira in un container proprio (`--network none`, 1 CPU, binario in sola lettura): nello stesso container un candidato potrebbe terminare il processo avversario. Il perft si verifica su posizioni casuali perché i conteggi delle posizioni standard sono noti e si possono scrivere a mano.
+
+## 2026-11-24: SQLite invece di PostgreSQL
+
+Un solo scrittore su una sola macchina, nessun accesso concorrente da altri servizi: Postgres aggiungerebbe un servizio senza alcun vantaggio. SQLAlchemy e Alembic restano, quindi la migrazione sarebbe meccanica.
+
+## 2026-11-24: registro append-only, niente soft delete
+
+Il registro è la storia dell'esperimento: nessuna riga si cancella, quindi `deleted_at` non avrebbe un caso d'uso.
+
+## 2026-11-24: Haiku 5.5 via OpenRouter, provider intercambiabile
+
+Iterazione stimata intorno a 1 centesimo, tetto 2 $/giorno. Il client usa l'API compatibile OpenAI, quindi un modello locale (llama-server, LM Studio) o un altro provider è una variabile d'ambiente. Il confronto fra modelli economici è rimandato: si fa se Haiku rende poco.
+
+## 2026-11-24: Lichess come misura esterna, non come filtro
+
+Le partite su Lichess sono troppo lente per decidere le generazioni (centinaia al giorno contro migliaia necessarie), ma danno un rating che l'agente non può falsificare. Chess.com è escluso: non ammette bot.
