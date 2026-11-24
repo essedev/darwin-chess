@@ -20,9 +20,18 @@
 			C  Diretta: è uno spettacolo da tenere su un secondo schermo; scacchiera enorme,
 			   il ragionamento dell'agente come sottotitoli, il resto come tabellone.
 
+			D  Diretta essenziale (giro 2): lo spettacolo di C con la metà degli elementi.
+			   Una colonna di scacchiera con i due giocatori sopra e sotto, i sottotitoli
+			   dell'agente, tre carte a destra che rispondono a tre domande: quanto è forte il
+			   campione, il candidato è più forte, quanto abbiamo speso. La storia delle
+			   generazioni esce dalla schermata (link alla pagina B).
+
 			Sottovarianti uguali per tutte: 1 giorno 1 (genesi: nessuna generazione, nessun
 			Elo, l'agente combatte col perft), 2 budget esaurito (l'agente è in pausa, lo SPRT
 			in corso finisce comunque perché non usa l'LLM).
+
+			Giro 2: Simone sceglie lo stile di C, con elementi chiari, meno roba, più rifinito.
+			   Aggiunta D; A, B e C restano finché non vengono tolte.
 
 			Mappatura sul codice di oggi (fattibilità, non piano): ogni blocco legge una
 			tabella di docs/DATABASE_SCHEMA.md (generations, rating_snapshots, experiments,
@@ -243,8 +252,63 @@
 			.lay-c .chip.pending { box-shadow: inset 0 0 0 1px var(--accent); }
 			.lay-c .chip .num { font-size: 12px; }
 
+			/* D: Diretta essenziale */
+			body[data-base='d'] { --bg: #f4f3ef; --surface: #ffffff; --raise: #f4f2ec; --text: #121214; --muted: #6b6b72; --line: rgb(0 0 0 / 0.08); --accent: #c2650a; --good: #16803c; --bad: #c0362c; --warn: #b7791f; --sq-l: #e6e1d3; --sq-d: #8b9a7c; --hl: rgb(242 163 58 / 0.38); }
+			:root[data-theme='dark'] body[data-base='d'] { --bg: #0c0c0e; --surface: #151518; --raise: #1d1d21; --text: #f3f3f4; --muted: #8e8e97; --line: rgb(255 255 255 / 0.08); --accent: #f2a33a; --good: #5fd68a; --bad: #f2776b; --warn: #f2c14e; --sq-l: #d9d3c4; --sq-d: #77876a; --hl: rgb(242 163 58 / 0.38); }
+			.lay-d { padding: 24px 32px 40px; display: grid; grid-template-columns: minmax(0, 1fr) 340px; grid-template-rows: auto 1fr; gap: 28px 40px; min-height: calc(100vh - 40px); font-family: 'Space Grotesk', var(--sans); }
+			.lay-d .d-top { grid-column: 1 / -1; display: flex; align-items: center; gap: 16px; }
+			.lay-d .d-brand { font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
+			.lay-d .d-pill { display: inline-flex; align-items: center; gap: 7px; height: 26px; padding: 0 11px; border-radius: 13px; font-size: 12px; font-weight: 600; background: color-mix(in srgb, var(--bad) 14%, transparent); color: var(--bad); }
+			.lay-d .d-pill i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: pulse 1.4s infinite; }
+			.lay-d .d-pill.off { background: var(--raise); color: var(--muted); }
+			.lay-d .d-pill.off i { animation: none; }
+			.lay-d .d-phase { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
+			.lay-d .d-phase b { color: var(--text); font-weight: 600; }
+			.lay-d .d-dots { display: flex; gap: 4px; }
+			.lay-d .d-dots i { width: 18px; height: 4px; border-radius: 2px; background: var(--line); }
+			.lay-d .d-dots i.on { background: var(--accent); }
+			.lay-d .d-stage { min-width: 0; display: grid; justify-items: center; align-content: start; gap: 18px; }
+			.lay-d .d-col { width: min(100%, calc(100vh - 370px)); min-width: 300px; display: grid; gap: 10px; }
+			.lay-d .d-col .boardwrap { border-radius: 10px; overflow: hidden; box-shadow: 0 0 0 1px var(--line), 0 12px 32px -12px rgb(0 0 0 / 0.35); }
+			.lay-d .d-player { display: flex; align-items: center; gap: 12px; padding: 0 2px; min-height: 40px; }
+			.lay-d .d-player .sw { width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--muted) 60%, transparent); flex: none; }
+			.lay-d .d-player .who { min-width: 0; }
+			.lay-d .d-player b { display: block; font-size: 15px; font-weight: 600; }
+			.lay-d .d-player span { display: block; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+			.lay-d .d-player .pts { margin-left: auto; text-align: right; }
+			.lay-d .d-player .pts b { font: 500 20px/1 var(--mono); font-variant-numeric: tabular-nums; }
+			.lay-d .d-caption { width: min(100%, 680px); text-align: center; }
+			.lay-d .d-caption .lbl { display: inline-flex; align-items: center; gap: 6px; font: 500 11px var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+			.lay-d .d-caption .lbl i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+			.lay-d .d-caption p { margin: 0; font-size: 20px; line-height: 1.45; font-weight: 500; text-wrap: balance; }
+			.lay-d .d-caption .last { margin-top: 10px; font: 12px var(--mono); color: var(--muted); }
+			.lay-d .d-side { display: grid; gap: 14px; align-content: start; }
+			.lay-d .d-card { background: var(--surface); border-radius: 18px; padding: 20px; box-shadow: inset 0 0 0 1px var(--line); }
+			.lay-d .d-q { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+			.lay-d .d-big { display: flex; align-items: baseline; gap: 10px; }
+			.lay-d .d-big b { font-size: 44px; line-height: 1; font-weight: 600; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+			.lay-d .d-big span { font: 13px var(--mono); color: var(--muted); }
+			.lay-d .d-verdict { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; margin-bottom: 14px; }
+			.lay-d .d-note { font-size: 12px; color: var(--muted); margin-top: 10px; line-height: 1.5; }
+			.lay-d .d-note .num { color: var(--text); }
+			.lay-d .spark { display: block; width: 100%; height: auto; margin-top: 14px; overflow: visible; }
+			.lay-d .spark .ln { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; }
+			.lay-d .spark .ar { fill: var(--accent); opacity: 0.1; }
+			.lay-d .spark .an { stroke: var(--muted); stroke-dasharray: 2 4; opacity: 0.6; }
+			.lay-d .spark text { fill: var(--muted); font: 10px var(--mono); }
+			.lay-d .spark circle { fill: var(--accent); }
+			.lay-d .board-empty { display: grid !important; align-content: center; padding: 32px 40px; }
+			.lay-d .d-more { font-size: 13px; color: var(--muted); text-decoration: none; padding: 4px 2px; }
+			.lay-d .d-more:hover { color: var(--text); }
+			.lay-d .d-checks { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 12px; }
+			.lay-d .d-checks span::before { content: '✓ '; color: var(--good); }
+			.lay-d .d-checks span.ko::before { content: '✗ '; color: var(--bad); }
+			.lay-d .d-checks span.idle::before { content: '· '; color: var(--muted); }
+
 			/* Narrow screens */
 			@media (max-width: 1100px) {
+				.lay-d { grid-template-columns: 1fr; }
+				.lay-d .d-col { width: min(100%, 640px); min-width: 0; }
 				.lay-a { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: 'top top' 'banner banner' 'side side' 'board board' 'elo elo' 'stream stream' 'gens gens'; }
 				.lay-a .a-stream { max-height: 420px; }
 				.lay-b { grid-template-columns: 1fr; }
@@ -256,6 +320,10 @@
 				.lay-c .c-center .boardwrap { width: 100%; min-width: 0; margin: 9px 0; }
 			}
 			@media (max-width: 600px) {
+				.lay-d { padding: 16px 16px 32px; gap: 20px; }
+				.lay-d .d-top { flex-wrap: wrap; }
+				.lay-d .d-phase { margin-left: 0; flex-basis: 100%; }
+				.lay-d .d-caption p { font-size: 17px; }
 				.lay-a { padding: 0; grid-template-columns: 1fr; grid-template-areas: 'top' 'banner' 'side' 'board' 'elo' 'stream' 'gens'; }
 				.lay-a .a-board { grid-template-columns: 1fr; }
 				.lay-a .a-gens .hide-sm { display: none; }
@@ -388,6 +456,29 @@
 			<div class="ribbon" data-slot="ribbon"></div>
 		</main>
 
+		<!-- D: Diretta essenziale -->
+		<main class="lay-d" data-only="d">
+			<div class="d-top">
+				<span class="d-brand">darwin-chess</span>
+				<span class="d-pill" data-slot="dpill"></span>
+				<span class="d-phase" data-slot="dphase"></span>
+			</div>
+			<div class="d-stage">
+				<div class="d-col">
+					<div class="d-player" data-slot="dtop"></div>
+					<div class="boardwrap" data-slot="board"></div>
+					<div class="d-player" data-slot="dbottom"></div>
+				</div>
+				<div class="d-caption" data-slot="dcaption"></div>
+			</div>
+			<aside class="d-side">
+				<section class="d-card" data-slot="dchamp"></section>
+				<section class="d-card" data-slot="dsprt"></section>
+				<section class="d-card" data-slot="dcost"></section>
+				<a class="d-more" href="#b" onclick="pick('b'); return false">Storia delle generazioni &rarr;</a>
+			</aside>
+		</main>
+
 		<script>
 			const DESC = {
 				a: 'Laboratorio: tutto visibile insieme, per sorvegliare un sistema che gira da solo',
@@ -398,7 +489,10 @@
 				b2: 'budget esaurito: B in pausa',
 				c: 'Diretta: uno spettacolo da secondo schermo, l\'agente come sottotitoli',
 				c1: 'giorno 1: C in genesi',
-				c2: 'budget esaurito: C in pausa'
+				c2: 'budget esaurito: C in pausa',
+				d: 'Diretta essenziale: lo spettacolo di C con la metà degli elementi, tre domande a destra',
+				d1: 'giorno 1: D in genesi',
+				d2: 'budget esaurito: D in pausa'
 			};
 
 			// Data. The game is legal (validated with python-chess); everything else is invented.
@@ -662,6 +756,7 @@
 				fill('caption', `<small>${isBudget ? 'Agente in pausa' : 'L\'agente sta pensando'}</small>${state.caption}`);
 				events = state.events.slice();
 				fill('stream', streamHTML(events, events.length));
+				renderD();
 				renderBoard();
 			}
 
@@ -707,6 +802,7 @@
 							}
 						}
 						renderBoard();
+						if (state.sprt) renderD();
 					}, 900)
 				);
 				if (state === STATES.live) {
@@ -728,6 +824,57 @@
 				}
 			}
 
+			// D: Diretta essenziale
+			function dVerdict(sp) {
+				if (sp.llr >= 2.94) return ['Sì: diventa la prossima generazione', 'var(--good)'];
+				if (sp.llr <= -2.94) return ['No: candidato scartato', 'var(--bad)'];
+				if (sp.llr > 1) return ['Probabilmente sì', 'var(--text)'];
+				if (sp.llr < -1) return ['Probabilmente no', 'var(--text)'];
+				return ['Ancora presto per dirlo', 'var(--text)'];
+			}
+			function dSpark(state) {
+				const gens = GENS.slice(0, state.champ);
+				const W = 300, H = 84, y = (e) => 6 + (H - 12) * (1 - (e - 300) / (1900 - 300)), x = (i) => 4 + ((W - 96) * (i - 1)) / 8;
+				let s = `<svg class="spark" viewBox="0 0 ${W} ${H}" aria-label="Elo per generazione">`;
+				s += `<line class="an" x1="0" x2="${W - 92}" y1="${y(1800)}" y2="${y(1800)}"/><text x="${W - 86}" y="${y(1800) + 3}">Stockfish 1800</text>`;
+				s += `<line class="an" x1="0" x2="${W - 92}" y1="${y(1320)}" y2="${y(1320)}"/><text x="${W - 86}" y="${y(1320) + 3}">Stockfish 1320</text>`;
+				if (gens.length) {
+					let d = `M${x(1)},${y(gens[0].elo)}`;
+					gens.slice(1).forEach((g) => (d += ` L${x(g.n)},${y(g.elo)}`));
+					const last = gens[gens.length - 1];
+					s += `<path class="ar" d="${d} L${x(last.n)},${H} L${x(1)},${H} Z"/><path class="ln" d="${d}"/><circle cx="${x(last.n)}" cy="${y(last.elo)}" r="3.5"/>`;
+				}
+				return s + '</svg>';
+			}
+			function renderD() {
+				const isDay1 = state === STATES.day1, isBudget = state === STATES.budget;
+				const g = GENS[state.champ - 1];
+				fill('dpill', isBudget ? '<i></i>Agente in pausa' : '<i></i>In diretta');
+				$all('dpill').forEach((el) => el.classList.toggle('off', isBudget));
+				fill('dphase', `<span class="d-dots">${PHASES.map((_, i) => `<i class="${i <= state.phase ? 'on' : ''}"></i>`).join('')}</span><span>Fase ${state.phase + 1} di 4 · <b>${PHASES[state.phase][0]}</b></span>`);
+				if (isDay1) {
+					fill('dtop', '');
+					fill('dbottom', '');
+				} else {
+					fill('dtop', `<span class="sw" style="background:#16140f"></span><div class="who"><b>Campione gen-${g.n}</b><span>Elo ${g.elo}</span></div><div class="pts"><b>${state.sprt.l}</b><span>vinte</span></div>`);
+					fill('dbottom', `<span class="sw" style="background:#fbfaf7"></span><div class="who"><b>Candidato #${state.exp.id}</b><span>${state.exp.hyp}</span></div><div class="pts"><b>${state.sprt.w}</b><span>vinte</span></div>`);
+				}
+				const lastEv = events[events.length - 1];
+				fill('dcaption', `<div class="lbl"><i></i>${isBudget ? 'Agente in pausa' : 'L\'agente pensa'}</div><p>${state.caption}</p>${lastEv ? `<div class="last">${lastEv[0]} · ${lastEv[2]}</div>` : ''}`);
+				fill('dchamp', isDay1
+					? `<div class="d-q">Quanto è forte?</div><div class="d-verdict" style="margin:0">Nessun campione ancora</div><div class="d-note">Il primo arriva quando un candidato passa il perft e batte il giocatore casuale.</div>`
+					: `<div class="d-q">Quanto è forte il campione?</div><div class="d-big"><b>${g.elo}</b><span>Elo · gen-${g.n}</span></div>${dSpark(state)}`);
+				if (isDay1) {
+					fill('dsprt', `<div class="d-q">Il motore conosce le regole?</div><div class="d-verdict">Quasi: 11 posizioni su 12</div><div class="d-note">Sbaglia una presa en passant che lascia il re sotto scacco. L'agente ci sta lavorando (esperimento #${state.exp.id}).</div>`);
+				} else {
+					const sp = state.sprt, v = dVerdict(sp);
+					const checks = state.exp.gates.slice(0, 3).map((x) => `<span class="${x[1] === 'ok' ? '' : x[1]}">${x[0]}</span>`).join('');
+					fill('dsprt', `<div class="d-q">Il candidato è più forte del campione?</div><div class="d-verdict" style="color:${v[1]}">${v[0]}</div>${sprtHTML(sp).replace(/<div class="num"[\s\S]*$/, '</div>')}<div class="d-note"><span class="num">${sp.games}</span> partite · <span class="num">${sp.elo}</span> Elo · patte <span class="num">${sp.d}</span></div><div class="d-checks">${checks}</div>`);
+				}
+				const full = state.cost >= BUDGET;
+				fill('dcost', `<div class="d-q">Quanto abbiamo speso oggi?</div><div class="d-big"><b style="font-size:32px">${eur(state.cost)}</b><span>di ${eur(BUDGET)}</span></div><div class="meter${full ? ' full' : ''}" style="margin-top:12px"><i style="width:${Math.min(100, (state.cost / BUDGET) * 100)}%"></i></div><div class="d-note">${full ? 'Tetto raggiunto: l\'agente riprende alle 01:00.' : `${state.iters} iterazioni · ${state.proj}`}</div>`);
+			}
+
 			function pushEvent(e) {
 				events.push(e);
 				$all('stream').forEach((el) => {
@@ -738,6 +885,7 @@
 				});
 				const last = [...events].reverse().find((x) => x[1] === 'thought');
 				if (last && state === STATES.live) fill('caption', `<small>L'agente sta pensando</small>${state.caption}`);
+				renderD();
 			}
 
 			// Concept chrome (from the mockup template)
