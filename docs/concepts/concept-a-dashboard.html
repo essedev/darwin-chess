@@ -1,0 +1,796 @@
+<!doctype html>
+<html lang="it">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Concept A - dashboard</title>
+		<!--
+			Concept A: che premessa ha la dashboard di darwin-chess, cioè cosa mette al centro.
+			Tasti: a b c per la direzione, 1 giorno 1 (genesi, tutto vuoto), 2 budget esaurito,
+			la lettera da sola torna allo stato live. t tema, p nasconde la barra.
+
+			Il problema: la dashboard non esiste. Deve mostrare sei cose (partita live, Elo con
+			ancore, generazioni, ragionamento dell'agente, spesa, fase) e la domanda è quale
+			comanda: tutte insieme, la storia, o lo spettacolo.
+
+			A  Laboratorio: tutto visibile insieme, denso, per tenere d'occhio un sistema che
+			   gira da solo. Pannelli a filo, numeri in monospace.
+			B  Genealogia: la storia dell'evoluzione è il prodotto; la partita live è un
+			   dettaglio dell'esperimento in corso. Editoriale, carta, serif nei titoli.
+			C  Diretta: è uno spettacolo da tenere su un secondo schermo; scacchiera enorme,
+			   il ragionamento dell'agente come sottotitoli, il resto come tabellone.
+
+			Sottovarianti uguali per tutte: 1 giorno 1 (genesi: nessuna generazione, nessun
+			Elo, l'agente combatte col perft), 2 budget esaurito (l'agente è in pausa, lo SPRT
+			in corso finisce comunque perché non usa l'LLM).
+
+			Mappatura sul codice di oggi (fattibilità, non piano): ogni blocco legge una
+			tabella di docs/DATABASE_SCHEMA.md (generations, rating_snapshots, experiments,
+			gate_results, matches, games, llm_calls, agent_events); il live viaggia su SSE.
+			La scacchiera in prodotto è react-chessboard, qui glifi Unicode. Il grafico Elo
+			in prodotto va scritto (SVG o una libreria), qui SVG a mano.
+			Dati: la partita è legale e validata con python-chess. Tutto il resto è inventato
+			ma plausibile: Elo, ipotesi dell'agente, tempi, costi (Haiku 5.5, circa 1,4 cent
+			a iterazione). Il testo dell'agente è in inglese perché lui scrive in inglese.
+			Verifica: Chromium via preview, desktop e 390px, entrambi i temi.
+		-->
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+			rel="stylesheet"
+		/>
+		<style>
+			:root {
+				--sans: 'Inter', system-ui, -apple-system, sans-serif;
+				--mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+			}
+			* { box-sizing: border-box; }
+			html, body { margin: 0; }
+			body { min-height: 100vh; background: var(--bg); color: var(--text); font: 14px/1.5 var(--sans); }
+			[hidden] { display: none !important; }
+			button { cursor: pointer; }
+
+			/* Concept chrome: not part of the design. */
+			.switch { position: sticky; top: 0; z-index: 100; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px 12px; background: #111; color: #aaa; font: 12px/1.4 var(--mono); }
+			.switch button { font: inherit; border: 0; padding: 5px 9px; border-radius: 6px; background: #262626; color: #eee; }
+			.switch button[aria-pressed='true'] { background: #eee; color: #111; }
+			.switch p { margin: 0 0 0 8px; flex: 1 1 240px; min-width: 0; }
+			body[data-chrome='off'] .switch { display: none; }
+
+			/* Tokens per direction, both themes. */
+			body[data-base='a'] { --bg: #eceef0; --surface: #ffffff; --raise: #f5f6f7; --text: #15181b; --muted: #687078; --line: rgb(0 0 0 / 0.09); --accent: #0f766e; --good: #15803d; --bad: #b91c1c; --warn: #b45309; --sq-l: #dfe3e6; --sq-d: #9aa6b0; --hl: rgb(15 118 110 / 0.35); }
+			:root[data-theme='dark'] body[data-base='a'] { --bg: #0b0d0f; --surface: #14171a; --raise: #1a1e22; --text: #e6e8ea; --muted: #8a9198; --line: rgb(255 255 255 / 0.07); --accent: #5eead4; --good: #4ade80; --bad: #f87171; --warn: #fbbf24; --sq-l: #3a434b; --sq-d: #262d33; --hl: rgb(94 234 212 / 0.28); }
+			body[data-base='b'] { --bg: #f4f0e8; --surface: #fffdf8; --raise: #f8f4ec; --text: #1f1c16; --muted: #6f685c; --line: rgb(60 40 10 / 0.12); --accent: #a8481f; --good: #3f7d3a; --bad: #a8321f; --warn: #a86b1f; --sq-l: #efe4cf; --sq-d: #b99a73; --hl: rgb(168 72 31 / 0.3); }
+			:root[data-theme='dark'] body[data-base='b'] { --bg: #16140f; --surface: #1f1c16; --raise: #26221b; --text: #efe8da; --muted: #a39b8b; --line: rgb(255 240 210 / 0.1); --accent: #e3925f; --good: #9bc58f; --bad: #e88a74; --warn: #e3b25f; --sq-l: #5c4f3d; --sq-d: #3b3226; --hl: rgb(227 146 95 / 0.3); }
+			body[data-base='c'] { --bg: #f2f2ef; --surface: #ffffff; --raise: #f7f7f4; --text: #111113; --muted: #64646b; --line: rgb(0 0 0 / 0.1); --accent: #c2410c; --good: #15803d; --bad: #b91c1c; --warn: #b45309; --sq-l: #e9e4d8; --sq-d: #7c8a6e; --hl: rgb(194 65 12 / 0.35); }
+			:root[data-theme='dark'] body[data-base='c'] { --bg: #09090b; --surface: #141417; --raise: #1b1b1f; --text: #f4f4f5; --muted: #8b8b94; --line: rgb(255 255 255 / 0.08); --accent: #f5a524; --good: #4ade80; --bad: #f87171; --warn: #fbbf24; --sq-l: #c9c3b3; --sq-d: #5e6b53; --hl: rgb(245 165 36 / 0.45); }
+
+			.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+			.muted { color: var(--muted); }
+			.good { color: var(--good); }
+			.bad { color: var(--bad); }
+			.warn { color: var(--warn); }
+			.label { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+
+			/* Board */
+			.board { display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr); aspect-ratio: 1; width: 100%; user-select: none; overflow: hidden; }
+			.sq { position: relative; display: grid; place-items: center; background: var(--sq-l); }
+			.sq.d { background: var(--sq-d); }
+			.sq.hl::after { content: ''; position: absolute; inset: 0; background: var(--hl); }
+			.sq .pc { position: relative; z-index: 1; font-size: min(9cqw, 64px); line-height: 1; }
+			.boardwrap { container-type: inline-size; }
+			.pc.w { color: #fbfaf7; text-shadow: 0 0 1px #000, 0 0 1px #000, 0 1px 2px rgb(0 0 0 / 0.5); }
+			.pc.b { color: #16140f; text-shadow: 0 0 1px rgb(255 255 255 / 0.25); }
+			.sq .co { position: absolute; font: 600 9px/1 var(--sans); opacity: 0.6; color: #000; }
+			.sq .co.f { right: 3px; bottom: 2px; }
+			.sq .co.r { left: 3px; top: 3px; }
+			.board-empty { aspect-ratio: 1; display: grid; place-items: center; text-align: center; padding: 24px; background: var(--raise); color: var(--muted); }
+
+			/* Moves */
+			.moves { display: grid; grid-template-columns: 28px 1fr 1fr; gap: 1px 6px; font: 12px/1.7 var(--mono); }
+			.moves .n { color: var(--muted); }
+			.moves .cur { color: var(--accent); font-weight: 600; }
+
+			/* Elo chart */
+			.elo svg { display: block; width: 100%; height: auto; overflow: visible; }
+			.elo .grid { stroke: var(--line); }
+			.elo .anchor { stroke: var(--muted); stroke-dasharray: 3 4; opacity: 0.7; }
+			.elo .anchor-t { fill: var(--muted); font: 10px var(--mono); }
+			.elo .line { fill: none; stroke: var(--accent); stroke-width: 2.2; }
+			.elo .area { fill: var(--accent); opacity: 0.08; }
+			.elo .pt { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
+			.elo .cand { fill: none; stroke: var(--accent); stroke-width: 1.6; stroke-dasharray: 3 3; }
+			.elo .ax { fill: var(--muted); font: 10px var(--mono); }
+			.elo .empty-t { fill: var(--muted); font: 13px var(--sans); }
+
+			/* Gates */
+			.gates { display: flex; flex-wrap: wrap; gap: 6px; }
+			.gate { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 999px; background: var(--raise); font: 12px var(--mono); box-shadow: inset 0 0 0 1px var(--line); }
+			.gate i { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+			.gate.ok i { background: var(--good); }
+			.gate.run i { background: var(--warn); animation: pulse 1.2s infinite; }
+			.gate.ko i { background: var(--bad); }
+			@keyframes pulse { 50% { opacity: 0.3; } }
+
+			/* SPRT bar */
+			.sprt { position: relative; height: 8px; border-radius: 4px; background: var(--raise); box-shadow: inset 0 0 0 1px var(--line); }
+			.sprt .mid { position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--muted); opacity: 0.5; }
+			.sprt .fill { position: absolute; top: 0; bottom: 0; border-radius: 4px; background: var(--accent); transition: all 0.6s; }
+			.sprt-legend { display: flex; justify-content: space-between; font: 10px var(--mono); color: var(--muted); margin-top: 4px; }
+
+			/* Stream */
+			.stream { display: flex; flex-direction: column; gap: 2px; font: 12px/1.55 var(--mono); }
+			.ev { display: grid; grid-template-columns: 58px 74px 1fr; gap: 8px; padding: 3px 0; }
+			.ev .t { color: var(--muted); }
+			.ev .k { color: var(--muted); }
+			.ev.k-thought .x { color: var(--text); font-family: var(--sans); font-size: 13px; }
+			.ev.k-thought .k { color: var(--accent); }
+			.ev.k-gate .k, .ev.k-sprt .k { color: var(--warn); }
+			.ev.k-stop .k, .ev.k-stop .x { color: var(--bad); }
+			.ev.new { animation: fadein 0.5s; }
+			@keyframes fadein { from { opacity: 0; transform: translateY(4px); } }
+
+			/* Cost */
+			.meter { height: 6px; border-radius: 3px; background: var(--raise); box-shadow: inset 0 0 0 1px var(--line); overflow: hidden; }
+			.meter i { display: block; height: 100%; background: var(--accent); transition: width 0.6s; }
+			.meter.full i { background: var(--bad); }
+
+			/* Phase */
+			.phase { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+			.ph { padding: 6px 8px; font-size: 12px; background: var(--raise); color: var(--muted); }
+			.ph.done { color: var(--text); }
+			.ph.cur { background: var(--accent); color: var(--surface); font-weight: 600; }
+			.ph small { display: block; font-size: 10px; opacity: 0.8; font-weight: 400; }
+
+			/* Generations list (shared shape, styled per direction) */
+			.gen { display: grid; gap: 2px; }
+			.gen .h { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+			.gen .tag { font: 600 12px var(--mono); color: var(--accent); }
+			.gen .hyp { font-size: 13px; }
+			.gen .meta { font: 11px var(--mono); color: var(--muted); }
+			.empty { color: var(--muted); padding: 16px 0; }
+
+			/* Banner (budget stop) */
+			.banner { display: flex; gap: 10px; align-items: center; padding: 10px 14px; background: color-mix(in srgb, var(--bad) 12%, var(--surface)); color: var(--text); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bad) 35%, transparent); }
+			.banner b { color: var(--bad); }
+
+			/* A: Laboratorio */
+			.lay-a { padding: 12px; display: grid; gap: 1px; background: var(--line); grid-template-columns: 300px minmax(0, 1fr) minmax(0, 1.05fr); grid-template-areas: 'top top top' 'banner banner banner' 'side board stream' 'side elo stream' 'gens gens gens'; }
+			.lay-a .a-top { grid-area: top; }
+			.lay-a > .banner { grid-area: banner; }
+			.lay-a > section { background: var(--surface); padding: 14px 16px; min-width: 0; }
+			.lay-a .a-side { grid-area: side; display: grid; gap: 18px; align-content: start; }
+			.lay-a .a-board { grid-area: board; display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 14px; }
+			.lay-a .a-stream { grid-area: stream; max-height: 760px; overflow: auto; }
+			.lay-a .a-elo { grid-area: elo; }
+			.lay-a .a-gens { grid-area: gens; }
+			.lay-a .a-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+			.lay-a .a-title { font: 600 13px var(--sans); }
+			.lay-a .big { font: 500 30px/1 var(--mono); letter-spacing: -0.02em; }
+			.lay-a .kv { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; font-size: 12px; }
+			.lay-a .kv span:nth-child(even) { font-family: var(--mono); text-align: right; }
+			.lay-a .a-gens table { width: 100%; border-collapse: collapse; font-size: 12px; }
+			.lay-a .a-gens th { text-align: left; font-weight: 500; color: var(--muted); padding: 4px 10px 6px 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
+			.lay-a .a-gens td { padding: 6px 10px 6px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+			.lay-a .a-gens td.num, .lay-a .a-gens th.num { text-align: right; white-space: nowrap; }
+			.lay-a .a-top { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+			.lay-a .brand { font: 600 15px var(--mono); }
+			.lay-a .brand b { color: var(--accent); font-weight: 600; }
+			.lay-a .live { display: inline-flex; align-items: center; gap: 6px; font: 12px var(--mono); color: var(--muted); }
+			.lay-a .live i { width: 7px; height: 7px; border-radius: 50%; background: var(--good); animation: pulse 1.6s infinite; }
+			.lay-a .live.off i { background: var(--bad); animation: none; }
+			.lay-a .phase { flex: 1 1 420px; }
+			.lay-a .players { display: grid; gap: 4px; font: 12px var(--mono); margin-top: 8px; }
+
+			/* B: Genealogia */
+			.lay-b { padding: 40px 32px 64px; display: grid; grid-template-columns: minmax(320px, 0.85fr) minmax(0, 1.3fr); gap: 40px; align-items: start; }
+			.lay-b h1, .lay-b h2 { font-family: 'Fraunces', Georgia, serif; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
+			.lay-b h1 { font-size: 44px; line-height: 1.05; }
+			.lay-b h2 { font-size: 22px; }
+			.lay-b .lede { font-size: 16px; color: var(--muted); max-width: 52ch; margin: 12px 0 0; }
+			.lay-b .b-left { position: sticky; top: 56px; display: grid; gap: 24px; }
+			.lay-b .card { background: var(--surface); border-radius: 16px; padding: 20px; box-shadow: inset 0 0 0 1px var(--line), 0 1px 2px rgb(0 0 0 / 0.04); }
+			.lay-b .phase { gap: 0; border-radius: 10px; overflow: hidden; box-shadow: inset 0 0 0 1px var(--line); }
+			.lay-b .ph { background: transparent; border-right: 1px solid var(--line); }
+			.lay-b .ph:last-child { border-right: 0; }
+			.lay-b .ph.cur { background: var(--accent); }
+			.lay-b .b-now { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 20px; }
+			.lay-b .b-now .boardwrap { border-radius: 8px; overflow: hidden; }
+			.lay-b .timeline { position: relative; display: grid; gap: 14px; padding-left: 28px; }
+			.lay-b .timeline::before { content: ''; position: absolute; left: 7px; top: 8px; bottom: 8px; width: 2px; background: var(--line); }
+			.lay-b .tl { position: relative; }
+			.lay-b .tl::before { content: ''; position: absolute; left: -26px; top: 22px; width: 12px; height: 12px; border-radius: 50%; background: var(--surface); box-shadow: inset 0 0 0 2px var(--accent); }
+			.lay-b .tl.pending::before { box-shadow: inset 0 0 0 2px var(--warn); animation: pulse 1.4s infinite; }
+			.lay-b .tl .card { padding: 16px 18px; }
+			.lay-b .gen .tag { font: 600 13px 'Fraunces', serif; color: var(--accent); }
+			.lay-b .gen .hyp { font-size: 15px; }
+			.lay-b .gain { font: 600 20px/1 'Fraunces', serif; color: var(--good); margin-left: auto; }
+			.lay-b .tried { font-size: 12px; color: var(--muted); }
+			.lay-b .stream { max-height: 300px; overflow: auto; }
+			.lay-b .ev { grid-template-columns: 58px 1fr; }
+			.lay-b .ev .k { display: none; }
+			.lay-b .costline { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+			.lay-b .costline .num { font-size: 22px; }
+
+			/* C: Diretta */
+			.lay-c { padding: 20px; display: grid; grid-template-columns: 280px minmax(0, 1fr) 300px; grid-template-rows: auto 1fr auto; gap: 16px; min-height: calc(100vh - 40px); }
+			.lay-c .c-top { grid-column: 1 / -1; display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+			.lay-c .c-brand { font: 700 18px 'Space Grotesk', sans-serif; letter-spacing: -0.01em; }
+			.lay-c .onair { display: inline-flex; align-items: center; gap: 8px; padding: 4px 10px; border-radius: 999px; background: var(--bad); color: #fff; font: 600 11px 'Space Grotesk', sans-serif; letter-spacing: 0.08em; }
+			.lay-c .onair i { width: 7px; height: 7px; border-radius: 50%; background: #fff; animation: pulse 1.2s infinite; }
+			.lay-c .onair.off { background: var(--raise); color: var(--muted); }
+			.lay-c .onair.off i { background: var(--muted); animation: none; }
+			.lay-c .phase { flex: 1 1 400px; }
+			.lay-c .ph { border-radius: 8px; }
+			.lay-c .panel { background: var(--surface); border-radius: 16px; padding: 16px; box-shadow: inset 0 0 0 1px var(--line); min-width: 0; }
+			.lay-c .c-center { display: grid; gap: 14px; justify-items: center; align-content: start; }
+			.lay-c .c-center .boardwrap { width: min(100%, calc(100vh - 290px)); min-width: 280px; border-radius: 8px; overflow: hidden; box-shadow: 0 0 0 8px var(--surface), 0 0 0 9px var(--line); margin: 9px; }
+			.lay-c .caption { width: min(100%, 760px); text-align: center; font: 500 20px/1.4 'Space Grotesk', sans-serif; min-height: 56px; }
+			.lay-c .caption small { display: block; font: 500 11px var(--mono); color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 6px; }
+			.lay-c .score { display: grid; gap: 10px; }
+			.lay-c .side { display: grid; grid-template-columns: 14px 1fr auto; gap: 10px; align-items: center; padding: 12px; border-radius: 10px; background: var(--raise); }
+			.lay-c .side .sw { width: 14px; height: 14px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line); }
+			.lay-c .side b { display: block; font: 600 16px 'Space Grotesk', sans-serif; }
+			.lay-c .side .num { font-size: 18px; }
+			.lay-c .bigstat { font: 600 34px/1 'Space Grotesk', sans-serif; letter-spacing: -0.02em; }
+			.lay-c .c-right { display: grid; gap: 16px; align-content: start; }
+			.lay-c .c-left { display: grid; gap: 16px; align-content: start; }
+			.lay-c .ribbon { grid-column: 1 / -1; display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; }
+			.lay-c .chip { flex: 0 0 auto; display: grid; gap: 2px; padding: 10px 14px; border-radius: 12px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); min-width: 150px; max-width: 240px; }
+			.lay-c .chip .tag { font: 600 13px 'Space Grotesk', sans-serif; color: var(--text); }
+			.lay-c .chip .hyp { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+			.lay-c .chip.pending { box-shadow: inset 0 0 0 1px var(--accent); }
+			.lay-c .chip .num { font-size: 12px; }
+
+			/* Narrow screens */
+			@media (max-width: 1100px) {
+				.lay-a { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: 'top top' 'banner banner' 'side side' 'board board' 'elo elo' 'stream stream' 'gens gens'; }
+				.lay-a .a-stream { max-height: 420px; }
+				.lay-b { grid-template-columns: 1fr; }
+				.lay-b .b-left { position: static; }
+				.lay-c { grid-template-columns: 1fr; }
+				.lay-c .c-top { order: -2; }
+				.lay-c .c-center { order: -1; }
+				.lay-c .c-top .phase { flex-basis: 100%; }
+				.lay-c .c-center .boardwrap { width: 100%; min-width: 0; margin: 9px 0; }
+			}
+			@media (max-width: 600px) {
+				.lay-a { padding: 0; grid-template-columns: 1fr; grid-template-areas: 'top' 'banner' 'side' 'board' 'elo' 'stream' 'gens'; }
+				.lay-a .a-board { grid-template-columns: 1fr; }
+				.lay-a .a-gens .hide-sm { display: none; }
+				.lay-b { padding: 24px 16px 48px; gap: 28px; }
+				.lay-b h1 { font-size: 34px; }
+				.lay-b .b-now { grid-template-columns: 1fr; }
+				.lay-c { padding: 12px 16px; }
+				.lay-c .caption { font-size: 17px; }
+				.ev { grid-template-columns: 52px 1fr; }
+				.ev .k { display: none; }
+				.phase { grid-template-columns: repeat(2, 1fr); }
+			}
+		</style>
+	</head>
+	<body data-v="a">
+		<div class="switch">
+			<span data-buttons></span>
+			<p data-desc></p>
+			<button data-theme-toggle>t tema</button>
+		</div>
+
+		<!-- A: Laboratorio -->
+		<main class="lay-a" data-only="a">
+			<section class="a-top">
+				<span class="brand">darwin<b>-</b>chess</span>
+				<span class="live" data-slot="livedot"></span>
+				<div data-slot="phase"></div>
+			</section>
+			<div class="banner" data-slot="banner"></div>
+			<section class="a-side">
+				<div>
+					<div class="label">Campione</div>
+					<div data-slot="champ"></div>
+				</div>
+				<div>
+					<div class="label" style="margin-bottom: 6px">Esperimento in corso</div>
+					<div data-slot="exp"></div>
+				</div>
+				<div>
+					<div class="label" style="margin-bottom: 6px">Spesa di oggi</div>
+					<div data-slot="cost"></div>
+				</div>
+				<div>
+					<div class="label" style="margin-bottom: 6px">Oggi, scarti per cancello</div>
+					<div data-slot="rejects"></div>
+				</div>
+			</section>
+			<section class="a-board">
+				<div>
+					<div class="a-head"><span class="a-title">Partita live</span><span class="muted num" data-slot="gameno"></span></div>
+					<div class="boardwrap" data-slot="board"></div>
+				</div>
+				<div>
+					<div class="players" data-slot="players"></div>
+					<div style="margin-top: 12px; max-height: 360px; overflow: auto" data-slot="moves"></div>
+				</div>
+			</section>
+			<section class="a-elo">
+				<div class="a-head"><span class="a-title">Elo del campione</span><span class="muted" style="font-size: 12px">tratteggiate: ancore</span></div>
+				<div class="elo" data-slot="elo"></div>
+			</section>
+			<section class="a-stream">
+				<div class="a-head"><span class="a-title">Agente</span><span class="muted num" style="font-size: 12px">Haiku 5.5</span></div>
+				<div data-slot="stream"></div>
+			</section>
+			<section class="a-gens">
+				<div class="a-head"><span class="a-title">Generazioni</span><span class="muted num" style="font-size: 12px" data-slot="genstotal"></span></div>
+				<div data-slot="genstable"></div>
+			</section>
+		</main>
+
+		<!-- B: Genealogia -->
+		<main class="lay-b" data-only="b">
+			<div class="b-left">
+				<header>
+					<div class="label">darwin-chess</div>
+					<h1 data-slot="headline"></h1>
+					<p class="lede" data-slot="lede"></p>
+				</header>
+				<div class="banner" data-slot="banner" style="border-radius: 12px"></div>
+				<div data-slot="phase"></div>
+				<div class="card">
+					<h2 style="margin-bottom: 12px">Elo nel tempo</h2>
+					<div class="elo" data-slot="elo"></div>
+				</div>
+				<div class="card">
+					<div class="costline"><h2>Spesa di oggi</h2></div>
+					<div data-slot="cost"></div>
+				</div>
+			</div>
+			<div>
+				<h2 style="margin: 4px 0 18px">Generazioni</h2>
+				<div class="timeline" data-slot="timeline"></div>
+			</div>
+		</main>
+
+		<!-- C: Diretta -->
+		<main class="lay-c" data-only="c">
+			<div class="c-top">
+				<span class="c-brand">darwin-chess</span>
+				<span class="onair" data-slot="onair"></span>
+				<div data-slot="phase"></div>
+			</div>
+			<div class="c-left">
+				<div class="panel">
+					<div class="label" style="margin-bottom: 10px" data-slot="gameno"></div>
+					<div class="score" data-slot="score"></div>
+				</div>
+				<div class="panel">
+					<div class="label" style="margin-bottom: 8px">SPRT: il candidato è più forte?</div>
+					<div data-slot="exp"></div>
+				</div>
+			</div>
+			<div class="c-center">
+				<div class="boardwrap" data-slot="board"></div>
+				<div class="caption" data-slot="caption"></div>
+			</div>
+			<div class="c-right">
+				<div class="banner" data-slot="banner" style="border-radius: 12px"></div>
+				<div class="panel">
+					<div class="label">Campione</div>
+					<div data-slot="champ"></div>
+					<div class="elo" style="margin-top: 10px" data-slot="elo"></div>
+				</div>
+				<div class="panel">
+					<div class="label" style="margin-bottom: 8px">Spesa di oggi</div>
+					<div data-slot="cost"></div>
+				</div>
+			</div>
+			<div class="ribbon" data-slot="ribbon"></div>
+		</main>
+
+		<script>
+			const DESC = {
+				a: 'Laboratorio: tutto visibile insieme, per sorvegliare un sistema che gira da solo',
+				a1: 'giorno 1: A in genesi, niente campione né Elo, l\'agente combatte col perft',
+				a2: 'budget esaurito: A con l\'agente in pausa e lo SPRT che finisce',
+				b: 'Genealogia: la storia dell\'evoluzione è il prodotto, la partita è un dettaglio',
+				b1: 'giorno 1: B in genesi',
+				b2: 'budget esaurito: B in pausa',
+				c: 'Diretta: uno spettacolo da secondo schermo, l\'agente come sottotitoli',
+				c1: 'giorno 1: C in genesi',
+				c2: 'budget esaurito: C in pausa'
+			};
+
+			// Data. The game is legal (validated with python-chess); everything else is invented.
+			const GAME = [["e4","e2","e4","rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR"],["e5","e7","e5","rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR"],["Nf3","g1","f3","rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R"],["Nc6","b8","c6","r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R"],["Bc4","f1","c4","r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R"],["Bc5","f8","c5","r1bqk1nr/pppp1ppp/2n5/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R"],["c3","c2","c3","r1bqk1nr/pppp1ppp/2n5/2b1p3/2B1P3/2P2N2/PP1P1PPP/RNBQK2R"],["Nf6","g8","f6","r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/2P2N2/PP1P1PPP/RNBQK2R"],["d3","d2","d3","r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/2PP1N2/PP3PPP/RNBQK2R"],["d6","d7","d6","r1bqk2r/ppp2ppp/2np1n2/2b1p3/2B1P3/2PP1N2/PP3PPP/RNBQK2R"],["O-O","e1","g1","r1bqk2r/ppp2ppp/2np1n2/2b1p3/2B1P3/2PP1N2/PP3PPP/RNBQ1RK1"],["O-O","e8","g8","r1bq1rk1/ppp2ppp/2np1n2/2b1p3/2B1P3/2PP1N2/PP3PPP/RNBQ1RK1"],["Re1","f1","e1","r1bq1rk1/ppp2ppp/2np1n2/2b1p3/2B1P3/2PP1N2/PP3PPP/RNBQR1K1"],["a6","a7","a6","r1bq1rk1/1pp2ppp/p1np1n2/2b1p3/2B1P3/2PP1N2/PP3PPP/RNBQR1K1"],["Bb3","c4","b3","r1bq1rk1/1pp2ppp/p1np1n2/2b1p3/4P3/1BPP1N2/PP3PPP/RNBQR1K1"],["Ba7","c5","a7","r1bq1rk1/bpp2ppp/p1np1n2/4p3/4P3/1BPP1N2/PP3PPP/RNBQR1K1"],["h3","h2","h3","r1bq1rk1/bpp2ppp/p1np1n2/4p3/4P3/1BPP1N1P/PP3PP1/RNBQR1K1"],["h6","h7","h6","r1bq1rk1/bpp2pp1/p1np1n1p/4p3/4P3/1BPP1N1P/PP3PP1/RNBQR1K1"],["Nbd2","b1","d2","r1bq1rk1/bpp2pp1/p1np1n1p/4p3/4P3/1BPP1N1P/PP1N1PP1/R1BQR1K1"],["Re8","f8","e8","r1bqr1k1/bpp2pp1/p1np1n1p/4p3/4P3/1BPP1N1P/PP1N1PP1/R1BQR1K1"],["Nf1","d2","f1","r1bqr1k1/bpp2pp1/p1np1n1p/4p3/4P3/1BPP1N1P/PP3PP1/R1BQRNK1"],["Be6","c8","e6","r2qr1k1/bpp2pp1/p1npbn1p/4p3/4P3/1BPP1N1P/PP3PP1/R1BQRNK1"],["Bc2","b3","c2","r2qr1k1/bpp2pp1/p1npbn1p/4p3/4P3/2PP1N1P/PPB2PP1/R1BQRNK1"],["d5","d6","d5","r2qr1k1/bpp2pp1/p1n1bn1p/3pp3/4P3/2PP1N1P/PPB2PP1/R1BQRNK1"],["exd5","e4","d5","r2qr1k1/bpp2pp1/p1n1bn1p/3Pp3/8/2PP1N1P/PPB2PP1/R1BQRNK1"],["Bxd5","e6","d5","r2qr1k1/bpp2pp1/p1n2n1p/3bp3/8/2PP1N1P/PPB2PP1/R1BQRNK1"],["Ng3","f1","g3","r2qr1k1/bpp2pp1/p1n2n1p/3bp3/8/2PP1NNP/PPB2PP1/R1BQR1K1"],["Qd6","d8","d6","r3r1k1/bpp2pp1/p1nq1n1p/3bp3/8/2PP1NNP/PPB2PP1/R1BQR1K1"],["Nh4","f3","h4","r3r1k1/bpp2pp1/p1nq1n1p/3bp3/7N/2PP2NP/PPB2PP1/R1BQR1K1"],["Rad8","a8","d8","3rr1k1/bpp2pp1/p1nq1n1p/3bp3/7N/2PP2NP/PPB2PP1/R1BQR1K1"],["Qf3","d1","f3","3rr1k1/bpp2pp1/p1nq1n1p/3bp3/7N/2PP1QNP/PPB2PP1/R1B1R1K1"],["Be6","d5","e6","3rr1k1/bpp2pp1/p1nqbn1p/4p3/7N/2PP1QNP/PPB2PP1/R1B1R1K1"],["Nhf5","h4","f5","3rr1k1/bpp2pp1/p1nqbn1p/4pN2/8/2PP1QNP/PPB2PP1/R1B1R1K1"],["Bxf5","e6","f5","3rr1k1/bpp2pp1/p1nq1n1p/4pb2/8/2PP1QNP/PPB2PP1/R1B1R1K1"],["Nxf5","g3","f5","3rr1k1/bpp2pp1/p1nq1n1p/4pN2/8/2PP1Q1P/PPB2PP1/R1B1R1K1"],["Qd7","d6","d7","3rr1k1/bppq1pp1/p1n2n1p/4pN2/8/2PP1Q1P/PPB2PP1/R1B1R1K1"],["Bxh6","c1","h6","3rr1k1/bppq1pp1/p1n2n1B/4pN2/8/2PP1Q1P/PPB2PP1/R3R1K1"],["gxh6","g7","h6","3rr1k1/bppq1p2/p1n2n1p/4pN2/8/2PP1Q1P/PPB2PP1/R3R1K1"],["Qg3+","f3","g3","3rr1k1/bppq1p2/p1n2n1p/4pN2/8/2PP2QP/PPB2PP1/R3R1K1"],["Kh8","g8","h8","3rr2k/bppq1p2/p1n2n1p/4pN2/8/2PP2QP/PPB2PP1/R3R1K1"],["Qg7#","g3","g7","3rr2k/bppq1pQ1/p1n2n1p/4pN2/8/2PP3P/PPB2PP1/R3R1K1"]];
+			const START = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR';
+
+			const ANCHORS = [
+				{ name: 'Casuale', elo: 400 },
+				{ name: 'Stockfish 1320', elo: 1320 },
+				{ name: 'Stockfish 1500', elo: 1500 },
+				{ name: 'Stockfish 1800', elo: 1800 }
+			];
+			const GENS = [
+				{ n: 1, hyp: 'Bitboard move generator; prefers captures at 1 ply', elo: 520, gain: 'batte il casuale 71%', diff: '+1.214 −0', tried: 23, when: '22 nov 03:12' },
+				{ n: 2, hyp: 'Material evaluation with 2-ply minimax', elo: 760, gain: '+248 ± 52', diff: '+96 −11', tried: 6, when: '22 nov 05:40' },
+				{ n: 3, hyp: 'Alpha-beta with iterative deepening and time management', elo: 1090, gain: '+301 ± 45', diff: '+182 −40', tried: 9, when: '22 nov 09:58' },
+				{ n: 4, hyp: 'Quiescence search on captures, MVV-LVA move ordering', elo: 1310, gain: '+214 ± 38', diff: '+141 −12', tried: 14, when: '22 nov 17:21' },
+				{ n: 5, hyp: 'Zobrist transposition table (64 MB) with hash move first', elo: 1450, gain: '+131 ± 30', diff: '+203 −18', tried: 17, when: '23 nov 02:47' },
+				{ n: 6, hyp: 'Piece-square tables tuned on self-play results', elo: 1560, gain: '+97 ± 24', diff: '+412 −35', tried: 21, when: '23 nov 13:05' },
+				{ n: 7, hyp: 'Null-move pruning and late move reductions', elo: 1690, gain: '+121 ± 27', diff: '+88 −9', tried: 19, when: '24 nov 01:33' },
+				{ n: 8, hyp: 'NNUE v1: 768→64→1 net trained on 1.2M self-play positions', elo: 1745, gain: '+43 ± 15', diff: '+631 −120', tried: 33, when: '24 nov 10:47' }
+			];
+
+			const LIVE_EVENTS = [
+				['17:41:02', 'note', 'Iteration 143 · phase: evolution · champion gen-8 (1745)'],
+				['17:41:05', 'thought', 'Since gen-8, 11 of 14 rejections were eval tweaks that lost the SPRT: the net is still noisy. Search changes passed 2 of 3. Trying aspiration windows around the previous iteration\'s score.'],
+				['17:41:09', 'tool', 'read src/search.rs (412 lines)'],
+				['17:41:31', 'tool', 'write src/search.rs (+38 −6)'],
+				['17:41:33', 'tool', 'shell: cargo build --release → ok, 14.2 s'],
+				['17:41:52', 'tool', 'perft_check depth 5 on 8 random positions → ok'],
+				['17:42:10', 'tool', 'shell: ./bench.sh → 1.84M nps (+3%)'],
+				['17:42:20', 'note', 'submit: aspiration windows ±35 cp, widen ×2 on fail'],
+				['17:42:36', 'gate', 'build ok in 15 s'],
+				['17:43:01', 'gate', 'perft ok on 12 random positions'],
+				['17:45:40', 'gate', 'smoke ok: 100 games, 0 illegal moves, 0 crashes'],
+				['17:45:41', 'sprt', 'started · bounds elo0 0, elo1 5 · α = β = 0.05']
+			];
+			const DAY1_EVENTS = [
+				['04:02:11', 'note', 'Iteration 7 · phase: genesis · no champion yet'],
+				['04:02:14', 'thought', 'Perft is off by small amounts only at depth ≥ 3, and only in positions with castling rights. My castling check tests the king squares but not the square the king passes through.'],
+				['04:02:20', 'tool', 'read src/movegen.rs (288 lines)'],
+				['04:02:41', 'tool', 'write src/movegen.rs (+14 −3)'],
+				['04:02:43', 'tool', 'shell: cargo build --release → ok, 9.8 s'],
+				['04:02:55', 'tool', 'perft_check depth 4 on 8 random positions → 7/8 ok'],
+				['04:02:56', 'thought', 'Remaining mismatch is in a position with an en passant square. Submitting anyway to get the full referee detail.'],
+				['04:03:01', 'gate', 'build ok in 11 s'],
+				['04:03:19', 'gate', 'perft failed: position 9 of 12, depth 3, e5d6 → 412, expected 409 (en passant leaves own king in check)']
+			];
+			const BUDGET_EVENTS = [
+				['19:58:40', 'note', 'Iteration 158 · phase: evolution · champion gen-8 (1745)'],
+				['19:58:44', 'thought', 'Aspiration windows (#143) failed at SPRT by a small margin. Trying a narrower window only at depth ≥ 6.'],
+				['19:59:02', 'tool', 'write src/search.rs (+11 −4)'],
+				['19:59:04', 'tool', 'shell: cargo build --release → ok, 13.9 s'],
+				['19:59:31', 'gate', 'build ok · perft ok · smoke ok'],
+				['19:59:32', 'sprt', 'started · bounds elo0 0, elo1 5'],
+				['19:59:33', 'stop', 'daily budget reached: $2.00 of $2.00 · agent paused until 01:00 · the running SPRT continues (no LLM calls)']
+			];
+
+			const STATES = {
+				live: {
+					phase: 2, champ: 8, events: LIVE_EVENTS, proj: 'al ritmo attuale si ferma verso le 21:30', cost: 1.24, iters: 89, gameNo: 413, sprt: { games: 412, w: 131, d: 170, l: 111, llr: 1.12, elo: '+11,4 ± 18,6' },
+					exp: { id: 143, hyp: 'Aspiration windows ±35 cp', gates: [['build', 'ok', '15 s'], ['perft', 'ok', '12 pos.'], ['smoke', 'ok', '100/100'], ['sprt', 'run', '412 part.']] },
+					rejects: [['build', 21], ['perft', 9], ['smoke', 6], ['sprt', 52], ['accettati', 1]],
+					caption: 'Search changes passed 2 of 3 since gen-8. Trying aspiration windows around the previous score.'
+				},
+				day1: {
+					phase: 0, champ: 0, events: DAY1_EVENTS, proj: 'al ritmo attuale oggi non tocca il tetto', cost: 0.09, iters: 7, gameNo: null, sprt: null,
+					exp: { id: 7, hyp: 'Fix castling through check', gates: [['build', 'ok', '11 s'], ['perft', 'ko', 'pos. 9/12'], ['smoke', 'idle', ''], ['sprt', 'idle', '']] },
+					rejects: [['build', 3], ['perft', 4], ['smoke', 0], ['sprt', 0], ['accettati', 0]],
+					caption: 'My castling check tests the king squares but not the square the king passes through.'
+				},
+				budget: {
+					phase: 2, champ: 8, events: BUDGET_EVENTS, proj: '', cost: 2.0, iters: 142, gameNo: 87, sprt: { games: 86, w: 25, d: 39, l: 22, llr: 0.21, elo: '+12,1 ± 41' },
+					exp: { id: 158, hyp: 'Aspiration windows from depth 6', gates: [['build', 'ok', '14 s'], ['perft', 'ok', '12 pos.'], ['smoke', 'ok', '100/100'], ['sprt', 'run', '86 part.']] },
+					rejects: [['build', 33], ['perft', 14], ['smoke', 9], ['sprt', 85], ['accettati', 1]],
+					caption: 'In pausa: tetto di spesa raggiunto. Lo SPRT in corso finisce comunque.'
+				}
+			};
+			const PHASES = [['Genesi', 'regole'], ['Primi passi', 'batti il casuale'], ['Evoluzione', 'SPRT sul campione'], ['Mondo', 'serve il bot Lichess']];
+			const BUDGET = 2;
+
+			// Rendering
+			const GLYPH = { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' };
+			const $all = (slot) => document.querySelectorAll(`[data-slot="${slot}"]`);
+			const fill = (slot, html) => $all(slot).forEach((el) => (el.innerHTML = html));
+			const eur = (x) => '$' + x.toFixed(2).replace('.', ',');
+
+			function boardHTML(fen, from, to) {
+				const rows = fen.split('/');
+				let out = '';
+				rows.forEach((row, r) => {
+					let f = 0;
+					for (const ch of row) {
+						if (/\d/.test(ch)) {
+							for (let i = 0; i < +ch; i++) out += sq(r, f++, null);
+						} else out += sq(r, f++, ch);
+					}
+				});
+				return `<div class="board">${out}</div>`;
+				function sq(r, f, p) {
+					const name = 'abcdefgh'[f] + (8 - r);
+					const dark = (r + f) % 2 === 1;
+					const hl = name === from || name === to;
+					const piece = p ? `<span class="pc ${p === p.toUpperCase() ? 'w' : 'b'}">${GLYPH[p.toLowerCase()]}︎</span>` : '';
+					const co = (r === 7 ? `<span class="co f">${'abcdefgh'[f]}</span>` : '') + (f === 0 ? `<span class="co r">${8 - r}</span>` : '');
+					return `<div class="sq${dark ? ' d' : ''}${hl ? ' hl' : ''}">${piece}${co}</div>`;
+				}
+			}
+
+			function eloHTML(state, compact) {
+				const W = compact ? 340 : 600, H = compact ? 170 : 230, L = 8, R = compact ? 92 : 118, T = 10, B = 22;
+				const gens = GENS.slice(0, state.champ);
+				const yMin = 200, yMax = 2000;
+				const y = (e) => T + (H - T - B) * (1 - (e - yMin) / (yMax - yMin));
+				const n = 9;
+				const x = (i) => L + ((W - L - R) * (i - 1)) / (n - 1);
+				let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Elo del campione per generazione">`;
+				[500, 1000, 1500, 2000].forEach((e) => (s += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(e)}" y2="${y(e)}"/><text class="ax" x="${L}" y="${y(e) - 3}">${e}</text>`));
+				ANCHORS.forEach((a) => (s += `<line class="anchor" x1="${L}" x2="${W - R + 6}" y1="${y(a.elo)}" y2="${y(a.elo)}"/><text class="anchor-t" x="${W - R + 10}" y="${y(a.elo) + 3}">${a.name}</text>`));
+				if (!gens.length) {
+					s += `<text class="empty-t" x="${(W - R) / 2}" y="${H / 2}" text-anchor="middle">Nessun campione: l'Elo si misura da gen-1</text>`;
+				} else {
+					const pts = gens.map((g) => [x(g.n), y(g.elo)]);
+					let d = `M${pts[0][0]},${pts[0][1]}`;
+					for (let i = 1; i < pts.length; i++) d += ` H${pts[i][0]} V${pts[i][1]}`;
+					s += `<path class="area" d="${d} V${H - B} H${pts[0][0]} Z"/><path class="line" d="${d}"/>`;
+					if (state.sprt) {
+						const last = pts[pts.length - 1];
+						s += `<path class="cand" d="M${last[0]},${last[1]} L${x(9)},${y(1756)}"/><circle class="pt" cx="${x(9)}" cy="${y(1756)}" r="3.5" style="stroke-dasharray:2 2"/>`;
+					}
+					pts.forEach((p, i) => (s += `<circle class="pt" cx="${p[0]}" cy="${p[1]}" r="3.5"/>${compact ? '' : `<text class="ax" x="${p[0]}" y="${H - 6}" text-anchor="middle">${gens[i].n}</text>`}`));
+				}
+				return s + '</svg>';
+			}
+
+			function streamHTML(events, freshFrom) {
+				return `<div class="stream">${events
+					.map((e, i) => `<div class="ev k-${e[1]}${i >= freshFrom ? ' new' : ''}"><span class="t num">${e[0]}</span><span class="k">${{ note: 'nota', thought: 'pensa', tool: 'tool', gate: 'cancello', sprt: 'sprt', stop: 'pausa' }[e[1]]}</span><span class="x">${e[2]}</span></div>`)
+					.join('')}</div>`;
+			}
+
+			function gatesHTML(exp) {
+				const word = { ok: 'ok', run: 'in corso', ko: 'fallito', idle: '' };
+				return `<div class="gates">${exp.gates.map((g) => `<span class="gate ${g[1]}"><i></i>${g[0]}${g[2] ? ` <span class="muted">${g[2]}</span>` : ''}</span>`).join('')}</div>`;
+			}
+
+			function sprtHTML(sp) {
+				if (!sp) return '<p class="muted" style="margin:8px 0 0;font-size:12px">Nessuno SPRT: in genesi conta solo il perft.</p>';
+				const pct = Math.max(-1, Math.min(1, sp.llr / 2.94));
+				const left = pct >= 0 ? 50 : 50 + pct * 50;
+				return `<div style="margin-top:12px"><div class="sprt"><span class="mid"></span><span class="fill" style="left:${left}%;width:${Math.abs(pct) * 50}%"></span></div>
+					<div class="sprt-legend"><span>−2,94 scarta</span><span>LLR ${sp.llr.toFixed(2).replace('.', ',')}</span><span>accetta 2,94</span></div>
+					<div class="num" style="font-size:12px;margin-top:6px">${sp.games} partite · V ${sp.w} · P ${sp.d} · S ${sp.l} · Elo ${sp.elo}</div></div>`;
+			}
+
+			function expHTML(state) {
+				const e = state.exp;
+				return `<div style="font-size:13px;margin-bottom:8px"><span class="num muted">#${e.id}</span> ${e.hyp}</div>${gatesHTML(e)}${sprtHTML(state.sprt)}`;
+			}
+
+			function costHTML(state) {
+				const full = state.cost >= BUDGET;
+				const per = state.iters ? state.cost / state.iters : 0;
+				return `<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+					<span class="num" style="font-size:20px">${eur(state.cost)} <span class="muted" style="font-size:12px">di ${eur(BUDGET)}</span></span>
+					<span class="num muted" style="font-size:12px">${state.iters} iter.</span></div>
+					<div class="meter${full ? ' full' : ''}"><i style="width:${Math.min(100, (state.cost / BUDGET) * 100)}%"></i></div>
+					<div class="muted" style="font-size:12px;margin-top:6px">${full ? 'Tetto raggiunto: riprende alle 01:00' : `${(per * 100).toFixed(1).replace('.', ',')} cent a iterazione · ${state.proj}`}</div>`;
+			}
+
+			function phaseHTML(state) {
+				return `<div class="phase">${PHASES.map((p, i) => `<div class="ph${i < state.phase ? ' done' : ''}${i === state.phase ? ' cur' : ''}">${p[0]}<small>${p[1]}</small></div>`).join('')}</div>`;
+			}
+
+			function champHTML(state) {
+				if (!state.champ) return '<div class="muted" style="font-size:13px;margin-top:4px">Nessuno ancora: serve un generatore di mosse che passi il perft.</div>';
+				const g = GENS[state.champ - 1];
+				return `<div style="display:flex;align-items:baseline;gap:10px;margin-top:2px"><span class="big num bigstat">${g.elo}</span><span class="num muted">gen-${g.n}</span></div><div class="muted" style="font-size:12px">Elo stimato contro le ancore</div>`;
+			}
+
+			function rejectsHTML(state) {
+				const max = Math.max(...state.rejects.map((r) => r[1]), 1);
+				return `<div style="display:grid;gap:5px">${state.rejects
+					.map((r) => `<div style="display:grid;grid-template-columns:72px 1fr 28px;gap:8px;align-items:center;font-size:12px"><span class="muted">${r[0]}</span><div class="meter"><i style="width:${(r[1] / max) * 100}%;${r[0] === 'accettati' ? 'background:var(--good)' : ''}"></i></div><span class="num" style="text-align:right">${r[1]}</span></div>`)
+					.join('')}</div>`;
+			}
+
+			function gensTableHTML(state) {
+				const gens = GENS.slice(0, state.champ).reverse();
+				if (!gens.length) return '<div class="empty">Nessuna generazione: gen-0 è il seme vuoto. La prima arriva quando un candidato passa il perft e batte il giocatore casuale.</div>';
+				return `<table><thead><tr><th>gen</th><th>Ipotesi dell'agente</th><th class="num">Elo</th><th class="num">Guadagno</th><th class="num hide-sm">Tentativi</th><th class="num hide-sm">Diff</th><th class="num hide-sm">Quando</th></tr></thead><tbody>${gens
+					.map((g) => `<tr><td class="num">${g.n}</td><td>${g.hyp}</td><td class="num">${g.elo}</td><td class="num good">${g.gain}</td><td class="num hide-sm">${g.tried}</td><td class="num hide-sm muted">${g.diff}</td><td class="num hide-sm muted">${g.when}</td></tr>`)
+					.join('')}</tbody></table>`;
+			}
+
+			function timelineHTML(state) {
+				const gens = GENS.slice(0, state.champ).reverse();
+				const pending = `<div class="tl pending"><div class="card">
+					<div class="h" style="display:flex;gap:10px;align-items:baseline;margin-bottom:12px"><span class="label">In corso · esperimento #${state.exp.id}</span></div>
+					<div class="b-now"><div><div class="boardwrap" data-slot="board"></div><div class="num muted" style="font-size:12px;margin-top:6px" data-slot="gameno"></div></div>
+					<div style="min-width:0"><div style="font:600 18px 'Fraunces',serif;margin-bottom:10px">${state.exp.hyp}</div>${gatesHTML(state.exp)}${sprtHTML(state.sprt)}
+					<div style="margin-top:14px" data-slot="stream"></div></div></div></div></div>`;
+				const items = gens
+					.map((g) => `<div class="tl"><div class="card gen"><div class="h"><span class="tag">gen-${g.n}</span><span class="meta">${g.when} · ${g.tried} tentativi · ${g.diff}</span><span class="gain">${g.n === 1 ? '' : g.gain.split(' ')[0]}</span></div>
+						<div class="hyp">${g.hyp}</div><div class="tried">${g.n === 1 ? g.gain : `Elo ${g.elo} · intervallo ${g.gain.split('± ')[1] ? '± ' + g.gain.split('± ')[1] : ''}`}</div></div></div>`)
+					.join('');
+				const seed = `<div class="tl"><div class="card gen"><div class="h"><span class="tag">gen-0</span><span class="meta">21 nov 23:58</span></div><div class="hyp">Il seme: un crate Rust vuoto e il contratto.</div></div></div>`;
+				return pending + items + seed;
+			}
+
+			function scoreHTML(state) {
+				if (!state.sprt) return '<div class="muted" style="font-size:13px">In genesi non si gioca: l\'arbitro verifica solo il generatore di mosse.</div>';
+				const g = GENS[state.champ - 1];
+				return `<div class="side"><span class="sw" style="background:#fbfaf7"></span><div><b>Candidato #${state.exp.id}</b><span class="muted" style="font-size:12px">${state.exp.hyp}</span></div><span class="num">${state.sprt.w}</span></div>
+					<div class="side"><span class="sw" style="background:#16140f"></span><div><b>Campione gen-${g.n}</b><span class="muted" style="font-size:12px">Elo ${g.elo}</span></div><span class="num">${state.sprt.l}</span></div>
+					<div class="num muted" style="font-size:12px;text-align:center">patte ${state.sprt.d}</div>`;
+			}
+
+			function ribbonHTML(state) {
+				const gens = GENS.slice(0, state.champ).reverse();
+				const pending = `<div class="chip pending"><span class="tag">#${state.exp.id} in corso</span><span class="hyp">${state.exp.hyp}</span><span class="num muted">${state.sprt ? 'SPRT ' + state.sprt.games + ' partite' : 'perft'}</span></div>`;
+				return pending + gens.map((g) => `<div class="chip"><span class="tag">gen-${g.n} · ${g.elo}</span><span class="hyp" title="${g.hyp}">${g.hyp}</span><span class="num good">${g.n === 1 ? 'batte il casuale' : g.gain.split(' ')[0]}</span></div>`).join('') + `<div class="chip"><span class="tag">gen-0</span><span class="hyp">Il seme vuoto</span><span class="num muted">21 nov</span></div>`;
+			}
+
+			function perftHTML() {
+				const rows = [['startpos', 4, '197.281', '197.281', true], ['kiwipete', 3, '97.862', '97.862', true], ['random 9', 3, '412', '409', false], ['random 10', 4, '43.238', '43.238', true]];
+				return `<div class="board-empty" style="display:block;text-align:left"><div class="label" style="margin-bottom:10px">Ultimo controllo perft</div>
+					<table class="num" style="width:100%;font-size:12px;border-collapse:collapse">${rows.map((r) => `<tr><td style="padding:3px 0">${r[0]}</td><td>d${r[1]}</td><td style="text-align:right">${r[2]}</td><td style="text-align:right" class="${r[4] ? 'good' : 'bad'}">${r[4] ? 'ok' : 'atteso ' + r[3]}</td></tr>`).join('')}</table>
+					<p style="font-size:12px;margin:12px 0 0">Nessuna partita: in genesi l'arbitro verifica solo il generatore di mosse.</p></div>`;
+			}
+
+			// State and live loop
+			let state = STATES.live;
+			let ply = 0;
+			let events = [];
+			let timers = [];
+
+			function renderAll() {
+				const isDay1 = state === STATES.day1;
+				const isBudget = state === STATES.budget;
+				fill('phase', phaseHTML(state));
+				fill('timeline', timelineHTML(state));
+				fill('elo', '');
+				$all('elo').forEach((el) => (el.innerHTML = eloHTML(state, el.closest('.lay-c') !== null)));
+				fill('champ', champHTML(state));
+				fill('exp', expHTML(state));
+				fill('cost', costHTML(state));
+								fill('rejects', rejectsHTML(state));
+				fill('genstable', gensTableHTML(state));
+				fill('genstotal', `${state.champ} generazioni su ${GENS.slice(0, state.champ).reduce((a, g) => a + g.tried, 0) + (state.champ ? 1 : 7)} esperimenti`);
+				fill('ribbon', ribbonHTML(state));
+				fill('score', scoreHTML(state));
+				fill('banner', isBudget ? '<b>In pausa.</b> Tetto di spesa di oggi raggiunto ($2,00 su $2,00). L\'agente riprende alle 01:00; lo SPRT in corso finisce comunque.' : '');
+				$all('banner').forEach((el) => (el.hidden = !isBudget));
+				fill('livedot', isBudget ? 'agente in pausa' : 'live');
+				$all('livedot').forEach((el) => el.classList.toggle('off', isBudget));
+				fill('onair', isBudget ? '<i></i>AGENTE IN PAUSA' : '<i></i>IN DIRETTA');
+				$all('onair').forEach((el) => el.classList.toggle('off', isBudget));
+				fill('headline', isDay1 ? 'Giorno 1: il motore non sa ancora muovere.' : `Otto generazioni, da 520 a ${GENS[state.champ - 1].elo} Elo.`);
+				fill('lede', isDay1 ? 'L\'agente ha scritto un generatore di mosse e lo sta correggendo contro il perft. Finché non passa, non ci sono partite.' : 'Ogni generazione è una modifica che ha vinto contro la precedente. In mezzo, 141 tentativi scartati.');
+				fill('caption', `<small>${isBudget ? 'Agente in pausa' : 'L\'agente sta pensando'}</small>${state.caption}`);
+				events = state.events.slice();
+				fill('stream', streamHTML(events, events.length));
+				renderBoard();
+			}
+
+			function renderBoard() {
+				if (state === STATES.day1) {
+					fill('board', perftHTML());
+					fill('moves', '');
+					fill('players', '');
+					fill('gameno', 'Genesi: nessuna partita');
+					return;
+				}
+				const m = ply > 0 ? GAME[ply - 1] : null;
+				fill('board', boardHTML(m ? m[3] : START, m?.[1], m?.[2]));
+				let mv = '';
+				for (let i = 0; i < GAME.length; i += 2) {
+					const cur = (k) => (k === ply - 1 ? ' class="cur"' : '');
+					mv += `<span class="n">${i / 2 + 1}.</span><span${cur(i)}>${GAME[i][0]}</span><span${cur(i + 1)}>${GAME[i + 1]?.[0] ?? ''}</span>`;
+				}
+				fill('moves', `<div class="moves">${mv}</div>`);
+				const g = GENS[state.champ - 1];
+				fill('players', `<div><span class="pc w" style="font-size:14px">♚︎</span> #${state.exp.id} candidato</div><div><span class="pc b" style="font-size:14px">♚︎</span> gen-${g.n} campione</div><div class="muted">8+0,08 s</div>`);
+				fill('gameno', `Partita ${state.gameNo} dello SPRT${ply === GAME.length ? ' · 1-0 matto' : ''}`);
+			}
+
+			function startLoop() {
+				timers.forEach(clearInterval);
+				timers = [];
+				ply = 0;
+				if (state === STATES.day1) return;
+				timers.push(
+					setInterval(() => {
+						if (ply < GAME.length) ply++;
+						else {
+							ply = 0;
+							state.gameNo++;
+							if (state.sprt) {
+								state.sprt.games++;
+								state.sprt.w++;
+								state.sprt.llr = Math.min(2.9, state.sprt.llr + 0.04);
+								fill('exp', expHTML(state));
+								fill('score', scoreHTML(state));
+								if (state === STATES.live) pushEvent(['17:52:' + String(10 + (state.gameNo % 50)).padStart(2, '0'), 'sprt', `game ${state.gameNo - 1}: 1-0 checkmate · ${state.sprt.games} games · LLR ${state.sprt.llr.toFixed(2)}`]);
+							}
+						}
+						renderBoard();
+					}, 900)
+				);
+				if (state === STATES.live) {
+					const extra = [
+						['17:47:12', 'sprt', '100 games · W 34 D 41 L 25 · LLR 0.31'],
+						['17:49:40', 'sprt', '250 games · W 80 D 103 L 67 · LLR 0.68'],
+						['17:51:58', 'sprt', '412 games · W 131 D 170 L 111 · LLR 1.12 · +11.4 ± 18.6']
+					];
+					let k = 0;
+					timers.push(
+						setInterval(() => {
+							if (k < extra.length) pushEvent(extra[k++]);
+							if (state.cost < 1.3) {
+								state.cost += 0.003;
+								fill('cost', costHTML(state));
+							}
+						}, 3200)
+					);
+				}
+			}
+
+			function pushEvent(e) {
+				events.push(e);
+				$all('stream').forEach((el) => {
+					el.innerHTML = streamHTML(events, events.length - 1);
+					const sc = el.closest('.a-stream, .stream');
+					const box = el.closest('.a-stream') || el.querySelector('.stream');
+					if (box) box.scrollTop = box.scrollHeight;
+				});
+				const last = [...events].reverse().find((x) => x[1] === 'thought');
+				if (last && state === STATES.live) fill('caption', `<small>L'agente sta pensando</small>${state.caption}`);
+			}
+
+			// Concept chrome (from the mockup template)
+			const KEY = `concept:${location.pathname}`;
+			const root = document.documentElement;
+			const body = document.body;
+			const base = (v) => v.replace(/\d+$/, '');
+			const load = () => {
+				try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { return {}; }
+			};
+			const save = (s) => {
+				try { localStorage.setItem(KEY, JSON.stringify(s)); } catch {}
+			};
+			const name = (v) => DESC[v].split(':')[0];
+			const label = (v) => (/\d$/.test(v) ? `${v.slice(-1)} ${base(v).toUpperCase()} ${name(v)}` : `${v.toUpperCase()} ${name(v)}`);
+			document.querySelector('[data-buttons]').innerHTML = Object.keys(DESC).map((v) => `<button data-v="${v}">${label(v)}</button>`).join(' ');
+
+			const pick = (v) => {
+				if (!DESC[v]) return;
+				body.dataset.v = v;
+				body.dataset.base = base(v);
+				document.querySelectorAll('.switch [data-v]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === v)));
+				document.querySelector('[data-desc]').textContent = DESC[v];
+				document.querySelectorAll('[data-only]').forEach((el) => {
+					const list = el.dataset.only.split(/\s+/);
+					el.hidden = !list.includes(v) && !list.includes(base(v));
+				});
+				history.replaceState(null, '', `${location.search}#${v}`);
+				const d = v.match(/\d$/)?.[0];
+				state = d === '1' ? STATES.day1 : d === '2' ? STATES.budget : STATES.live;
+				renderAll();
+				startLoop();
+			};
+			const setTheme = (t) => {
+				root.dataset.theme = t;
+				save({ ...load(), theme: t });
+			};
+			document.querySelector('.switch').addEventListener('click', (e) => {
+				const b = e.target.closest('[data-v]');
+				if (b) pick(b.dataset.v);
+			});
+			document.querySelector('[data-theme-toggle]').addEventListener('click', () => setTheme(root.dataset.theme === 'dark' ? 'light' : 'dark'));
+			addEventListener('keydown', (e) => {
+				if (e.metaKey || e.ctrlKey || e.altKey || e.target.closest('input, textarea, select, [contenteditable]')) return;
+				const k = e.key.toLowerCase();
+				if (k === 't') setTheme(root.dataset.theme === 'dark' ? 'light' : 'dark');
+				else if (k === 'p') body.dataset.chrome = body.dataset.chrome === 'off' ? 'on' : 'off';
+				else if (/^\d$/.test(k)) pick(`${base(body.dataset.v)}${k}`);
+				else pick(k);
+			});
+			const saved = load();
+			root.dataset.theme = saved.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+			pick(DESC[location.hash.slice(1)] ? location.hash.slice(1) : 'a');
+		</script>
+	</body>
+</html>
