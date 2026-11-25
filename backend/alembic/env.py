@@ -16,7 +16,9 @@ config = context.config
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
-if config.config_file_name is not None:
+# The CLI configures logging from alembic.ini; an application calling the migrations keeps
+# its own logging (fileConfig would silence its INFO logs).
+if config.config_file_name is not None and config.attributes.get("configure_logger", True):
     fileConfig(config.config_file_name)
 
 # add your model's MetaData object here

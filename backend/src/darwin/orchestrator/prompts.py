@@ -41,6 +41,14 @@ Gates in order, stopping at the first failure: build, perft on random positions,
 perft only. First steps: beat a random mover. Evolution: beat the current champion. Each
 engine process gets one CPU core and its own clock.
 
+## Verdicts
+accepted: it passed; it is now your base (and, after a match, the new champion).
+rejected: a gate failed; its details say which and why.
+stale: not your fault. A new champion arrived while it waited and your change conflicted
+with it, so it was never judged. Redo the idea on top of the new base if it still matters.
+abandoned: the session ended without a submission. budget_stop: a session limit stopped it.
+Work is only kept if you submit it: commits alone do not survive the session.
+
 ## Tools
 read, write, edit, bash run in the sandbox. perft_check asks the referee about your move
 generator. experiments searches past experiments. run_job starts long CPU-only work

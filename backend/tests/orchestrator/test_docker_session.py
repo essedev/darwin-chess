@@ -31,6 +31,11 @@ SCRIPT: list[dict[str, Any]] = [
         "tool": "bash",
         "args": {"command": "echo '- seed engine is not UCI yet' >> /memory/NOTES.md"},
     },
+    # The agent commits on its own: submit must still find the work (it once did not).
+    {
+        "tool": "bash",
+        "args": {"command": "git add -A && git -c user.name=a -c user.email=a@a commit -qm mine"},
+    },
     {"tool": "submit", "args": {"hypothesis": "Add a notes file; the engine is still not UCI."}},
     {"text": "Submitted, stopping."},
 ]
@@ -134,7 +139,7 @@ async def test_a_scripted_session_reaches_a_verdict(
     assert experiment.hypothesis and experiment.hypothesis.startswith("Add a notes file")
     assert experiment.diff_stat is not None and experiment.diff_stat["files"] == 2  # + Cargo.lock
     tools = [e.payload["tool"] for e in events if e.kind == "tool_call"]
-    assert tools == ["bash", "perft_check", "write", "bash", "submit"]
+    assert tools == ["bash", "perft_check", "write", "bash", "bash", "submit"]
     results = {e.payload["tool"]: e.payload for e in events if e.kind == "tool_result"}
     assert "Protocol problem" in results["perft_check"]["text"]
     assert len(calls) == len(SCRIPT) and all(c.cost_usd > 0 for c in calls)

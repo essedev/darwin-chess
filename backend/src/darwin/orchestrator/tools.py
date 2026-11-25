@@ -89,7 +89,7 @@ class SessionTools:
         if len(hypothesis) < 10:
             raise ToolError("Write a real hypothesis: what you changed and what you expect.")
         message = f"exp-{self.experiment_id}: {hypothesis}"[:500]
-        sha = await self.sandbox.commit_all(message)
+        sha = await self.sandbox.commit_all(message, self.base_commit)
         if sha is None:
             raise ToolError("Nothing changed in /genome: there is nothing to submit.")
         await sandbox.archive(self.settings, sha, f"exp-{self.experiment_id}")

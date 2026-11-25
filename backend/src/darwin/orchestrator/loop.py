@@ -67,11 +67,11 @@ class Orchestrator:
             else:
                 await self.ledger.finish_experiment(row.id, "error", error="orchestrator restarted")
 
-    async def serve_tools(self) -> None:
+    def tools_server(self) -> uvicorn.Server:
         config = uvicorn.Config(
             self.router.app(), host="127.0.0.1", port=self.settings.tools_port, log_level="warning"
         )
-        await uvicorn.Server(config).serve()
+        return uvicorn.Server(config)
 
     # Events
 
@@ -86,16 +86,19 @@ class Orchestrator:
 
     async def run(self, *, max_sessions: int | None = None) -> None:
         await self.prepare()
-        servers = [asyncio.create_task(self.serve_tools()), asyncio.create_task(self.judge_loop())]
+        tools = self.tools_server()
+        serving = asyncio.create_task(tools.serve())
+        judging = asyncio.create_task(self.judge_loop())
         try:
             await self.agent_loop(max_sessions)
             if max_sessions is not None:  # test runs: wait for the last verdict
                 await self.queue.join()
         finally:
-            for task in servers:
-                task.cancel()
-                with contextlib.suppress(asyncio.CancelledError):
-                    await task
+            judging.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await judging
+            tools.should_exit = True  # orderly stop: cancelling it logs a bogus traceback
+            await serving
 
     async def agent_loop(self, max_sessions: int | None) -> None:
         sessions = 0
@@ -122,7 +125,15 @@ class Orchestrator:
                 await asyncio.sleep(RETRY_AFTER_FAILURE_S)
 
     async def _wait_for_room(self) -> None:
-        while self.queue.qsize() + self.judging > MAX_WAITING:
+        """Working while the referee judges pays off only in evolution, where most candidates
+        are rejected. Before that a verdict usually moves the base, and work started on the
+        old one ends up stale: wait for it."""
+        while True:
+            pending = self.queue.qsize() + self.judging
+            phase = (await self.ledger.state()).phase
+            limit = MAX_WAITING if phase is Phase.EVOLUTION else 0
+            if pending <= limit:
+                return
             self.wake.clear()
             await self.wake.wait()
 

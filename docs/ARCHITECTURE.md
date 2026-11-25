@@ -58,7 +58,7 @@ Ogni iterazione parte con un contesto nuovo: lo stato vive nel git del genoma e 
 Quello che fa sembrare vivo il sistema non deve costare: la CPU lavora sempre, l'LLM a impulsi.
 
 1. **Sempre acceso, costo zero**: partite di valutazione, self-play per l'addestramento, più avanti Lichess. Sulla dashboard c'è sempre una partita in corso.
-2. **Risveglio a eventi**: l'agente parte quando arriva un verdetto, finisce un `run_job` o arriva un gruppo di sconfitte Lichess, non a orario. Mentre l'arbitro giudica il candidato N l'agente prepara N+1, con al massimo un candidato in coda.
+2. **Risveglio a eventi**: l'agente parte quando arriva un verdetto, finisce un `run_job` o arriva un gruppo di sconfitte Lichess, non a orario. In evoluzione, mentre l'arbitro giudica il candidato N, l'agente prepara N+1, con al massimo un candidato in coda; in genesi e nei primi passi aspetta il verdetto, perché lì un candidato di solito passa e sposta la base, e il lavoro iniziato sulla base vecchia andrebbe perso.
 3. **Riflessione periodica**: ogni 10 generazioni circa, o una volta al giorno, l'agente rilegge l'andamento e riscrive `STRATEGY.md`, cioè sceglie da solo la prossima direzione.
 
 La spesa giornaliera si distribuisce sulle ore (2 $ al giorno, circa 8 centesimi l'ora): quando la quota dell'ora è finita l'agente dorme e la macchina continua a giocare. Stima da misurare in M3: 2-5 centesimi per iterazione con Haiku 5.5 e la cache, quindi 40-100 iterazioni al giorno. Il collo di bottiglia atteso è la CPU dell'arbitro, non il budget.

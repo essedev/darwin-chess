@@ -173,20 +173,24 @@ test -d /genome/.git || git init -q /genome
         if done.code != 0:
             raise SandboxError(f"cannot reset the genome to {base}: {done.output}")
 
-    async def commit_all(self, message: str) -> str | None:
-        """Commits everything in the working tree; None when nothing changed."""
+    async def commit_all(self, message: str, base: str) -> str | None:
+        """Commits what is left in the working tree on top of whatever the agent committed
+        itself; returns HEAD, or None when HEAD is still `base` (nothing to judge)."""
         script = f"""
 cd /genome
 {_git("add", "-A")}
-if {_git("diff", "--cached", "--quiet")}; then echo unchanged; exit 0; fi
-{_git("commit", "-q", "--no-verify", "-m", message)}
+if ! {_git("diff", "--cached", "--quiet")}; then
+  {_git("commit", "-q", "--no-verify", "-m", message)}
+fi
 git rev-parse HEAD
 """
         done = await self.exec(script)
         if done.code != 0:
             raise SandboxError(f"commit failed: {done.output}")
-        last = done.output.splitlines()[-1]
-        return last if SHA.match(last) else None
+        head = done.output.splitlines()[-1]
+        if not SHA.match(head):
+            raise SandboxError(f"unexpected HEAD: {head!r}")
+        return None if head == _check_sha(base) else head
 
     async def diff_stat(self, base: str, sha: str) -> dict[str, int]:
         script = _git("-C", "/genome", "diff", "--shortstat", _check_sha(base), _check_sha(sha))

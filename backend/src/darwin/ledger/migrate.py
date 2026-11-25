@@ -13,4 +13,5 @@ def migrate(url: str) -> None:
     config = Config(str(BACKEND / "alembic.ini"))
     config.set_main_option("script_location", str(BACKEND / "alembic"))
     config.set_main_option("sqlalchemy.url", url)
+    config.attributes["configure_logger"] = False
     command.upgrade(config, "head")
