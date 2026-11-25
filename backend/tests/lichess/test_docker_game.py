@@ -14,6 +14,8 @@ from darwin.config import Settings
 from darwin.ledger import models as m
 from darwin.ledger.store import Ledger
 from darwin.lichess import game
+from darwin.lichess.bot import LichessBot
+from darwin.lichess.client import LichessClient
 from darwin.referee import docker, engines
 from darwin.referee.models import EngineSpec
 
@@ -99,3 +101,24 @@ async def test_a_lost_game_is_recorded_and_analysed(
     assert live["wtime"] == live["btime"] == 180_000
     assert not (settings.data_dir / "lichess" / "current.json.tmp").exists()
     assert leftover_containers(run_prefix) == []
+
+
+async def test_a_trial_bot_stops_by_itself_after_its_games(
+    tmp_path: Path, fake: FakeLichess, lichess_url: str, ledger: Ledger, images: None
+) -> None:
+    await ledger.seed("0" * 40)
+    async with ledger.session() as s:
+        s.add(m.Generation(id=1, commit_sha="1" * 40))
+    settings: Settings = bot_settings(tmp_path, lichess_url)
+
+    async def random_champion() -> tuple[int, EngineSpec] | None:
+        return 1, engines.random_player(settings)
+
+    client = LichessClient(settings.lichess_url, "test-token")
+    bot = LichessBot(settings, ledger, client, random_champion, max_games=1)
+    fake.start_game()
+    try:
+        await asyncio.wait_for(bot.run(), 180)  # returns on its own: no cancel needed
+    finally:
+        await client.close()
+    assert bot.games_played == 1

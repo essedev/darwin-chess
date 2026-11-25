@@ -38,6 +38,7 @@ class LichessBot:
         engine_for: EngineFor,
         *,
         rng: random.Random | None = None,
+        max_games: int | None = None,
     ) -> None:
         self.settings = settings
         self.ledger = ledger
@@ -52,13 +53,22 @@ class LichessBot:
         # A challenge we sent or accepted whose game has not started yet.
         self.pending_id: str | None = None
         self.pending_since: float | None = None
+        # Trial runs stop after a number of games; the service plays forever.
+        self.max_games = max_games
+        self.games_played = 0
+        self.finished = asyncio.Event()
+
+    def enough(self) -> bool:
+        return self.max_games is not None and self.games_played >= self.max_games
 
     async def run(self) -> None:
         matchmaking = asyncio.create_task(self._matchmaking())
+        listening = asyncio.create_task(self._listen())
+        stopping = asyncio.create_task(self.finished.wait())
         try:
-            await self._listen()
+            await asyncio.wait({listening, stopping}, return_when=asyncio.FIRST_COMPLETED)
         finally:
-            tasks = [task for task in (matchmaking, self.game) if task is not None]
+            tasks = [t for t in (matchmaking, listening, stopping, self.game) if t is not None]
             for task in tasks:
                 task.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
@@ -160,6 +170,8 @@ class LichessBot:
                 log.exception("lichess: matchmaking failed")
 
     async def _challenge_someone(self) -> None:
+        if self.enough():
+            return
         if self.busy() or await self.engine_for() is None:
             return
         await self._identify()
@@ -194,4 +206,9 @@ class LichessBot:
         game = Game(
             self.settings, self.ledger, self.client, game_id=game_id, color=color, me=self.me
         )
-        await game.play(*choice)
+        try:
+            await game.play(*choice)
+        finally:
+            self.games_played += 1
+            if self.enough():
+                self.finished.set()

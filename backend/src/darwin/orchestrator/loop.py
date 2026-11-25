@@ -109,6 +109,18 @@ class Orchestrator:
 
     # Agent side
 
+    async def run_lichess_only(self, games: int) -> None:
+        """Only the Lichess bot, for `games` games: no agent session, nothing spent."""
+        await self.prepare()
+        client = self.lichess_client()
+        if client is None:
+            raise SystemExit("Lichess is off: set DARWIN_LICHESS_ENABLED and DARWIN_LICHESS_TOKEN")
+        bot = LichessBot(self.settings, self.ledger, client, self.champion_engine, max_games=games)
+        try:
+            await bot.run()
+        finally:
+            await client.close()
+
     async def run(self, *, max_sessions: int | None = None) -> None:
         await self.prepare()
         tools = self.tools_server()
