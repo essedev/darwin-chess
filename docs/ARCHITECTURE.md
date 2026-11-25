@@ -1,111 +1,111 @@
-# Architettura
+# Architecture
 
-## Visione d'insieme
+## Overview
 
-Un agente LLM economico parte da un crate Rust vuoto e costruisce un motore di scacchi, migliorandolo a ogni generazione senza intervento umano. L'esperimento misura fin dove arriva un agente autonomo quando ogni sua modifica deve vincere partite vere per sopravvivere. La conoscenza scacchistica della valutazione la impara una rete dalle partite del motore contro se stesso, non l'LLM a memoria.
+A cheap LLM agent starts from an empty Rust crate and builds a chess engine, improving it generation after generation with no human in the loop. The experiment measures how far an autonomous agent gets when every change it makes has to win real games to survive. The chess knowledge in the evaluation is learned by a network from the engine's self-play, not recalled by the LLM.
 
-## I tre mondi
+## The three worlds
 
-| Mondo | Dove | Fiducia | Chi lo modifica |
+| World | Where | Trust | Who changes it |
 |---|---|---|---|
-| Genoma | `genome/` (repo git separato, ignorato) | nessuna | solo l'agente |
-| Arbitro | `backend/src/darwin/referee/` | totale | solo noi |
-| Orchestratore | `backend/src/darwin/orchestrator/` | totale | solo noi |
+| Genome | `genome/` (separate git repository, ignored) | none | the agent only |
+| Referee | `backend/src/darwin/referee/` | full | us only |
+| Orchestrator | `backend/src/darwin/orchestrator/` | full | us only |
 
-Il confine di fiducia è il punto centrale del progetto. Un LLM a cui si chiede di far salire un numero trova la scorciatoia più facile: scrivere a mano i conteggi perft, allungarsi il tempo, uccidere il processo avversario. Per questo l'arbitro vive fuori dal sandbox e ogni motore gira isolato.
+The trust boundary is the heart of the project. An LLM asked to make a number go up finds the easiest shortcut: hardcode the perft counts, give itself more time, kill the opponent's process. That is why the referee lives outside the sandbox and every engine runs isolated.
 
-## Componenti
+## Components
 
-- **Sandbox** (`lab/`): immagine Docker con la toolchain Rust, un insieme di crate già scaricate (rand, rayon, bytemuck, versioni fissate, risolte offline tramite `/.cargo/config.toml`) e Python con PyTorch CPU e numpy per l'addestramento. Niente GPU: Docker su Mac non la vede. I job usano la stessa immagine con 2 CPU, 4 GB, al massimo 12 ore e una quota disco (10 GB per job, 40 GB in tutto, sul disco interno). I comandi dell'agente girano qui, senza rete, con `genome/` e `/memory` in scrittura, il mirror e `/jobs` in sola lettura, il filesystem di sistema in sola lettura. Un container nuovo per ogni sessione.
-- **Mirror** (`data/mirror.git`): repository bare fidato con ogni commit che conta (`refs/darwin/gen-N`, `refs/darwin/exp-N`). Lo scrive solo l'orchestratore; la compilazione dell'arbitro e il reset del genoma partono da qui, così l'agente non può alterare o cancellare la storia dei campioni.
-- **Memoria** (`data/agent/memory`): `NOTES.md` e `STRATEGY.md` dell'agente, fuori dal genoma, così sopravvivono agli esperimenti bocciati.
-- **Arbitro** (`darwin.referee`): oracolo perft su posizioni casuali (python-chess), compilazione pulita del candidato, partite e SPRT. Le partite le gioca fastchess nel container `arena`; l'arbitro prepara le aperture, rilegge ogni PGN con python-chess per verificare legalità ed esito, e calcola lui l'SPRT a lotti; dopo ogni lotto scrive l'avanzamento del match sull'esperimento (`progress`), che la diretta mostra. Ogni processo motore gira nel proprio container effimero (`--network none`, binario in sola lettura, 1 CPU): un candidato non vede e non può toccare l'avversario. Le ancore sono il giocatore casuale e Stockfish 17 a forza limitata (`UCI_Elo` 1320, 1600, 2000, 2400, 2800): ogni nuovo campione sale la scala finché vince troppo per misurare qualcosa, e le stime delle ancore informative si combinano pesandole per precisione. Sotto 1320 il campione resta "sotto la scala". La dashboard mostra l'Elo assoluto sempre con il suo margine al 95% (DECISIONS #21).
-- **Orchestratore** (`darwin.orchestrator`): il ciclo delle generazioni, i ritmi descritti sotto, il tetto di spesa. L'agente gira dentro pi, comandato in modalità RPC.
-- **Registro** (`darwin.ledger`): SQLite append-only con esperimenti, verdetti, partite, generazioni, chiamate LLM ed eventi dell'agente. Schema in `DATABASE_SCHEMA.md`.
-- **Commenti** (`darwin.commentary`, dentro `core`): Haiku scrive per i visitatori, in italiano e inglese con una sola chiamata, un commento per ogni partita Lichess (basato sulle valutazioni di Stockfish di ogni semimossa) e uno per ogni match dell'arbitro (basato su risultati e statistiche delle partite), traduce in italiano ipotesi e lezioni dell'agente e dà a ogni ipotesi un titolo breve nelle due lingue (titolo e traduzione partono alla consegna). Traduce anche ogni pensiero dell'agente appena scritto e, al massimo una volta l'ora, la versione corrente di strategia, appunti e istruzioni (fino a 16.000 caratteri). Resta in inglese solo il codice. Coda con un solo consumatore, tetto suo di 0,20 $ al giorno, recupero di ciò che manca all'avvio. Solo con provider Anthropic. L'agente non li vede.
-- **API** (`darwin.api`): FastAPI in sola lettura, pubblica. `/api/overview` (fase, generazioni, esperimento in corso, in giudizio e ultimo verdetto, spesa, ultimi eventi), `/api/live` (una partita dell'arbitro seguita fino alla fine, letta dal flusso di eventi di fastchess sotto `data/matches`, con le vittorie del match finora), `/api/lichess` (partita in corso e ultime partite del bot con il commento), `/api/stream` (SSE: eventi dell'agente e partita, controllati ogni secondo). Per le pagine secondarie `/api/generations/detail`, `/api/experiments`, `/api/matches`, `/api/code/*` (albero, file e diff del genoma letti dal mirror), `/api/mind` (memoria e istruzioni dell'agente) e `/api/lab` (totali, costo per generazione, changelog).
-- **Dashboard** (`frontend/`): bilingue (italiano e inglese, dizionari tipizzati in `src/i18n`), con le schede Diretta, Evoluzione, Codice, Mente e Laboratorio. La Diretta (DECISIONS #7, rivista con #21) ha tre colonne della stessa altezza e niente che cresce con la storia: a sinistra le ultime generazioni con la curva Elo, al centro una partita alla volta, con il nostro motore sempre in basso, e il pensiero dell'agente, a destra il giudizio in corso, gli ultimi risultati e la spesa. Un colore per soggetto e stati di caricamento, errore e vuoto animati in ASCII (DECISIONS #24). Tema chiaro e scuro dal sistema.
-- **Bot Lichess** (`darwin.lichess`, dentro `core`): gioca di continuo con il campione in carica, accetta le sfide compatibili e ne lancia ad altri bot, mirando a 1200 finché il rating è provvisorio. Dopo un 429 rispetta l'attesa che Lichess indica; se non la indica, smette di lanciare sfide per una pausa che raddoppia fino a 4 ore. Il motore gira nel suo container senza rete; il token resta in `core`. Scritto da noi invece del `lichess-bot` ufficiale, che avrebbe dovuto avviare i container dei motori e quindi avere accesso a Docker accanto al token. Due usi: la misura nel mondo vero (performance calcolata per generazione, perché l'account mescola le versioni) e la fonte di lezioni. Ogni sconfitta viene analizzata da Stockfish lato arbitro, che segna dove la valutazione crolla, e arriva all'agente riassunta. Lichess non giudica i candidati: troppo lento e rumoroso per quello.
+- **Sandbox** (`lab/`): Docker image with the Rust toolchain, a set of vendored crates (rand, rayon, bytemuck, pinned versions, resolved offline through `/.cargo/config.toml`) and Python with PyTorch CPU and numpy for training. No GPU: Docker on a Mac cannot see it. Jobs use the same image with 2 CPUs, 4 GB, at most 12 hours and a disk quota (10 GB per job, 40 GB in all, on the internal disk). The agent's commands run here, with no network, with `genome/` and `/memory` writable, the mirror and `/jobs` read-only, and the system filesystem read-only. A new container for every session.
+- **Mirror** (`data/mirror.git`): trusted bare repository with every commit that matters (`refs/darwin/gen-N`, `refs/darwin/exp-N`). Only the orchestrator writes it; the referee's builds and the genome reset start from here, so the agent cannot alter or delete the champions' history.
+- **Memory** (`data/agent/memory`): the agent's `NOTES.md` and `STRATEGY.md`, outside the genome, so they survive rejected experiments.
+- **Referee** (`darwin.referee`): perft oracle on random positions (python-chess), clean build of the candidate, games and SPRT. fastchess plays the games in the `arena` container; the referee prepares the openings, re-reads every PGN with python-chess to check legality and result, and computes the SPRT itself in batches; after each batch it writes the match progress on the experiment (`progress`), which the Live page shows. Every engine process runs in its own ephemeral container (`--network none`, read-only binary, 1 CPU): a candidate cannot see or touch its opponent. The anchors are the random player and Stockfish 17 at limited strength (`UCI_Elo` 1320, 1600, 2000, 2400, 2800): every new champion climbs the ladder until it wins too often for a rung to measure anything, and the estimates of the informative anchors are combined, weighted by precision. Below 1320 the champion stays "below the ladder". The dashboard always shows the absolute Elo with its 95% margin (DECISIONS #21).
+- **Orchestrator** (`darwin.orchestrator`): the generation loop, the rhythms described below, the spending cap. The agent runs inside pi, driven in RPC mode.
+- **Ledger** (`darwin.ledger`): append-only SQLite with experiments, verdicts, games, generations, LLM calls and agent events. Schema in `DATABASE_SCHEMA.md`.
+- **Commentary** (`darwin.commentary`, inside `core`): Haiku writes for visitors, in Italian and English with a single call, a commentary on every Lichess game (based on Stockfish's evaluation of every ply) and one on every referee match (based on the results and statistics of its games), translates the agent's hypotheses and lessons into Italian and gives every hypothesis a short title in both languages (title and translation start at submission). It also translates every agent thought as soon as it is written and, at most once an hour, the current version of the strategy, notes and instructions (up to 16,000 characters). Only the code stays in English. A queue with a single consumer, its own cap of 0.20 $ a day, and a catch-up of anything missing at startup. Anthropic provider only. The agent never sees any of it.
+- **API** (`darwin.api`): read-only, public FastAPI. `/api/overview` (phase, generations, experiment in progress, on trial and last verdict, spend, latest events), `/api/live` (one referee game followed to its end, read from fastchess's event stream under `data/matches`, with the match wins so far), `/api/lichess` (game in progress and the bot's latest games with their commentary), `/api/stream` (SSE: agent events and the game, checked every second). For the secondary pages `/api/generations/detail`, `/api/experiments`, `/api/matches`, `/api/code/*` (tree, files and diffs of the genome, read from the mirror), `/api/mind` (the agent's memory and instructions) and `/api/lab` (totals, cost per generation, changelog).
+- **Dashboard** (`frontend/`): bilingual (Italian and English, typed dictionaries in `src/i18n`), with the Live, Evolution, Code, Mind and Lab tabs. The Live page (DECISIONS #7, revised by #21) has three columns of the same height and nothing that grows with the history: on the left the latest generations with the Elo curve, in the middle one game at a time, with our engine always at the bottom, and the agent's thought, on the right the trial in progress, the latest results and the spend. One colour per subject, and loading, error and empty states animated in ASCII (DECISIONS #24). Light and dark theme from the system.
+- **Lichess bot** (`darwin.lichess`, inside `core`): plays the reigning champion around the clock, accepts compatible challenges and sends its own to other bots, aiming at 1200 while its rating is provisional. After a 429 it waits as long as Lichess says; if Lichess does not say, it stops sending challenges for a pause that doubles up to 4 hours. The engine runs in its own container with no network; the token stays in `core`. Written by us instead of the official `lichess-bot`, which would have had to start the engine containers and so hold Docker access next to the token. Two uses: the measure in the real world (performance computed per generation, because the account mixes versions) and a source of lessons. Every loss is analysed by Stockfish on the referee's side, which marks where the evaluation collapses, and reaches the agent as a summary. Lichess does not judge candidates: too slow and noisy for that.
 
-## L'agente: pi e i suoi tool
+## The agent: pi and its tools
 
-L'orchestratore avvia pi (`agent/`, versione fissata) come processo figlio e lo comanda via JSON su stdin e stdout (modalità RPC). pi gira in una cartella vuota con ogni caricamento automatico spento (configurazione di progetto, estensioni, skill, template, file di contesto, MCP): niente di ciò che l'agente scrive può essere caricato da pi, solo la nostra estensione. pi ragiona a sforzo `high` (`DARWIN_LLM_THINKING`, DECISIONS #25). Ogni evento di pi (testo dell'agente, chiamate ai tool, uso dei token) passa dall'orchestratore, che lo scrive in `agent_events` e `llm_calls`: da lì nascono i sottotitoli della dashboard e il conteggio della spesa. pi non entra nel sandbox: ci entrano solo i suoi comandi, mentre la chiave API resta all'orchestratore. Versione di pi fissata, il progetto è giovane.
+The orchestrator starts pi (`agent/`, pinned version) as a child process and drives it with JSON over stdin and stdout (RPC mode). pi runs in an empty folder with all automatic loading off (project configuration, extensions, skills, templates, context files, MCP): nothing the agent writes can be loaded by pi, only our extension. pi reasons at effort `high` (`DARWIN_LLM_THINKING`, DECISIONS #25). Every pi event (agent text, tool calls, token usage) passes through the orchestrator, which writes it to `agent_events` and `llm_calls`: the dashboard's captions and the spend tally come from there. pi does not enter the sandbox: only its commands do, while the API key stays with the orchestrator. pi's version is pinned because the project is young.
 
-Tool standard, eseguiti nel sandbox: `read`, `write`, `edit`, `bash`. Con la bash l'agente compila, testa, usa il git del genoma e fa giocare il suo motore contro il campione ricompilato dal tag.
+Standard tools, run in the sandbox: `read`, `write`, `edit`, `bash`. With bash the agent builds, tests, uses the genome's git and plays its engine against the champion rebuilt from its tag.
 
-Tool nostri, aggiunti con un'estensione TypeScript sottile che inoltra ogni chiamata all'API locale dell'orchestratore (la logica resta in Python):
+Our tools, added through a thin TypeScript extension that forwards every call to the orchestrator's local API (the logic stays in Python):
 
-| Tool | Cosa fa | Da |
+| Tool | What it does | Since |
 |---|---|---|
-| `perft_check` | perft dell'arbitro su posizioni casuali, restituisce la prima mossa con conteggio sbagliato | M3 |
-| `submit` | consegna il candidato con l'ipotesi obbligatoria e chiude l'iterazione | M3 |
-| `experiments` | cerca negli esperimenti passati (ipotesi, esito, margine) | M3 |
-| `run_job` | lancia un lavoro lungo solo CPU (self-play, addestramento) con tetto di CPU, e ne legge lo stato | M3 |
-| `lichess_losses` | legge la coda delle sconfitte con l'analisi di Stockfish | M5 |
+| `perft_check` | the referee's perft on random positions; returns the first move with a wrong count | M3 |
+| `submit` | submits the candidate with its mandatory hypothesis and ends the iteration | M3 |
+| `experiments` | searches past experiments (hypothesis, outcome, margin) | M3 |
+| `run_job` | starts a long CPU-only job (self-play, training) under a CPU cap, and reads its status | M3 |
+| `lichess_losses` | reads the queue of losses with Stockfish's analysis | M5 |
 
-Regola: diventa un tool solo ciò che il sandbox non può fare da solo. L'agente non ha rete, Stockfish, accesso all'arbitro, al tag `gen-N` (lo mette l'orchestratore) né al controllo del tempo.
+Rule: only what the sandbox cannot do on its own becomes a tool. The agent has no network, no Stockfish, no access to the referee, to the `gen-N` tag (the orchestrator sets it) or to the time control.
 
-## Il ciclo di una generazione
+## The life of a generation
 
-1. **Osserva**: l'orchestratore riporta il genoma alla base (l'ultimo commit accettato) e costruisce il contesto: fase, campione, ultimo verdetto con i dettagli dei cancelli, ultimi esperimenti, job, `STRATEGY.md` e la coda di `NOTES.md` (letti attraverso il sandbox: sono file dell'agente).
-2. **Implementa**: l'agente lavora con i suoi tool entro un tetto di chiamate e token per iterazione; l'orchestratore conta i token dagli eventi di pi e lo ferma se lo supera.
-3. **Consegna**: `submit` committa il working tree nel sandbox, copia il commit nel mirror e lo mette in coda all'arbitro, che lo fa passare per i cancelli in ordine di costo: build, perft, smoke (partite lampo senza mosse illegali, crash o timeout), match della fase. Se nel frattempo è nato un nuovo campione, il candidato viene prima riapplicato sopra; se va in conflitto l'esperimento è `stale`.
-4. **Impara**: l'esito va nel registro. Se vince diventa `refs/darwin/gen-N` nel mirror. La sessione successiva riceve il verdetto e consegna la lezione con `lesson_for_previous`.
+1. **Observe**: the orchestrator resets the genome to the base (the last accepted commit) and builds the context: phase, champion, last verdict with the gate details, latest experiments, jobs, `STRATEGY.md` and the tail of `NOTES.md` (read through the sandbox: they are the agent's files).
+2. **Implement**: the agent works with its tools within a cap of calls and tokens per iteration; the orchestrator counts tokens from pi's events and stops it if it goes over.
+3. **Submit**: `submit` commits the working tree in the sandbox, copies the commit into the mirror and queues it for the referee, which runs it through the gates in order of cost: build, perft, smoke (blitz games with no illegal moves, crashes or timeouts), the phase's match. If a new champion was born in the meantime, the candidate is first reapplied on top of it; if that conflicts, the experiment is `stale`.
+4. **Learn**: the outcome goes into the ledger. If it wins it becomes `refs/darwin/gen-N` in the mirror. The next session receives the verdict and records the lesson with `lesson_for_previous`.
 
-Ogni iterazione parte con un contesto nuovo: lo stato vive nel git del genoma e nel registro, non in una conversazione che cresce.
+Every iteration starts with a fresh context: state lives in the genome's git and in the ledger, not in a growing conversation.
 
-## Ritmi
+## Rhythms
 
-Quello che fa sembrare vivo il sistema non deve costare: la CPU lavora sempre, l'LLM a impulsi.
+What makes the system look alive must not cost money: the CPU works all the time, the LLM in bursts.
 
-1. **Sempre acceso, costo zero**: partite di valutazione, self-play per l'addestramento, il bot Lichess. Sulla dashboard c'è sempre una partita in corso.
-2. **Risveglio a eventi**: l'agente parte quando arriva un verdetto, finisce un `run_job` o arriva un gruppo di sconfitte Lichess, non a orario. In evoluzione, mentre l'arbitro giudica il candidato N, l'agente prepara N+1, con al massimo un candidato in coda; in genesi e nei primi passi aspetta il verdetto, perché lì un candidato di solito passa e sposta la base, e il lavoro iniziato sulla base vecchia andrebbe perso.
-3. **Riflessione periodica**: ogni 10 iterazioni, contate dal registro così che un riavvio non azzeri il conto, l'agente rilegge tutta la storia (esperimenti, codice dei tentativi, sconfitte Lichess) e riscrive `STRATEGY.md`, cioè sceglie da solo la prossima direzione.
+1. **Always on, zero cost**: evaluation games, self-play for training, the Lichess bot. There is always a game in progress on the dashboard.
+2. **Event-driven wake-ups**: the agent starts when a verdict arrives, a `run_job` ends or a batch of Lichess losses comes in, not on a timer. In evolution, while the referee judges candidate N, the agent prepares N+1, with at most one candidate queued; in genesis and first steps it waits for the verdict, because there a candidate usually passes and moves the base, and work started on the old base would be lost.
+3. **Periodic reflection**: every 10 iterations, counted from the ledger so that a restart does not reset the count, the agent rereads the whole history (experiments, code of past attempts, Lichess losses) and rewrites `STRATEGY.md`, choosing its next direction on its own.
 
-La spesa giornaliera si distribuisce sulle ore (2 $ al giorno, circa 8 centesimi l'ora): quando la quota dell'ora è finita l'agente dorme e la macchina continua a giocare. Misurato in esercizio: con Haiku 5.5 e la cache una sessione costa 0,2 centesimi a sforzo `low` e 0,7-1,8 a `high`. Il collo di bottiglia è la CPU dell'arbitro, non il budget.
+The daily spend is spread over the hours (2 $ a day, about 8 cents an hour): when the hour's share is used up the agent sleeps and the machine keeps playing. Measured in operation: with Haiku 5.5 and caching a session costs 0.2 cents at effort `low` and 0.7-1.8 cents at `high`. The bottleneck is the referee's CPU, not the budget.
 
-## Fasi
+## Phases
 
-Le sblocca l'arbitro, non l'agente:
+The referee unlocks them, not the agent:
 
-1. **Genesi**: solo build e perft, non esiste ancora un campione.
-2. **Primi passi**: battere il giocatore casuale; chi ci riesce diventa `gen-1`.
-3. **Evoluzione**: SPRT contro il campione in carica.
-4. **Mondo**: ogni nuovo campione va sul bot Lichess.
+1. **Genesis**: build and perft only; there is no champion yet.
+2. **First steps**: beat the random player; whoever does becomes `gen-1`.
+3. **Evolution**: SPRT against the reigning champion.
+4. **World**: every new champion goes to the Lichess bot.
 
-## Contratto del genoma
+## The genome contract
 
-Sta in `seed/CONTRACT.md`, copiato nel genoma alla creazione: binario `target/release/genome`, protocollo UCI, comando `perft <depth>` con il dettaglio per mossa. I file rivolti all'agente (`CONTRACT.md`, `STRATEGY.md`, `NOTES.md`) sono in inglese perché finiscono nel prompt.
+It lives in `seed/CONTRACT.md`, copied into the genome when it is created: binary `target/release/genome`, UCI protocol, a `perft <depth>` command with the per-move breakdown. The agent-facing files (`CONTRACT.md`, `STRATEGY.md`, `NOTES.md`) are in English because they end up in the prompt.
 
 ## Deploy
 
-Sviluppo sul portatile, esecuzione 24/7 su server via a VPN. server è un MacBook Air M4 (10 core, 4 veloci e 6 efficienti, 16 GB, senza ventola) con Docker Desktop, e ospita già other services e la trascrizione di Nexus.
+Development on a laptop, 24/7 operation on the server, reached over ssh. The server is a MacBook Air M4 at home (10 cores, 4 performance and 6 efficiency, 16 GB, no fan) with Docker Desktop, shared with other services.
 
 ```
-server (Docker Compose, restart automatico)
-├─ core          orchestratore + arbitro, un solo processo Python, con pi (Node)
-│                e bot Lichess; rete: provider del modello e Lichess; unico servizio con accesso a Docker
-├─ api           FastAPI + dashboard compilata, legge il registro
-└─ container effimeri creati da core:
-   ├─ sandbox    uno per iterazione, qui girano i comandi di pi
-   ├─ build      compilazione pulita del candidato da un commit
-   ├─ arena      fastchess, crea i container dei motori
-   ├─ motore     uno per motore: senza rete, 1 CPU, binario in sola lettura
-   └─ job        i lavori di run_job, con tetto di CPU
+server (Docker Compose, automatic restart)
+├─ core          orchestrator + referee, a single Python process, with pi (Node)
+│                and the Lichess bot; network: model provider and Lichess; the only service with Docker access
+├─ api           FastAPI + built dashboard, reads the ledger
+└─ ephemeral containers created by core:
+   ├─ sandbox    one per iteration, pi's commands run here
+   ├─ build      clean build of the candidate from a commit
+   ├─ arena      fastchess, creates the engine containers
+   ├─ engine     one per engine: no network, 1 CPU, read-only binary
+   └─ job        the run_job jobs, under a CPU cap
 ```
 
-- Avvio: `.env` con `DARWIN_HOME` (path assoluto del repository) e la chiave, poi `make genome-init` e `make up`. Su server `make up-public` avvia anche `tunnel`: `cloudflared` (versione fissata) pubblica l'API, e con lei la dashboard, su https://darwin.esse.dev senza aprire porte. Le credenziali del tunnel `darwin` stanno in `~/.cloudflared` su server, create una volta con `cloudflared tunnel login` e `tunnel create`; il record DNS lo ha creato `tunnel route dns`. `core` applica le migrazioni all'avvio; `api` serve anche la dashboard compilata.
-- Aggiornamento: `make deploy` dal portatile copia il codice su server, costruisce le immagini e chiede a `core` di svuotarsi (il file `data/control/drain`): niente sessioni nuove né partite Lichess nuove, quelle in corso finiscono. Quando `core` risponde con `data/control/drained`, `core` e `api` vengono ricreati sulle immagini nuove. `make deploy only=api` ricrea solo `api`, per i cambi al sito, e lascia lavorare `core`. Il giudizio in corso non si aspetta: dopo il riavvio l'arbitro lo rifà da capo, che costa solo CPU. Fermato, `core` chiude in ordine entro 30 secondi (SIGTERM) e rimuove i container della sua istanza.
-- Orchestratore e arbitro stanno nello stesso processo: sono entrambi fidati e il registro SQLite mantiene un solo scrittore. La separazione la garantisce la regola sugli import.
-- I dati (`DARWIN_DATA_DIR`: binari, partite, registro, artefatti) sono montati nei container allo stesso path che hanno sull'host, così i bind mount dei container creati da `core` e da `arena` si risolvono uguali in sviluppo e in produzione.
-- CPU, da tarare con un test di carico di un'ora: alla VM di Docker 8 core su 10; dentro, 2 per le compilazioni dell'agente e 6 per le partite (3 in parallelo). Un addestramento prende core dalle partite, non si somma. Senza ventola l'Air rallenta sotto carico continuo, e i core misti aggiungono rumore alle partite: servono più partite per un verdetto, non c'è distorsione sistematica.
+- Startup: `.env` with `DARWIN_HOME` (absolute path of the repository) and the key, then `make genome-init` and `make up`. On the server `make up-public` also starts `tunnel`: `cloudflared` (pinned version) publishes the API, and the dashboard with it, at https://darwin.esse.dev without opening ports. The credentials of the `darwin` tunnel live in `~/.cloudflared` on the server, created once with `cloudflared tunnel login` and `tunnel create`; `tunnel route dns` created the DNS record. `core` applies the migrations at startup; `api` also serves the built dashboard.
+- Update: `make deploy` on the laptop reads `DEPLOY_HOST` (an ssh host) and `DEPLOY_DIR` (the repository there, relative to its home, `darwin-chess` by default) from the untracked `Makefile.local` or the command line. It copies the code to the server, builds the images and asks `core` to drain (the file `data/control/drain`): no new sessions or Lichess games, the ones in progress finish. When `core` answers with `data/control/drained`, `core` and `api` are recreated on the new images. `make deploy only=api` recreates only `api`, for changes to the site, and leaves `core` working. The trial in progress is not waited for: after the restart the referee runs it again from the start, which costs only CPU. When stopped, `core` shuts down in order within 30 seconds (SIGTERM) and removes its instance's containers.
+- Orchestrator and referee share a process: both are trusted, and the SQLite ledger keeps a single writer. The import rule guarantees the separation.
+- The data (`DARWIN_DATA_DIR`: binaries, games, ledger, artifacts) is mounted into the containers at the same path it has on the host, so the bind mounts of the containers created by `core` and by `arena` resolve the same way in development and production.
+- CPU, to be tuned with a one-hour load test: 8 of the 10 cores to the Docker VM; inside it, 2 for the agent's builds and 6 for games (3 in parallel). A training job takes cores from the games, it does not add to them. Without a fan the Air slows down under sustained load, and the mixed cores add noise to the games: a verdict needs more games, there is no systematic bias.
 
-## Boundary
+## Boundaries
 
-- L'arbitro non importa nulla dall'orchestratore: riceve un commit o un binario e restituisce un verdetto.
-- L'agente non riceve mai codice o output interno dell'arbitro, solo il verdetto e i dettagli pubblici (per esempio la mossa con perft sbagliato).
-- Comandano Docker solo `core` e `arena`, che esegue fastchess (codice fidato, non dell'agente). Sandbox, motori, job e il bot Lichess non vedono mai il socket.
-- Nessun comando git gira sull'host dentro il genoma: hook e configurazione del repository sono dell'agente. Ogni operazione git passa da un container.
-- I file dell'agente si leggono dall'host solo attraverso il sandbox o dopo aver verificato che il percorso risolto resti nel genoma: un link simbolico potrebbe puntare ovunque.
-- Stockfish lo usa solo l'arbitro; non è mai raggiungibile dal sandbox.
-- L'API legge il registro, non scrive.
+- The referee imports nothing from the orchestrator: it receives a commit or a binary and returns a verdict.
+- The agent never receives referee code or internal output, only the verdict and the public details (for example the move with a wrong perft).
+- Only `core` and `arena` command Docker; `arena` runs fastchess (trusted code, not the agent's). Sandbox, engines, jobs and the Lichess bot never see the socket.
+- No git command runs on the host inside the genome: the repository's hooks and configuration belong to the agent. Every git operation goes through a container.
+- The agent's files are read from the host only through the sandbox or after checking that the resolved path stays inside the genome: a symbolic link could point anywhere.
+- Only the referee uses Stockfish; it is never reachable from the sandbox.
+- The API reads the ledger, it does not write.
