@@ -125,9 +125,9 @@ Fermare `core` lasciava accesi arena, motori e sandbox. Ogni container porta ora
 
 ## #20 Sito pubblico e bilingue, commenti per i visitatori separati dall'agente
 
-Status: attiva; la parte sui pensieri e sulla memoria in originale è superata da #23. Data: 2026-11-25.
+Status: in parte superata da #23. Data: 2026-11-25.
 
-La dashboard diventa pubblica (Cloudflare Tunnel su `darwin.esse.dev`) e bilingue, italiano e inglese. Codice, prompt e testi dell'agente restano in inglese: ipotesi e lezioni vengono tradotte in italiano una volta e conservate, i pensieri in diretta e i file della memoria restano originali con un'etichetta, perché tradurre ogni pensiero costerebbe di più e arriverebbe in ritardo.
+La dashboard diventa pubblica (Cloudflare Tunnel su `darwin.esse.dev`) e bilingue, italiano e inglese. Codice, prompt e testi dell'agente restano in inglese: ogni testo dell'agente si traduce in italiano e si conserva, ipotesi, lezioni, pensieri in diretta, strategia, appunti e istruzioni; solo il codice resta com'è (da #23).
 
 I commenti leggibili su partite e verdetti li scrive Haiku a partire da dati verificati (valutazioni di Stockfish, statistiche dei match), mai interpretando la partita a occhio. Hanno un budget loro, 0,20 $ al giorno, e l'agente non li legge: un secondo modello che gli spiega le partite cambierebbe la natura dell'esperimento. Il commento dell'arbitro arriva a match finito e non a intervalli di partite, perché a metà match i numeri ballano e il testo direbbe cose che il verdetto poi smentisce.
 

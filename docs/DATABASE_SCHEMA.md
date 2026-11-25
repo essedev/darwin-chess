@@ -26,7 +26,7 @@ Una sessione dell'agente: un'iterazione (ipotesi, candidato, esito) o una rifles
 | hypothesis | TEXT | cosa vuole provare l'agente, scritto da lui |
 | candidate_commit | TEXT | SHA nel genoma, null se non arriva a consegnare |
 | diff_stat | JSON | file e righe toccate |
-| status | TEXT | `running`, `judging`, `rejected`, `accepted`, `abandoned` (nessuna consegna), `stale` (base superata e rebase fallito), `error`, `budget_stop` |
+| status | TEXT | `running`, `judging`, `rejected`, `accepted`, `abandoned` (nessuna consegna), `reflected` (riflessione conclusa), `stale` (base superata e rebase fallito), `error`, `budget_stop` |
 | rejected_at_gate | TEXT | `build`, `perft`, `smoke`, `match`, null se accettato |
 | lesson | TEXT | riga scritta dall'agente dopo il verdetto |
 | error | TEXT | traceback quando `status = error` |
