@@ -129,7 +129,10 @@ def read_live_game(matches_dir: Path, follower: Follower | None = None) -> dict[
     if not games:
         return None
     chosen = (follower or Follower(hold_s=0)).pick(list(games.values()))
-    return {**chosen.view(), "tally": _tally(games.values())}
+    # While games of this batch still run, its finished ones are not yet in the trial's
+    # progress (the referee counts a batch when it closes): the dashboard adds them.
+    running = sum(1 for g in games.values() if g.result is None)
+    return {**chosen.view(), "tally": _tally(games.values()), "running": running}
 
 
 def _tally(games: Iterable[LiveGame]) -> dict[str, dict[str, int]]:

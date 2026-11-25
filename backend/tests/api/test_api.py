@@ -102,6 +102,7 @@ def test_live_game_follows_the_newest_running_game(tmp_path: Path) -> None:
     assert (game["game"], game["san"], game["last_move"]) == (1, ["e4", "e5"], "e7e5")
     assert game["result"] is None
     assert game["tally"]["candidate"] == {"wins": 0, "draws": 0, "losses": 1}
+    assert game["running"] == 1
 
 
 def test_lichess_without_games_is_empty(client: TestClient) -> None:

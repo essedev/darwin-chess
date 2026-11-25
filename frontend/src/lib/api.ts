@@ -113,6 +113,8 @@ export type LiveGame = {
   result: string | null
   termination: string | null
   tally: Record<string, { wins: number; draws: number; losses: number }>
+  /** Games of this batch still being played: while any is, its tally is not in the trial's progress. */
+  running?: number
 }
 
 export type LichessLive = {

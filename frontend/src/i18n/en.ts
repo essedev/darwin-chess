@@ -125,6 +125,7 @@ export const en: Messages = {
   'stage.tab.lichess': 'Lichess',
   'stage.liveGame': ', game in progress',
   'arena.waiting': 'Waiting for a game',
+  'arena.won': 'won',
   'arena.outcome.win': 'Won',
   'arena.outcome.loss': 'Lost',
   'arena.outcome.draw': 'Draw',

@@ -127,6 +127,7 @@ export const it = {
   'stage.tab.lichess': 'Lichess',
   'stage.liveGame': ', partita in corso',
   'arena.waiting': 'In attesa di una partita',
+  'arena.won': 'vinte',
   'arena.outcome.win': 'Vinta',
   'arena.outcome.loss': 'Persa',
   'arena.outcome.draw': 'Patta',

@@ -59,6 +59,17 @@ export function Player(props: {
   )
 }
 
+/** Games won in the match by the player beside it: present, quiet, in the same place. */
+export function Score({ wins }: { wins: number }) {
+  const t = useT()
+  return (
+    <span className="flex items-baseline gap-1.5 text-muted-foreground">
+      <b className="font-mono text-[17px] leading-none font-medium text-foreground tabular-nums">{wins}</b>
+      <span className="text-[12px]">{t('arena.won')}</span>
+    </span>
+  )
+}
+
 /** How the game on the board ended, for the player beside it: shown while it is held. */
 export function Outcome({ outcome }: { outcome: 'win' | 'loss' | 'draw' }) {
   const t = useT()
