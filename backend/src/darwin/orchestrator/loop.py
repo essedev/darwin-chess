@@ -29,7 +29,7 @@ from darwin.referee.build import build_gate
 from darwin.referee.errors import RefereeError
 from darwin.referee.judge import Phase, judge
 from darwin.referee.models import Binary, EngineSpec
-from darwin.referee.rating import rate
+from darwin.referee.rating import LADDER, rate
 
 log = logging.getLogger(__name__)
 
@@ -129,6 +129,7 @@ class Orchestrator:
         tools = self.tools_server()
         serving = asyncio.create_task(tools.serve())
         judging = asyncio.create_task(self.judge_loop())
+        catching_up = asyncio.create_task(self._catch_up_rating())
         lichess = self.lichess_client()
         playing = None
         if lichess is not None:
@@ -139,7 +140,7 @@ class Orchestrator:
             if max_sessions is not None:  # test runs: wait for the last verdict
                 await self.queue.join()
         finally:
-            for task in (judging, playing):
+            for task in (judging, playing, catching_up):
                 if task is not None:
                     task.cancel()
                     with contextlib.suppress(asyncio.CancelledError):
@@ -264,4 +265,26 @@ class Orchestrator:
                 generation_id, "anchors", rating.elo, rating.error, rating.detail()
             )
         else:
+            # Recorded too, as the bottom of the ladder: it marks the champion as measured,
+            # and the dashboard only plots "anchors", so no fake Elo appears.
             log.info("gen-%d is below the anchor ladder", generation_id)
+            await self.ledger.add_rating(
+                generation_id, "anchors_below", float(LADDER[0]), None, rating.detail()
+            )
+
+    async def _catch_up_rating(self) -> None:
+        try:
+            await self.rate_champion_if_missing()
+        except Exception:
+            log.exception("rating catch-up failed")
+
+    async def rate_champion_if_missing(self) -> None:
+        """A restart can interrupt the rating of a new champion: catch up at startup."""
+        state = await self.ledger.state()
+        if state.champion.id < 1 or await self.ledger.has_rating(state.champion.id):
+            return
+        gate, binary = await build_gate(self.settings, state.champion.commit_sha)
+        if binary is None:
+            log.error("rating: gen-%d does not build: %s", state.champion.id, gate.detail)
+            return
+        await self.rate(state.champion.id, binary, seed=state.champion.id)

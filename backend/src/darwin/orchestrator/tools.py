@@ -94,8 +94,12 @@ class SessionTools:
         sha = await self.sandbox.commit_all(message, self.base_commit)
         if sha is None:
             raise ToolError("Nothing changed in /genome: there is nothing to submit.")
-        await sandbox.archive(self.settings, sha, f"exp-{self.experiment_id}")
         stat = await self.sandbox.diff_stat(self.base_commit, sha)
+        if not stat.get("files"):
+            # Commits that end where the base is: judging it would only play the champion
+            # against itself for hours.
+            raise ToolError("Your tree is identical to the base: change the engine first.")
+        await sandbox.archive(self.settings, sha, f"exp-{self.experiment_id}")
         await self.ledger.set_submission(self.experiment_id, hypothesis, sha, stat)
         lesson = str(params.get("lesson_for_previous") or "").strip()
         if lesson and self.previous_experiment_id is not None:

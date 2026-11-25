@@ -26,6 +26,15 @@ pytestmark = pytest.mark.docker
 
 AGENT_DIR = Path(__file__).resolve().parents[3] / "agent"
 SCRIPT: list[dict[str, Any]] = [
+    # A commit that ends where it started: submit must refuse it, not judge it.
+    {
+        "tool": "bash",
+        "args": {
+            "command": "echo x >> CONTRACT.md && git -c user.name=a -c user.email=a@a commit -qam a"
+            " && git -c user.name=a -c user.email=a@a revert --no-edit HEAD > /dev/null"
+        },
+    },
+    {"tool": "submit", "args": {"hypothesis": "Nothing really changed in this tree."}},
     {"tool": "bash", "args": {"command": "head -c 40 CONTRACT.md && cargo build --release -q"}},
     {"tool": "perft_check", "args": {}},
     {"tool": "write", "args": {"path": "src/notes.txt", "content": "my first change\n"}},
@@ -162,8 +171,14 @@ async def test_a_scripted_session_reaches_a_verdict(
     await Orchestrator(settings, ledger).run(max_sessions=1)
 
     experiment, previous = await ledger.recent_experiments(5)
-    assert previous.id == earlier
-    assert previous.lesson == "A stub that only prints cannot pass perft."
+    async with ledger.session() as s:
+        trace = [
+            (e.kind, e.payload)
+            for e in (await s.scalars(select(m.AgentEvent))).all()
+            if e.kind == "tool_result"
+        ]
+    assert previous.id == earlier, trace
+    assert previous.lesson == "A stub that only prints cannot pass perft.", trace
     assert experiment.lesson is None
     first_prompt = json.dumps(seen[0]["messages"])
     assert f"Last verdict (#{earlier}: rejected)" in first_prompt
@@ -177,7 +192,11 @@ async def test_a_scripted_session_reaches_a_verdict(
     assert experiment.hypothesis and experiment.hypothesis.startswith("Add a notes file")
     assert experiment.diff_stat is not None and experiment.diff_stat["files"] == 2  # + Cargo.lock
     tools = [e.payload["tool"] for e in events if e.kind == "tool_call"]
-    assert tools == ["bash", "perft_check", "write", "bash", "bash", "submit"]
+    assert tools == ["bash", "submit", "bash", "perft_check", "write", "bash", "bash", "submit"]
+    refused = next(
+        e.payload for e in events if e.kind == "tool_result" and e.payload["tool"] == "submit"
+    )
+    assert refused["error"] and "identical to the base" in refused["text"]
     results = {e.payload["tool"]: e.payload for e in events if e.kind == "tool_result"}
     assert "Protocol problem" in results["perft_check"]["text"]
     assert len(calls) == len(SCRIPT) and all(c.cost_usd > 0 for c in calls)

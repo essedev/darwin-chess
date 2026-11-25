@@ -25,7 +25,10 @@ def generate(rng: random.Random, count: int, plies: int = 8) -> list[str]:
             raise ValueError(f"could not generate {count} distinct openings")
         board = chess.Board()
         for _ in range(plies):
-            board.push(rng.choice(list(board.legal_moves)))
+            moves = list(board.legal_moves)
+            if not moves:  # a random line can end in mate or stalemate: discard it below
+                break
+            board.push(rng.choice(moves))
         balanced = _material(board, chess.WHITE) == _material(board, chess.BLACK)
         if balanced and not board.is_check() and not board.is_game_over():
             book[board.epd()] = None

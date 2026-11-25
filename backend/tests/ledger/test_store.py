@@ -102,3 +102,10 @@ async def test_timestamps_come_back_aware(ledger: Ledger) -> None:
     await ledger.seed(SEED)
     [gen0] = await ledger.generations()
     assert gen0.created_at.tzinfo is UTC
+
+
+async def test_a_rating_of_either_kind_marks_a_champion_as_measured(ledger: Ledger) -> None:
+    await ledger.seed(SEED)
+    assert not await ledger.has_rating(0)
+    await ledger.add_rating(0, "anchors_below", 1320.0, None, {"below_scale": True})
+    assert await ledger.has_rating(0)

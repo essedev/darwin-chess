@@ -234,6 +234,16 @@ class Ledger:
                 )
             )
 
+    async def has_rating(self, generation_id: int) -> bool:
+        async with self.session() as s:
+            found = await s.scalar(
+                select(m.RatingSnapshot.id).where(
+                    m.RatingSnapshot.generation_id == generation_id,
+                    m.RatingSnapshot.source.in_(("anchors", "anchors_below")),
+                )
+            )
+            return found is not None
+
     # Agent activity and spend
 
     async def add_event(self, experiment_id: int, kind: str, payload: dict[str, Any]) -> int:
