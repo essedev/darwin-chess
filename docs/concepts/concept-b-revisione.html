@@ -84,6 +84,13 @@
 			   a3 Strumento: tutta la pagina è una griglia a filo di un pixel, come il pannello di uno
 			      strumento; angoli vivi dentro, raggio solo fuori, numeri e etichette in mono.
 			   Nessuna delle tre riprende il serif editoriale di B Genealogia (concept A), non scelto.
+
+			Giro 3: Simone: a1 gli piace, ma non lo convince lo spazio sotto la scacchiera (la lista
+			   dei verdetti sola al centro, con le colonne laterali già finite e vuote ai lati); per
+			   Evoluzione preferisce A. In a1 la lista dei verdetti (o delle partite Lichess) passa
+			   nella colonna destra, sotto spesa: le tre colonne finiscono quasi alla stessa altezza
+			   e la colonna centrale chiude con il pensiero dell'agente. Evoluzione in a1 è quella di
+			   A, invariata. a2 e a3 restano come al giro 2.
 		-->
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1112,8 +1119,8 @@
 					<header class="ar-top"><div class="ar-gen"><h1>${T('Generazione 5', 'Generation 5')}</h1><p>${T('il candidato #18 prova a diventare la 6', 'candidate #18 is trying to become 6')}</p></div><span class="pill bad"><i class="dot pulse"></i>${T('In diretta', 'Live')}</span>${steps()}</header>
 					<aside class="ar-col ar-left">${elo}${hist}</aside>
 					<div class="ar-col ar-stage"><div class="table"><div class="tb-head">${tabs()}${S.tab === 'lichess' ? `<a class="link" href="#" style="display:inline-flex;gap:6px;align-items:center">${T('Apri su Lichess', 'Open on Lichess')} ${ext}</a>` : ''}</div>${head}${gameAR(S.tab === 'lichess')}
-						<div class="cap2"><p class="eyebrow">${T('Ultimo pensiero dell’agente', 'The agent’s last thought')} · 14:27</p><p class="t clamp2" lang="en">${esc(plain(THOUGHT))}</p></div></div>${list}</div>
-					<aside class="ar-col ar-right">${verdict}${spend}</aside>
+						<div class="cap2"><p class="eyebrow">${T('Ultimo pensiero dell’agente', 'The agent’s last thought')} · 14:27</p><p class="t clamp2" lang="en">${esc(plain(THOUGHT))}</p></div></div>${S.v === 'a1' ? '' : list}</div>
+					<aside class="ar-col ar-right">${verdict}${spend}${S.v === 'a1' ? list : ''}</aside>
 				</div>`;
 			}
 			function evoAR() {
@@ -1151,7 +1158,7 @@
 				const b = v.replace(/\d+$/, '');
 				const sub = b !== v;
 				const live = sub ? liveAR : { x: liveX, a: liveA, b: liveB, c: liveC }[b];
-				const evo = sub ? evoAR : { x: evoX, a: evoA, b: evoB, c: evoC }[b];
+				const evo = sub ? (v === 'a1' ? evoA : evoAR) : { x: evoX, a: evoA, b: evoB, c: evoC }[b];
 				document.querySelector('[data-main]').innerHTML = S.page === 'diretta' ? live() : evo();
 				document.querySelectorAll('[data-scroll]').forEach((el) => (el.scrollTop = el.scrollHeight, el.scrollLeft = el.scrollWidth));
 			}
