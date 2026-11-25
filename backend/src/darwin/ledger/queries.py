@@ -19,8 +19,11 @@ async def generations_with_story(ledger: Ledger) -> list[dict[str, Any]]:
         rows: list[dict[str, Any]] = []
         previous_experiment = 0
         for gen in gens:
-            hypothesis, tried = None, 0
+            hypothesis, title, tried = None, None, 0
             if gen.experiment_id is not None:
+                title = (await commentary.of(s, commentary.TITLE, [gen.experiment_id])).get(
+                    gen.experiment_id
+                )
                 winner = await s.get_one(m.Experiment, gen.experiment_id)
                 hypothesis = winner.hypothesis
                 tried = (
@@ -46,7 +49,9 @@ async def generations_with_story(ledger: Ledger) -> list[dict[str, Any]]:
                     "commit": gen.commit_sha,
                     "elo_vs_parent": gen.elo_vs_parent,
                     "elo_absolute": rating.elo if rating else None,
+                    "elo_absolute_error": rating.elo_error if rating else None,
                     "hypothesis": hypothesis,
+                    "title": commentary.view(title),
                     "tried": tried,
                     "created_at": gen.created_at.isoformat(),
                 }
@@ -81,15 +86,18 @@ async def experiment_view(ledger: Ledger, row: m.Experiment) -> dict[str, Any]:
             select(m.Match).where(m.Match.experiment_id == row.id).order_by(m.Match.id.desc())
         )
         italian = await commentary.of(s, commentary.HYPOTHESIS, [row.id])
+        title = await commentary.of(s, commentary.TITLE, [row.id])
     return {
         "id": row.id,
         "phase": row.phase,
         "status": row.status,
+        "title": commentary.view(title.get(row.id)),
         "hypothesis": row.hypothesis,
         "hypothesis_it": commentary.italian(italian.get(row.id)),
         "rejected_at_gate": row.rejected_at_gate,
         "lesson": row.lesson,
         "diff_stat": row.diff_stat,
+        "progress": row.progress,
         "created_at": row.created_at.isoformat(),
         "gates": [gate_view(g) for g in gates],
         "match": None if match is None else match_view(match),
@@ -159,7 +167,9 @@ async def recent_events(ledger: Ledger, limit: int) -> list[dict[str, Any]]:
     return await events_after(ledger, start, limit)
 
 
-async def lichess_summary(ledger: Ledger, site: str, recent: int = 20) -> dict[str, Any]:
+async def lichess_summary(
+    ledger: Ledger, site: str, account: str, recent: int = 20
+) -> dict[str, Any]:
     """The last finished Lichess games, with their commentary, and the performance of every
     generation that played.
 
@@ -170,6 +180,7 @@ async def lichess_summary(ledger: Ledger, site: str, recent: int = 20) -> dict[s
         rows = (await s.scalars(query.order_by(m.LichessGame.id.desc()))).all()
         texts = await commentary.of(s, commentary.LICHESS_GAME, [g.id for g in rows[:recent]])
     return {
+        "profile_url": f"{site.rstrip('/')}/@/{account}/all" if account else None,
         "recent": [
             {
                 "lichess_id": g.lichess_id,

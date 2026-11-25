@@ -13,7 +13,7 @@ from fastapi.testclient import TestClient
 from darwin.api.app import app
 from darwin.api.mind import MAX_MEMORY_BYTES
 from darwin.config import get_settings
-from darwin.ledger import lichess
+from darwin.ledger import commentary, lichess
 from darwin.ledger.store import Ledger
 from darwin.orchestrator.prompts import SYSTEM
 from darwin.referee.judge import Phase, Verdict
@@ -108,6 +108,9 @@ def seed_ledger(ledger_url: str, gen0: str, gen1: str) -> None:
         await ledger.record_verdict(third, Verdict(False, [failed], None, None))
         await ledger.add_rating(0, "anchors_below", 1320.0, None, {})
         await ledger.add_rating(1, "anchors", 1500.0, 40.0, {})
+        await commentary.add(ledger, commentary.Subject(commentary.TITLE, first),
+                             text_it="Una ricerca", text_en="A search", model="m",
+                             input_tokens=1, output_tokens=1, cost_usd=0.0)  # fmt: skip
         await lichess.start_game(ledger, lichess_id="g1", generation_id=1, color="white",
                                  opponent="bot", opponent_rating=1400, opponent_title="BOT",
                                  rated=True, time_control="180+2")  # fmt: skip
@@ -259,6 +262,8 @@ def test_generations_detail_newest_first(client: TestClient, lab: Lab) -> None:
     gen1, gen0 = client.get("/api/generations/detail").json()
     assert gen1["id"] == 1 and gen1["parent_commit"] == lab.gen0
     assert (gen1["elo_absolute"], gen1["below_ladder"], gen1["tried"]) == (1500.0, False, 1)
+    assert gen1["elo_absolute_error"] == 40.0
+    assert gen1["title"] == {"it": "Una ricerca", "en": "A search"}
     assert (gen1["hypothesis"], gen1["lesson"], gen1["experiment_id"]) == (
         "Add a search", "Search pays.", 1)  # fmt: skip
     assert gen1["diff_stat"] == {"files": 4}
@@ -266,6 +271,7 @@ def test_generations_detail_newest_first(client: TestClient, lab: Lab) -> None:
                                "performance": 1800}  # fmt: skip
     assert (gen0["parent_commit"], gen0["below_ladder"], gen0["elo_absolute"]) == (
         None, True, None)  # fmt: skip
+    assert (gen0["elo_absolute_error"], gen0["title"]) == (None, None)
     assert gen0["lichess"] is None
 
 
@@ -283,8 +289,19 @@ def test_experiments_page_through_every_kind(client: TestClient) -> None:
     assert exp["cost_usd"] == pytest.approx(0.3)
     assert exp["gates"] == [{"gate": "match", "passed": True, "detail": {"games": 1}}]
     assert (exp["match"]["verdict"], exp["match"]["wins"]) == ("h1", 1)
-    for bad in ({"limit": 0}, {"limit": 101}, {"before_id": "x"}):
+    assert exp["title"] == {"it": "Una ricerca", "en": "A search"}
+    assert first["items"][0]["title"] is None  # not written yet
+    assert first["counts"] == {"total": 3, "accepted": 1, "rejected": 1, "done": 1}
+    for bad in ({"limit": 0}, {"limit": 101}, {"before_id": "x"}, {"status": "Rejected;"}):
         assert client.get("/api/experiments", params=bad).status_code == 400
+
+
+def test_experiments_filtered_by_status_keep_the_counts_of_all(client: TestClient) -> None:
+    body = client.get("/api/experiments", params={"status": "rejected,error"}).json()
+    assert [e["id"] for e in body["items"]] == [3]
+    assert body["counts"]["total"] == 3
+    none = client.get("/api/experiments", params={"status": "stale"}).json()
+    assert (none["items"], none["next_before_id"]) == ([], None)
 
 
 def test_lab_totals(client: TestClient) -> None:

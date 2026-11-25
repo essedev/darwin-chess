@@ -1,6 +1,7 @@
 """Read-only history for the dashboard: every generation, every experiment, the lab's totals."""
 
 from bisect import bisect_right
+from collections.abc import Sequence
 from itertools import accumulate
 from typing import Any
 
@@ -43,12 +44,13 @@ async def generations_detail(ledger: Ledger) -> list[dict[str, Any]]:
         ).all()
         hypotheses_it = await commentary.of(s, commentary.HYPOTHESIS, winners)
         lessons_it = await commentary.of(s, commentary.LESSON, winners)
+        titles = await commentary.of(s, commentary.TITLE, winners)
     lichess = performance(games)
-    anchors: dict[int, float] = {}
+    anchors: dict[int, m.RatingSnapshot] = {}
     below: set[int] = set()
     for snap in snapshots:  # ascending: the latest "anchors" rating wins
         if snap.source == "anchors":
-            anchors[snap.generation_id] = snap.elo
+            anchors[snap.generation_id] = snap
         else:
             below.add(snap.generation_id)
     rows: list[dict[str, Any]] = []
@@ -69,9 +71,11 @@ async def generations_detail(ledger: Ledger) -> list[dict[str, Any]]:
                 "parent_commit": parent,
                 "created_at": gen.created_at.isoformat(),
                 "elo_vs_parent": gen.elo_vs_parent,
-                "elo_absolute": anchors.get(gen.id),
+                "elo_absolute": anchors[gen.id].elo if gen.id in anchors else None,
+                "elo_absolute_error": anchors[gen.id].elo_error if gen.id in anchors else None,
                 "below_ladder": gen.id in below and gen.id not in anchors,
                 "experiment_id": gen.experiment_id,
+                "title": commentary.view(titles.get(winner.id)) if winner else None,
                 "hypothesis": winner.hypothesis if winner else None,
                 "hypothesis_it": commentary.italian(hypotheses_it.get(winner.id))
                 if winner
@@ -87,10 +91,21 @@ async def generations_detail(ledger: Ledger) -> list[dict[str, Any]]:
     return rows[::-1]
 
 
-async def experiments_page(ledger: Ledger, limit: int, before_id: int | None) -> dict[str, Any]:
-    """Experiments of any kind, newest first, `limit` at a time below `before_id`."""
+async def experiments_page(
+    ledger: Ledger, limit: int, before_id: int | None, statuses: Sequence[str] = ()
+) -> dict[str, Any]:
+    """Experiments of any kind, newest first, `limit` at a time below `before_id`, only with
+    one of `statuses` when given; `counts` are per status over every experiment."""
     async with ledger.session() as s:
+        counts = {
+            status: int(n)
+            for status, n in await s.execute(
+                select(m.Experiment.status, func.count()).group_by(m.Experiment.status)
+            )
+        }
         query = select(m.Experiment)
+        if statuses:
+            query = query.where(m.Experiment.status.in_(statuses))
         if before_id is not None:
             query = query.where(m.Experiment.id < before_id)
         rows = (await s.scalars(query.order_by(m.Experiment.id.desc()).limit(limit + 1))).all()
@@ -117,6 +132,7 @@ async def experiments_page(ledger: Ledger, limit: int, before_id: int | None) ->
         cost_of = {exp_id: float(usd or 0.0) for exp_id, usd in costs}
         hypotheses_it = await commentary.of(s, commentary.HYPOTHESIS, ids)
         lessons_it = await commentary.of(s, commentary.LESSON, ids)
+        titles = await commentary.of(s, commentary.TITLE, ids)
     gates_of: dict[int, list[dict[str, Any]]] = {}
     for gate in gates:
         gates_of.setdefault(gate.experiment_id, []).append(gate_view(gate))
@@ -128,6 +144,7 @@ async def experiments_page(ledger: Ledger, limit: int, before_id: int | None) ->
             "phase": e.phase,
             "status": e.status,
             "trigger": e.trigger,
+            "title": commentary.view(titles.get(e.id)),
             "hypothesis": e.hypothesis,
             "hypothesis_it": commentary.italian(hypotheses_it.get(e.id)),
             "lesson": e.lesson,
@@ -143,7 +160,11 @@ async def experiments_page(ledger: Ledger, limit: int, before_id: int | None) ->
         }
         for e in rows
     ]
-    return {"items": items, "next_before_id": rows[-1].id if more else None}
+    return {
+        "items": items,
+        "next_before_id": rows[-1].id if more else None,
+        "counts": {"total": sum(counts.values()), **counts},
+    }
 
 
 async def recent_matches(ledger: Ledger, limit: int) -> list[dict[str, Any]]:
@@ -159,6 +180,7 @@ async def recent_matches(ledger: Ledger, limit: int) -> list[dict[str, Any]]:
             ).all()
         }
         hypotheses_it = await commentary.of(s, commentary.HYPOTHESIS, exp_ids)
+        titles = await commentary.of(s, commentary.TITLE, exp_ids)
         texts = await commentary.of(s, commentary.MATCH, [r.id for r in rows])
     items = []
     for row in rows:
@@ -178,6 +200,7 @@ async def recent_matches(ledger: Ledger, limit: int) -> list[dict[str, Any]]:
                 "verdict": row.verdict,
                 "time_control": row.time_control,
                 "finished_at": row.finished_at.isoformat() if row.finished_at else None,
+                "title": commentary.view(titles.get(exp.id)) if exp else None,
                 "hypothesis_en": exp.hypothesis if exp else None,
                 "hypothesis_it": commentary.italian(hypotheses_it.get(exp.id)) if exp else None,
                 "commentary": commentary.view(texts.get(row.id)),

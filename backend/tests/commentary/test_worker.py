@@ -6,6 +6,7 @@ from typing import Any
 import pytest
 from sqlalchemy import select
 
+from darwin.commentary import prompts
 from darwin.commentary.model import Written
 from darwin.commentary.worker import CommentaryWorker, budget_allows
 from darwin.config import Settings
@@ -202,6 +203,29 @@ async def test_hypothesis_and_lesson_share_one_call_and_keep_the_original(
     assert sum(r.cost_usd for r in rows) == pytest.approx(0.001)
 
 
+async def test_a_title_is_written_in_both_languages_from_the_hypothesis(ledger: Ledger) -> None:
+    await ledger.seed("0" * 40)
+    exp = await judged(ledger, "Add a doubled-pawn penalty to the go mover's eval", match=False)
+    writer = FakeWriter()
+    worker = make(ledger, writer)
+    worker.after_submit(exp)
+    await worker.work(until_idle=True)
+
+    title_call, translation_call = writer.calls
+    assert title_call[0] == prompts.TITLE_SYSTEM
+    assert "doubled-pawn penalty" in title_call[1]
+    assert title_call[2]["required"] == ["it", "en"]
+    assert translation_call[2]["required"] == ["hypothesis"]
+    rows = await stored(ledger)
+    assert [(r.kind, r.text_it, r.text_en) for r in rows] == [
+        ("title", "it text 1", "en text 1"),
+        ("hypothesis", "hypothesis text 2", "Add a doubled-pawn penalty to the go mover's eval"),
+    ]
+    worker.enqueue(records.TITLE, exp)  # already written: nothing to do
+    await worker.work(until_idle=True)
+    assert len(writer.calls) == 2
+
+
 async def test_a_refusal_stores_nothing_and_the_worker_goes_on(ledger: Ledger) -> None:
     await ledger.seed("0" * 40)
     exp = await judged(ledger, "Try a deeper search", match=False)
@@ -247,14 +271,16 @@ async def test_backfill_queues_what_is_missing_oldest_first(
 
     assert await records.missing(ledger) == [
         Subject(records.LICHESS_GAME, played),
+        Subject(records.TITLE, early),  # dated at the submission, before the verdict
         Subject(records.MATCH, match_id),
         Subject(records.HYPOTHESIS, later),
         Subject(records.LESSON, early),  # written by the session of `later`
+        Subject(records.TITLE, later),
     ]
     worker = make(ledger, FakeWriter())
-    assert await worker.backfill() == 4
-    assert await worker.backfill() == 4  # already pending: not queued twice
-    assert worker.queue.qsize() == 4
+    assert await worker.backfill() == 6
+    assert await worker.backfill() == 6  # already pending: not queued twice
+    assert worker.queue.qsize() == 6
 
 
 async def test_the_worker_task_backfills_and_comments(

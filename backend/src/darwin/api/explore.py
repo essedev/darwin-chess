@@ -40,8 +40,11 @@ async def experiments(
     request: Request,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
     before_id: Annotated[int | None, Query(ge=1)] = None,
+    status: Annotated[str | None, Query(max_length=200, pattern=r"^[a-z_]+(,[a-z_]+)*$")] = None,
 ) -> dict[str, Any]:
-    return await history.experiments_page(_ledger(request), limit, before_id)
+    """`status` is a comma-separated list: "rejected,stale,abandoned"."""
+    statuses = status.split(",") if status else []
+    return await history.experiments_page(_ledger(request), limit, before_id, statuses)
 
 
 @router.get("/matches")

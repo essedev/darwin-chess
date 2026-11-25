@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from darwin.config import Settings
-from darwin.referee.match import MatchResult, fixed_match, sprt_match
+from darwin.referee.match import MatchResult, OnBatch, fixed_match, sprt_match
 from darwin.referee.models import FAULTS, EngineSpec, Gate, GateResult
 from darwin.referee.sprt import SprtParams, SprtVerdict
 
@@ -51,12 +51,13 @@ async def smoke_gate(
 
 async def match_gate(
     settings: Settings, candidate: EngineSpec, opponent: EngineSpec, policy: MatchPolicy,
-    seed: int,
+    seed: int, on_batch: OnBatch | None = None,
 ) -> tuple[GateResult, MatchResult]:  # fmt: skip
     started = time.monotonic()
     result = await sprt_match(
         settings, candidate, opponent, policy.params,
         tc=policy.tc, batch_pairs=policy.batch_pairs, max_pairs=policy.max_pairs, seed=seed,
+        on_batch=on_batch,
     )  # fmt: skip
     lower, upper = policy.params.bounds()
     detail: dict[str, Any] = {

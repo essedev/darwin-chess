@@ -84,6 +84,9 @@ class Settings(BaseSettings):
     # Opponents are sought around this rating until ours settles (Lichess starts bots at
     # 3000). A first guess for a young engine; the anchors' Elo is a better one later.
     lichess_start_rating: int = 1200
+    # The bot's public account: the site links to its games there. The API never holds the
+    # token, so it does not learn the name from Lichess.
+    lichess_account: str = "darwin-chess-bot"
 
     # Disk for job outputs (data/jobs): a ceiling per job and for all of them.
     job_disk_gb: float = 10.0

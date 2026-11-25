@@ -96,6 +96,7 @@ def test_matches_newest_first_with_hypothesis_and_commentary(
         "verdict": "h1",
         "time_control": "2+0",
         "finished_at": oldest["finished_at"],
+        "title": None,
         "hypothesis_en": "Add a search",
         "hypothesis_it": "Aggiungi una ricerca",
         "commentary": {"it": "Ha battuto il giocatore casuale.", "en": "It beat random."},

@@ -13,7 +13,7 @@ from darwin.referee import engines
 from darwin.referee.build import build_gate
 from darwin.referee.errors import RefereeError
 from darwin.referee.gates import Policy, match_gate, smoke_gate
-from darwin.referee.match import MatchResult
+from darwin.referee.match import MatchResult, OnBatch
 from darwin.referee.models import Binary, GateResult
 from darwin.referee.perft import perft_gate
 
@@ -36,7 +36,7 @@ class Verdict:
 
 async def judge(
     settings: Settings, commit: str, phase: Phase, *, champion: Binary | None, seed: int,
-    policy: Policy | None = None,
+    policy: Policy | None = None, on_batch: OnBatch | None = None,
 ) -> Verdict:  # fmt: skip
     policy = policy or Policy()
     if phase is Phase.EVOLUTION and champion is None:
@@ -68,7 +68,7 @@ async def judge(
         assert champion is not None
         opponent = engines.candidate(settings, champion, name="champion")
         match_policy = policy.evolution
-    gate, result = await match_gate(settings, candidate, opponent, match_policy, seed)
+    gate, result = await match_gate(settings, candidate, opponent, match_policy, seed, on_batch)
     gates.append(gate)
     log.info("commit %s in %s: %s", commit[:12], phase, "accepted" if gate.passed else "rejected")
     return Verdict(gate.passed, gates, binary, result)

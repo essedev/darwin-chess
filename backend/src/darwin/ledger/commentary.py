@@ -18,7 +18,8 @@ LICHESS_GAME = "lichess_game"
 MATCH = "match"
 HYPOTHESIS = "hypothesis"
 LESSON = "lesson"
-KINDS = (LICHESS_GAME, MATCH, HYPOTHESIS, LESSON)
+TITLE = "title"  # a short headline of the hypothesis, in both languages
+KINDS = (LICHESS_GAME, MATCH, HYPOTHESIS, LESSON, TITLE)
 
 # Shorter Lichess games get no commentary: there is too little to say, and Stockfish does
 # not evaluate them (the same threshold as the bot's analysis).
@@ -144,6 +145,8 @@ async def missing(ledger: Ledger) -> list[Subject]:
     for exp in experiments:
         if exp.hypothesis and exp.id not in done[HYPOTHESIS]:
             dated.append((exp.created_at, Subject(HYPOTHESIS, exp.id)))
+        if exp.hypothesis and exp.id not in done[TITLE]:
+            dated.append((exp.created_at, Subject(TITLE, exp.id)))
         if exp.lesson and exp.id not in done[LESSON]:
             writer = next((at for exp_id, at in submitted if exp_id > exp.id), None)
             dated.append((writer or exp.finished_at or exp.created_at, Subject(LESSON, exp.id)))

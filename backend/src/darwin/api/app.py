@@ -119,7 +119,8 @@ async def lichess(request: Request) -> dict[str, Any]:
     ledger: Ledger = request.app.state.ledger
     settings = get_settings()
     live = await asyncio.to_thread(read_lichess_live, settings.data_dir)
-    return {"live": live, **await queries.lichess_summary(ledger, settings.lichess_url)}
+    summary = await queries.lichess_summary(ledger, settings.lichess_url, settings.lichess_account)
+    return {"live": live, **summary}
 
 
 def _serve_dashboard() -> None:

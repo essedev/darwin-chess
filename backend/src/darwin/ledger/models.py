@@ -37,6 +37,8 @@ class Experiment(Timestamped, Base):
     rejected_at_gate: Mapped[str | None] = mapped_column(String(16))
     lesson: Mapped[str | None] = mapped_column(Text)
     error: Mapped[str | None] = mapped_column(Text)
+    # The match so far, rewritten after every SPRT batch (games, results, LLR and its bounds).
+    progress: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     finished_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
 
 

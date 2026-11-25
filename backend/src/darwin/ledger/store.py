@@ -126,6 +126,10 @@ class Ledger:
         async with self.session() as s:
             (await s.get_one(m.Experiment, experiment_id)).candidate_commit = commit
 
+    async def set_progress(self, experiment_id: int, progress: dict[str, Any]) -> None:
+        async with self.session() as s:
+            (await s.get_one(m.Experiment, experiment_id)).progress = progress
+
     async def set_lesson(self, experiment_id: int, lesson: str) -> None:
         async with self.session() as s:
             (await s.get_one(m.Experiment, experiment_id)).lesson = lesson

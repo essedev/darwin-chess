@@ -103,6 +103,11 @@ class CommentaryWorker:
             log.exception("commentary: cannot read the matches of %s", experiment_id)
         self.enqueue(records.HYPOTHESIS, experiment_id)
 
+    def after_submit(self, experiment_id: int) -> None:
+        """The title and the Italian of a hypothesis, as soon as it is submitted."""
+        self.enqueue(records.TITLE, experiment_id)
+        self.enqueue(records.HYPOTHESIS, experiment_id)
+
     async def backfill(self) -> int:
         missing = await records.missing(self.ledger)
         for subject in missing:
@@ -157,6 +162,8 @@ class CommentaryWorker:
             return await self._match(subject)
         if subject.kind in {records.HYPOTHESIS, records.LESSON}:
             return await self._translations(subject.subject_id)
+        if subject.kind == records.TITLE:
+            return await self._title(subject)
         log.error("commentary: unknown kind %s", subject.kind)
         return False
 
@@ -243,8 +250,16 @@ class CommentaryWorker:
         )
         return await self._it_en(subject, prompts.match_prompt(facts))
 
-    async def _it_en(self, subject: Subject, prompt: str) -> bool:
-        written = await self._write(prompts.SYSTEM, prompt, prompts.IT_EN_SCHEMA)
+    async def _title(self, subject: Subject) -> bool:
+        row = await records.experiment(self.ledger, subject.subject_id)
+        if row is None or not row.hypothesis or await records.exists(self.ledger, subject):
+            return False
+        return await self._it_en(
+            subject, prompts.title_prompt(row.hypothesis), system=prompts.TITLE_SYSTEM
+        )
+
+    async def _it_en(self, subject: Subject, prompt: str, *, system: str = prompts.SYSTEM) -> bool:
+        written = await self._write(system, prompt, prompts.IT_EN_SCHEMA)
         if written is None:
             return False
         return await self._store(subject, written, written.fields["it"], written.fields["en"])

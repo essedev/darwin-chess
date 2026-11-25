@@ -15,6 +15,7 @@ import contextlib
 import logging
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import uvicorn
 
@@ -182,6 +183,7 @@ class Orchestrator:
                 self.iterations_since_reflection += 1
             if outcome.submitted is not None:
                 self.queue.put_nowait(outcome.experiment_id)
+                self.commentary.after_submit(outcome.experiment_id)  # never raises
             elif outcome.status in {"error", "budget_stop", "abandoned"} and (
                 max_sessions is None or sessions < max_sessions
             ):
@@ -252,7 +254,13 @@ class Orchestrator:
         await self.ledger.add_event(
             experiment_id, "status", {"state": "judging", "phase": state.phase.value}
         )
-        verdict = await judge(s, commit, state.phase, champion=champion, seed=experiment_id)
+
+        async def on_batch(progress: dict[str, Any]) -> None:
+            await self.ledger.set_progress(experiment_id, progress)
+
+        verdict = await judge(
+            s, commit, state.phase, champion=champion, seed=experiment_id, on_batch=on_batch
+        )
         promoted = await self.ledger.record_verdict(experiment_id, verdict)
         await self.commentary.after_verdict(experiment_id)  # never raises
         if promoted is not None:

@@ -100,7 +100,12 @@ def test_live_game_follows_the_newest_running_game(tmp_path: Path) -> None:
 
 
 def test_lichess_without_games_is_empty(client: TestClient) -> None:
-    assert client.get("/api/lichess").json() == {"live": None, "recent": [], "performance": {}}
+    assert client.get("/api/lichess").json() == {
+        "live": None,
+        "profile_url": "https://lichess.org/@/darwin-chess-bot/all",
+        "recent": [],
+        "performance": {},
+    }
 
 
 def test_lichess_shows_the_live_game_and_the_finished_ones(

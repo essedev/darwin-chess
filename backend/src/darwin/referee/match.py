@@ -6,7 +6,9 @@ far, stopping at the first bound crossed: the verdict has a single source, this 
 
 import random
 from collections import defaultdict
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from typing import Any
 
 from darwin.config import Settings
 from darwin.referee import arena, openings
@@ -39,6 +41,28 @@ def pair_scores(games: list[GameRecord], candidate: str) -> list[float]:
     return scores
 
 
+# Called after every SPRT batch with the match so far (what the public site shows live).
+OnBatch = Callable[[dict[str, Any]], Awaitable[None]]
+
+
+def progress(
+    games: list[GameRecord], candidate: str, value: float, params: SprtParams
+) -> dict[str, Any]:
+    """Games played, the candidate's results and the LLR with its bounds."""
+    scores = [game.score_for(candidate) for game in games]
+    wins, draws = scores.count(1.0), scores.count(0.5)
+    losses = len(scores) - wins - draws
+    lower, upper = params.bounds()
+    return {
+        "games": len(games),
+        "wins": wins,
+        "draws": draws,
+        "losses": losses,
+        "llr": round(value, 3),
+        "bounds": [round(lower, 3), round(upper, 3)],
+    }
+
+
 async def fixed_match(
     settings: Settings, candidate: EngineSpec, opponent: EngineSpec, *, tc: str, pairs: int,
     seed: int,
@@ -50,7 +74,7 @@ async def fixed_match(
 
 async def sprt_match(
     settings: Settings, candidate: EngineSpec, opponent: EngineSpec, params: SprtParams, *,
-    tc: str, batch_pairs: int, max_pairs: int, seed: int,
+    tc: str, batch_pairs: int, max_pairs: int, seed: int, on_batch: OnBatch | None = None,
 ) -> MatchResult:  # fmt: skip
     book = openings.generate(random.Random(seed), max_pairs)
     games: list[GameRecord] = []
@@ -61,6 +85,8 @@ async def sprt_match(
         games += await arena.play(settings, plan)
         value = llr(pentanomial(pair_scores(games, candidate.name)), params)
         verdict = decide(value, params)
+        if on_batch is not None:
+            await on_batch(progress(games, candidate.name, value, params))
         if verdict is not SprtVerdict.CONTINUE:
             break
     penta = pentanomial(pair_scores(games, candidate.name))

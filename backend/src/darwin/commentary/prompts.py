@@ -53,6 +53,20 @@ TRANSLATION_SYSTEM = (
     "Markdown."
 )
 
+TITLE_SYSTEM = (
+    "You write the headline of a change an AI agent made to the chess engine it develops, for "
+    "the public website of the project. The readers are curious visitors, mostly neither chess "
+    "players nor programmers.\n"
+    "Rules:\n"
+    "- At most 8 words; 3 to 5 is best. Sentence case, no final period, no quotes.\n"
+    "- Name what changed in the engine's play or thinking, in plain words: for example "
+    "'Search three moves deep', 'Bonus for the bishop pair', 'Stop hanging pieces'.\n"
+    "- No jargon or code names (eval, movegen, perft, go mover, cp, negamax, startpos), no "
+    "numbers unless they are the point, nothing that is not in the agent's text.\n"
+    "- Write it in Italian (field it) and in English (field en); each must read naturally in "
+    "its own language."
+)
+
 STATUS = {
     "mate": "checkmate",
     "resign": "resignation",
@@ -289,6 +303,10 @@ def match_prompt(facts: MatchFacts) -> str:
         "hypothesis.",
     ]
     return "\n".join(lines)
+
+
+def title_prompt(hypothesis: str) -> str:
+    return f"The agent's description of its change:\n\n{hypothesis}"
 
 
 def translation_schema(fields: Sequence[str]) -> dict[str, Any]:

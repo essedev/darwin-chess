@@ -2,6 +2,8 @@ import math
 
 import pytest
 
+from darwin.referee.match import progress
+from darwin.referee.models import GameRecord, Termination
 from darwin.referee.sprt import (
     SprtParams,
     SprtVerdict,
@@ -56,3 +58,21 @@ def test_elo_estimate_matches_logistic_score() -> None:
     elo, _ = elo_estimate([0, 0, 0, 100, 0])  # every pair scores 1.5 of 2: 75%
     assert expected_score(elo) == pytest.approx(0.75, abs=1e-3)
     assert math.isfinite(elo)
+
+
+def test_progress_counts_the_candidate_results_and_carries_the_bounds() -> None:
+    games = [
+        GameRecord("candidate", "champion", "1-0", Termination.CHECKMATE, "a", ""),
+        GameRecord("champion", "candidate", "1-0", Termination.CHECKMATE, "a", ""),
+        GameRecord("candidate", "champion", "1/2-1/2", Termination.ADJUDICATION, "b", ""),
+        GameRecord("champion", "candidate", "0-1", Termination.CHECKMATE, "b", ""),
+    ]
+    params = SprtParams(0, 10)
+    assert progress(games, "candidate", 0.81234, params) == {
+        "games": 4,
+        "wins": 2,
+        "draws": 1,
+        "losses": 1,
+        "llr": 0.812,
+        "bounds": [round(params.bounds()[0], 3), round(params.bounds()[1], 3)],
+    }

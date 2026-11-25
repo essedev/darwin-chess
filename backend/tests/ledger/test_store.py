@@ -2,6 +2,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from darwin.ledger import queries
 from darwin.ledger.store import Ledger
 from darwin.referee.judge import Phase, Verdict
 from darwin.referee.match import MatchResult
@@ -109,3 +110,15 @@ async def test_a_rating_of_either_kind_marks_a_champion_as_measured(ledger: Ledg
     assert not await ledger.has_rating(0)
     await ledger.add_rating(0, "anchors_below", 1320.0, None, {"below_scale": True})
     assert await ledger.has_rating(0)
+
+
+async def test_match_progress_is_kept_on_the_experiment(ledger: Ledger) -> None:
+    await ledger.seed("a" * 40)
+    exp = await ledger.start_experiment(
+        kind="iteration", phase=Phase.EVOLUTION, base_commit="a" * 40,
+        base_generation_id=0, trigger="start",
+    )  # fmt: skip
+    progress = {"games": 24, "wins": 9, "draws": 8, "losses": 7, "llr": 0.4, "bounds": [-2.9, 2.9]}
+    await ledger.set_progress(exp, progress)
+    view = await queries.experiment_view(ledger, await ledger.experiment(exp))
+    assert (view["progress"], view["title"]) == (progress, None)

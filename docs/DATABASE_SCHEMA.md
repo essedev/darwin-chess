@@ -30,6 +30,7 @@ Una sessione dell'agente: un'iterazione (ipotesi, candidato, esito) o una rifles
 | rejected_at_gate | TEXT | `build`, `perft`, `smoke`, `match`, null se accettato |
 | lesson | TEXT | riga scritta dall'agente dopo il verdetto |
 | error | TEXT | traceback quando `status = error` |
+| progress | JSON | il match finora, riscritto dopo ogni lotto dello SPRT: `games`, `wins`, `draws`, `losses` del candidato, `llr` e `bounds`; null se non c'è match |
 | created_at | DATETIME | |
 | finished_at | DATETIME | |
 
@@ -168,9 +169,9 @@ Testi per i visitatori del sito, in italiano e inglese. L'agente non li legge ma
 | Campo | Tipo | Note |
 |---|---|---|
 | id | INTEGER | PK |
-| kind | TEXT | `lichess_game`, `match`, `hypothesis`, `lesson` |
+| kind | TEXT | `lichess_game`, `match`, `hypothesis`, `lesson`, `title` (titolo breve dell'ipotesi, scritto alla consegna) |
 | subject_id | INTEGER | `lichess_games.id`, `matches.id` o `experiments.id` secondo `kind`; UNIQUE con `kind` |
-| text_it / text_en | TEXT | per `hypothesis` e `lesson` l'inglese è l'originale dell'agente e l'italiano la traduzione |
+| text_it / text_en | TEXT | per `hypothesis` e `lesson` l'inglese è l'originale dell'agente e l'italiano la traduzione; per `title` entrambi scritti dal modello |
 | model | TEXT | |
 | input_tokens / output_tokens | INTEGER | |
 | cost_usd | REAL | conta sul tetto dei commenti, separato dal budget dell'agente |
