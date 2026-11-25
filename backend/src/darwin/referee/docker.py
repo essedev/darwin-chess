@@ -83,7 +83,7 @@ async def remove_run_containers(settings: Settings, run_id: str) -> None:
     if not ids:
         return
     removed = await run([settings.docker_bin, "rm", "-f", *ids], 60)
-    if removed.returncode != 0:
+    if removed.returncode != 0 and not only_going(removed.stderr):
         raise RefereeError(f"docker rm failed: {removed.stderr.strip()}")
     log.info("removed %d leftover containers of run %s", len(ids), run_id)
 
@@ -101,6 +101,17 @@ async def remove_instance_containers(settings: Settings) -> int:
     ids = listed.stdout.split()
     if ids:
         removed = await run([settings.docker_bin, "rm", "-f", *ids], 120)
-        if removed.returncode != 0:
+        if removed.returncode != 0 and not only_going(removed.stderr):
             raise RefereeError(f"docker rm failed: {removed.stderr.strip()}")
     return len(ids)
+
+
+# Containers started with --rm remove themselves when their process dies: right after a stop
+# Docker may be removing them already, or be done. Neither is a failure to remove them.
+GOING = ("is already in progress", "No such container")
+
+
+def only_going(stderr: str) -> bool:
+    """True when every error `docker rm` printed is about a container already going away."""
+    errors = [line for line in stderr.splitlines() if line.strip()]
+    return bool(errors) and all(any(mark in line for mark in GOING) for line in errors)

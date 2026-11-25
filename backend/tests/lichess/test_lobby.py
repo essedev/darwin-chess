@@ -132,3 +132,17 @@ async def test_a_declined_challenge_wakes_matchmaking_and_skips_that_bot(
         )
         await until(lambda: any(name == "Willing" for name, _ in fake.challenged), 5)
     assert [name for name, _ in fake.challenged] == ["Picky", "Willing"]
+
+
+async def test_a_draining_bot_neither_challenges_nor_accepts(
+    tmp_path: Path, fake: FakeLichess, lichess_url: str, ledger: Ledger
+) -> None:
+    fake.bots += [blitz_user("Near", 1700)]
+    settings = bot_settings(tmp_path, lichess_url, challenge_every_s=0.1)
+    async with running_bot(settings, ledger, champion) as bot:
+        bot.drain()
+        fake.events.put_nowait(offer("late", "Eager"))
+        await until(lambda: bool(fake.declined), 10)
+        await asyncio.sleep(0.5)  # a few matchmaking rounds
+    assert fake.declined == [("late", "later")]
+    assert fake.accepted == [] and fake.challenged == []

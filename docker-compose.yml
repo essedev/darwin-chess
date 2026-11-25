@@ -28,6 +28,8 @@ services:
       - ${DARWIN_HOME}/genome:${DARWIN_HOME}/genome
       - ledger:/ledger
     restart: unless-stopped
+    # Room for an orderly stop (see orchestrator/__main__.py) before Docker kills it.
+    stop_grace_period: 30s
 
   api:
     image: darwin-backend

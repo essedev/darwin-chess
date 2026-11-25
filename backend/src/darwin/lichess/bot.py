@@ -66,6 +66,11 @@ class LichessBot:
         # A decline wakes matchmaking at once; who declined is not asked again this run.
         self.retry = asyncio.Event()
         self.declined_by: set[str] = set()
+        # Before a restart: no new games, the one in progress is played to the end.
+        self.draining = False
+
+    def drain(self) -> None:
+        self.draining = True
 
     def enough(self) -> bool:
         return self.max_games is not None and self.games_played >= self.max_games
@@ -148,7 +153,7 @@ class LichessBot:
         if str(challenger.get("id", "")).lower() == self.me:  # our own, echoed back
             self.pending_id = challenge_id
             return
-        reason = rules.decline_reason(challenge, busy=self.busy())
+        reason = rules.decline_reason(challenge, busy=self.busy() or self.draining)
         if reason is None and await self.engine_for() is None:
             reason = "later"
         if reason is not None:
@@ -192,7 +197,7 @@ class LichessBot:
                 log.exception("lichess: matchmaking failed")
 
     async def _challenge_someone(self) -> None:
-        if self.enough():
+        if self.enough() or self.draining:
             return
         if self.busy() or await self.engine_for() is None:
             return

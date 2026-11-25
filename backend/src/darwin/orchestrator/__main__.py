@@ -4,6 +4,7 @@
 import argparse
 import asyncio
 import logging
+import signal
 
 from darwin.config import PROVIDERS, get_settings
 from darwin.ledger.migrate import migrate
@@ -12,6 +13,14 @@ from darwin.orchestrator.loop import Orchestrator
 
 
 async def main(sessions: int | None, lichess_games: int | None) -> None:
+    # A stop (SIGTERM from Docker, Ctrl-C) cancels this task, so every finally runs: tasks
+    # cancelled, clients closed, this run's containers removed. Unhandled, SIGTERM kills the
+    # process on the spot.
+    loop = asyncio.get_running_loop()
+    task = asyncio.current_task()
+    assert task is not None
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        loop.add_signal_handler(sig, task.cancel)
     settings = get_settings()
     needs_model = lichess_games is None
     if (
@@ -40,4 +49,7 @@ if __name__ == "__main__":
     runs.add_argument("--lichess-games", type=int, help="only the Lichess bot, for N games")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
-    asyncio.run(main(args.sessions, args.lichess_games))
+    try:
+        asyncio.run(main(args.sessions, args.lichess_games))
+    except asyncio.CancelledError:
+        logging.getLogger(__name__).info("stopped")

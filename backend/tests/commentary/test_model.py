@@ -9,7 +9,7 @@ import pytest
 from anthropic.types import Message
 
 from darwin.commentary import model
-from darwin.commentary.model import AnthropicWriter
+from darwin.commentary.model import MAX_TOKENS, AnthropicWriter
 from darwin.commentary.prompts import IT_EN_SCHEMA
 from darwin.config import Settings
 
@@ -67,7 +67,7 @@ async def test_one_structured_call_and_its_cost() -> None:
     assert written.cost_usd == pytest.approx(217.5 / 1_000_000)
     (params,) = calls.calls
     assert params["model"] == "claude-haiku-5-5"
-    assert params["max_tokens"] == 800
+    assert params["max_tokens"] == MAX_TOKENS
     assert params["system"] == "system"
     assert params["messages"] == [{"role": "user", "content": "prompt"}]
     assert params["output_config"] == {

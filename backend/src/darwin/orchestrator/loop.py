@@ -26,6 +26,7 @@ from darwin.ledger.store import Ledger
 from darwin.lichess.bot import LichessBot
 from darwin.lichess.client import LichessClient
 from darwin.orchestrator import budget, sandbox
+from darwin.orchestrator.drain import CHECK_EVERY_S, Drain
 from darwin.orchestrator.jobs import Jobs
 from darwin.orchestrator.session import SessionRunner
 from darwin.orchestrator.tools import ToolRouter
@@ -58,12 +59,15 @@ class Orchestrator:
         self.queue: asyncio.Queue[int] = asyncio.Queue()
         self.judging = 0
         self.wake = asyncio.Event()
+        self.drain = Drain(settings)
+        self.draining = asyncio.Event()
         self.triggers: list[str] = ["start"]
         self.iterations_since_reflection = 0
 
     # Setup
 
     async def prepare(self) -> None:
+        self.drain.reset()
         leftovers = await docker.remove_instance_containers(self.settings)
         if leftovers:
             log.info("removed %d containers left by a previous run", leftovers)
@@ -118,7 +122,7 @@ class Orchestrator:
         self.triggers.append(name)
         self.wake.set()
 
-    # Agent side
+    # Running
 
     async def run_lichess_only(self, games: int) -> None:
         """Only the Lichess bot, for `games` games: no agent session, nothing spent."""
@@ -141,6 +145,7 @@ class Orchestrator:
         commenting = asyncio.create_task(self.commentary.run())
         lichess = self.lichess_client()
         playing = None
+        bot = None
         if lichess is not None:
             bot = LichessBot(
                 self.settings,
@@ -150,12 +155,16 @@ class Orchestrator:
                 on_game_finished=lambda game_id: self.commentary.enqueue(LICHESS_GAME, game_id),
             )
             playing = asyncio.create_task(bot.run())
+        watching = asyncio.create_task(self._watch_drain(bot))
         try:
             await self.agent_loop(max_sessions)
             if max_sessions is not None:  # test runs: wait for the last verdict
                 await self.queue.join()
+            if self.draining.is_set():
+                await self.settle(bot)
+                await asyncio.Event().wait()  # drained: wait to be stopped
         finally:
-            for task in (judging, playing, catching_up, commenting):
+            for task in (judging, playing, catching_up, commenting, watching):
                 if task is not None:
                     task.cancel()
                     with contextlib.suppress(asyncio.CancelledError):
@@ -164,13 +173,41 @@ class Orchestrator:
             if lichess is not None:
                 await lichess.close()
             tools.should_exit = True  # orderly stop: cancelling it logs a bogus traceback
+            # Engines, arena and sandbox of this run: within the stop's grace period.
+            try:
+                await docker.remove_instance_containers(self.settings)
+            except Exception:
+                log.exception("cannot remove this run's containers; the next start will")
             await serving
+
+    # Draining
+
+    async def _watch_drain(self, bot: LichessBot | None) -> None:
+        while not self.drain.requested():  # noqa: ASYNC110 - a file from the host, no event
+            await asyncio.sleep(CHECK_EVERY_S)
+        log.info("drain requested: no new sessions or Lichess games")
+        self.draining.set()
+        self.wake.set()  # out of _wait_for_room
+        if bot is not None:
+            bot.drain()
+
+    async def settle(self, bot: LichessBot | None) -> None:
+        """Once the agent loop has stopped: waits for the Lichess game in progress, if any,
+        then tells the host it can restart."""
+        while bot is not None and bot.busy():  # noqa: ASYNC110 - busy() is a state, not an event
+            await asyncio.sleep(CHECK_EVERY_S)
+        self.drain.mark_done()
+        log.info("drained: safe to restart")
+
+    # Agent side
 
     async def agent_loop(self, max_sessions: int | None) -> None:
         sessions = 0
         while max_sessions is None or sessions < max_sessions:
             await self._wait_for_room()
             await self._wait_for_budget()
+            if self.draining.is_set():
+                return  # a session in progress has ended: none starts
             trigger = self.triggers.pop(0) if self.triggers else "continue"
             reflect = self.iterations_since_reflection >= self.settings.reflection_every
             outcome = await self.sessions.run(
@@ -199,7 +236,7 @@ class Orchestrator:
             pending = self.queue.qsize() + self.judging
             phase = (await self.ledger.state()).phase
             limit = MAX_WAITING if phase is Phase.EVOLUTION else 0
-            if pending <= limit:
+            if pending <= limit or self.draining.is_set():
                 return
             self.wake.clear()
             await self.wake.wait()
@@ -210,10 +247,11 @@ class Orchestrator:
             now = datetime.now(UTC)
             spent = await self.ledger.spend_since(budget.day_start(now))
             delay = budget.wait_before_session(now, spent, s.daily_budget_usd, s.session_max_usd)
-            if delay.total_seconds() <= 0:
+            if delay.total_seconds() <= 0 or self.draining.is_set():
                 return
             log.info("budget: %.3f $ spent today, next session in %s", spent, delay)
-            await asyncio.sleep(min(delay.total_seconds(), 600))
+            with contextlib.suppress(TimeoutError):
+                await asyncio.wait_for(self.draining.wait(), min(delay.total_seconds(), 600))
 
     # Referee side
 

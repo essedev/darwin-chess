@@ -143,3 +143,11 @@ Il numero principale della forza è l'Elo assoluto contro Stockfish con il suo m
 
 I titoli brevi degli esperimenti li scrive il worker dei commenti alla consegna, come la traduzione, non l'agente: il lavoro dell'agente non cambia e i titoli restano fuori da quello che legge.
 
+## #22 Aggiornare server svuotando core prima del riavvio
+
+Status: attiva. Data: 2026-11-25.
+
+Riavviare `core` interrompeva tutto: la partita Lichess in corso persa a tempo (con punteggio), la sessione dell'agente segnata come errore, il giudizio rifatto da capo. `make deploy` chiede a `core` di svuotarsi con un file nella cartella dei dati, perché l'host la monta già e non serve aprire una porta: `core` non avvia sessioni né partite nuove, aspetta che finiscano quelle in corso (una sessione dura al massimo 40 minuti, una partita 3+2 una decina) e risponde con un altro file; solo allora `core` e `api` vengono ricreati.
+
+Il giudizio in corso non si aspetta e non si riprende: un match può durare un'ora, e riprenderlo dall'ultimo lotto vorrebbe dire salvare le partite giocate e ripartire dalle aperture giuste, per risparmiare solo tempo di calcolo. Si riapre se il riavvio diventa frequente. `core` gestisce anche SIGTERM: prima moriva subito senza chiudere niente.
+

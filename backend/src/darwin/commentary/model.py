@@ -17,7 +17,9 @@ from darwin.config import Settings
 
 log = logging.getLogger(__name__)
 
-MAX_TOKENS = 800
+# Room for the low-effort thinking and both languages of a long game's commentary: at 800
+# some Lichess games stopped on max_tokens and were retried, and paid, at every start.
+MAX_TOKENS = 2000
 TIMEOUT_S = 60.0
 
 
