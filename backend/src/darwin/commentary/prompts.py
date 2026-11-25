@@ -35,7 +35,9 @@ SYSTEM = (
     "move number, as written in the facts.\n"
     "- Italian terms: the referee is l'arbitro, the champion il campione, the candidate il "
     "candidato, a draw una patta, checkmate scacco matto, stalemate stallo. Never use the "
-    "English words in the Italian text."
+    "English words in the Italian text.\n"
+    "- In Italian a move number agrees with mossa, which is feminine: alla mossa 40 or alla "
+    "40ª mossa, never al 40° mossa."
 )
 
 IT_EN_SCHEMA: dict[str, Any] = {
@@ -188,10 +190,13 @@ def game_prompt(facts: GameFacts) -> str:
         opponent += f", rated {facts.opponent_rating}"
     ending = STATUS.get(facts.status, facts.status)
     moments = key_moments(sans, facts.evals, facts.color)
+    # Lichess marks bot accounts with the BOT title; anyone else is a person.
+    human = facts.opponent_title != "BOT"
     lines = [
-        "A game our engine played on Lichess against another chess bot.",
+        "A game our engine played on Lichess against "
+        + ("a human player." if human else "another chess bot."),
         f"Our engine: generation {facts.generation}, playing {facts.color}.",
-        f"Opponent: {opponent}.",
+        f"Opponent: {opponent} ({'a person, not a bot' if human else 'a bot'}).",
         f"Time control: {facts.time_control} (seconds on the clock, plus seconds added per "
         f"move), {'rated' if facts.rated else 'casual'}.",
         f"Result: {OUTCOME.get(facts.result, facts.result)}, by {ending}, after "

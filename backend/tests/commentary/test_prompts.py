@@ -76,6 +76,15 @@ def test_the_game_prompt_carries_every_fact_and_marks_mates() -> None:
     assert "2 or 3 sentences" in text
 
 
+def test_the_game_prompt_tells_a_person_from_a_bot() -> None:
+    against_bot = prompts.game_prompt(facts([20] * 13))
+    assert "against another chess bot" in against_bot and "(a bot)" in against_bot
+    against_person = prompts.game_prompt(facts([20] * 13, opponent="bilo126", opponent_title=None))
+    assert "against a human player" in against_person
+    assert "bilo126, rated 1500 (a person, not a bot)" in against_person
+    assert "bot." not in against_person.split("\n")[0]
+
+
 def test_a_level_game_says_there_was_no_swing() -> None:
     text = prompts.game_prompt(facts([15] * 13, result="draw", status="draw"))
     assert "the game was drawn, by a draw by agreement or by rule" in text
