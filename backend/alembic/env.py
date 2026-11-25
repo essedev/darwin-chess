@@ -1,12 +1,13 @@
 import asyncio
 from logging.config import fileConfig
 
+from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from alembic import context
 from darwin.config import get_settings
+from darwin.ledger import models  # noqa: F401  (registers the tables)
 from darwin.ledger.base import Base
 
 # this is the Alembic Config object, which provides
@@ -23,7 +24,8 @@ if config.config_file_name is not None:
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
 target_metadata = Base.metadata
-config.set_main_option("sqlalchemy.url", get_settings().ledger_url)
+if not config.get_main_option("sqlalchemy.url"):  # tests pass their own database
+    config.set_main_option("sqlalchemy.url", get_settings().ledger_url)
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:

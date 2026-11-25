@@ -23,6 +23,8 @@ class MatchResult:
     elo_error: float
     llr: float
     verdict: SprtVerdict  # CONTINUE here means the pair budget ran out: inconclusive
+    opponent: str
+    tc: str
 
 
 def pair_scores(games: list[GameRecord], candidate: str) -> list[float]:
@@ -63,4 +65,4 @@ async def sprt_match(
             break
     penta = pentanomial(pair_scores(games, candidate.name))
     elo, error = elo_estimate(penta)
-    return MatchResult(games, penta, elo, error, value, verdict)
+    return MatchResult(games, penta, elo, error, value, verdict, opponent.name, tc)

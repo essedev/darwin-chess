@@ -7,25 +7,29 @@
 - PK `id` intera autoincrementale. Timestamp UTC: `created_at` sempre, `finished_at` dove c'è una durata.
 - Dettagli variabili (output perft, parametri SPRT, payload dei tool) in colonne `JSON`.
 
-Lo schema sotto è il progetto della milestone M1-M3: le tabelle nascono con la loro prima migrazione, non prima.
+Tutte le tabelle nascono con la migrazione iniziale. I timestamp passano dal tipo `UtcDateTime`: salvati in UTC senza fuso (SQLite non li gestisce), restituiti sempre con il fuso. Connessioni SQLite in WAL con chiavi esterne attive: `core` scrive, l'API legge in parallelo.
 
 ## Entità
 
 ### experiments
 
-Un'iterazione dell'agente: un'ipotesi, un candidato, un esito.
+Una sessione dell'agente: un'iterazione (ipotesi, candidato, esito) o una riflessione periodica.
 
 | Campo | Tipo | Note |
 |---|---|---|
 | id | INTEGER | PK |
-| phase | TEXT | `genesis`, `first_steps`, `evolution`, `world` |
-| base_generation_id | INTEGER | FK `generations.id`, null in genesi |
+| kind | TEXT | `iteration`, `reflection` |
+| phase | TEXT | `genesis`, `first_steps`, `evolution` |
+| base_commit | TEXT | commit da cui parte il lavoro |
+| base_generation_id | INTEGER | FK `generations.id`, il campione in carica alla partenza |
+| trigger | TEXT | evento che ha svegliato l'agente (`start`, `verdict`, `job_done`, `reflection`, ...) |
 | hypothesis | TEXT | cosa vuole provare l'agente, scritto da lui |
 | candidate_commit | TEXT | SHA nel genoma, null se non arriva a consegnare |
 | diff_stat | JSON | file e righe toccate |
-| status | TEXT | `running`, `rejected`, `accepted`, `error`, `budget_stop` |
+| status | TEXT | `running`, `judging`, `rejected`, `accepted`, `abandoned` (nessuna consegna), `stale` (base superata e rebase fallito), `error`, `budget_stop` |
 | rejected_at_gate | TEXT | `build`, `perft`, `smoke`, `match`, null se accettato |
 | lesson | TEXT | riga scritta dall'agente dopo il verdetto |
+| error | TEXT | traceback quando `status = error` |
 | created_at | DATETIME | |
 | finished_at | DATETIME | |
 
@@ -53,6 +57,7 @@ Una serie di partite: SPRT, smoke o ancora.
 | engine_a / engine_b | TEXT | commit del genoma o nome dell'ancora |
 | time_control | TEXT | es. `8+0.08` |
 | wins / draws / losses | INTEGER | dal punto di vista di `engine_a` |
+| pentanomial | JSON | coppie che totalizzano 0, 0,5, 1, 1,5, 2 punti |
 | elo_diff / elo_error | REAL | stima e intervallo |
 | llr | REAL | log-likelihood ratio finale (solo SPRT) |
 | verdict | TEXT | `h1`, `h0`, `inconclusive` |
@@ -72,7 +77,7 @@ Una serie di partite: SPRT, smoke o ancora.
 
 ### generations
 
-Un campione accettato. `gen-0` è il seme vuoto.
+Un campione accettato. `gen-0` è il seme vuoto. Una genesi superata non crea una generazione: sposta solo la base delle iterazioni successive.
 
 | Campo | Tipo | Note |
 |---|---|---|
@@ -120,12 +125,28 @@ Il flusso mostrato in dashboard.
 | payload | JSON | |
 | created_at | DATETIME | |
 
+### jobs
+
+Lavori lunghi solo CPU lanciati dall'agente con `run_job`.
+
+| Campo | Tipo | Note |
+|---|---|---|
+| id | INTEGER | PK |
+| experiment_id | INTEGER | FK, l'iterazione che l'ha lanciato |
+| command | TEXT | comando eseguito nel container del job |
+| cpus / max_hours | REAL | tetti imposti |
+| status | TEXT | `running`, `done`, `failed`, `killed` |
+| exit_code | INTEGER | |
+| log_tail | TEXT | ultime righe dell'output |
+| created_at / finished_at | DATETIME | |
+
 ## Relazioni
 
 ```
 generations 1 ─< experiments (base) ─< gate_results
                      │  └──< matches ─< games
                      ├──< llm_calls
+                     ├──< jobs
                      └──< agent_events
 generations 1 ─< rating_snapshots
 experiments 1 ── 0..1 generations (promozione)
