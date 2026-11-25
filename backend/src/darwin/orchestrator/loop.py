@@ -21,15 +21,20 @@ from darwin.orchestrator import budget, sandbox
 from darwin.orchestrator.jobs import Jobs
 from darwin.orchestrator.session import SessionRunner
 from darwin.orchestrator.tools import ToolRouter
+from darwin.referee import engines
 from darwin.referee.build import build_gate
 from darwin.referee.errors import RefereeError
 from darwin.referee.judge import Phase, judge
+from darwin.referee.models import Binary
+from darwin.referee.rating import rate
 
 log = logging.getLogger(__name__)
 
 SEED_MEMORY = Path(__file__).resolve().parents[4] / "seed"
 RETRY_AFTER_FAILURE_S = 120.0
 MAX_WAITING = 1
+RATING_PAIRS = 20
+RATING_TC = "8+0.08"
 
 
 class Orchestrator:
@@ -182,3 +187,21 @@ class Orchestrator:
             if done.code != 0:
                 raise RefereeError(f"cannot tag gen-{promoted.id}: {done.output}")
             log.info("gen-%d: %s", promoted.id, promoted.commit_sha[:12])
+            if verdict.binary is not None:
+                await self.rate(promoted.id, verdict.binary, experiment_id)
+
+    async def rate(self, generation_id: int, binary: Binary, seed: int) -> None:
+        """Absolute Elo of a new champion against Stockfish. Informative only: a failure here
+        is logged and never undoes the promotion."""
+        spec = engines.candidate(self.settings, binary, name=f"gen-{generation_id}")
+        try:
+            rating = await rate(self.settings, spec, pairs=RATING_PAIRS, tc=RATING_TC, seed=seed)
+        except RefereeError:
+            log.exception("rating gen-%d failed", generation_id)
+            return
+        if rating.elo is not None:
+            await self.ledger.add_rating(
+                generation_id, "anchors", rating.elo, rating.error, rating.detail()
+            )
+        else:
+            log.info("gen-%d is below the anchor ladder", generation_id)

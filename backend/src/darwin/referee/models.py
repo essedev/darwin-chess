@@ -46,6 +46,7 @@ class EngineSpec:
     image: str
     command: tuple[str, ...]
     mounts: tuple[Mount, ...] = field(default=())
+    options: tuple[tuple[str, str], ...] = field(default=())  # UCI setoption, via fastchess
 
 
 class Termination(StrEnum):

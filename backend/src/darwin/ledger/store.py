@@ -77,12 +77,22 @@ class Ledger:
     # Experiments
 
     async def start_experiment(
-        self, *, kind: str, phase: Phase, base_commit: str, base_generation_id: int | None,
+        self,
+        *,
+        kind: str,
+        phase: Phase,
+        base_commit: str,
+        base_generation_id: int | None,
         trigger: str,
-    ) -> int:  # fmt: skip
+    ) -> int:
         async with self.session() as s:
-            row = m.Experiment(kind=kind, phase=phase.value, base_commit=base_commit,
-                               base_generation_id=base_generation_id, trigger=trigger)  # fmt: skip
+            row = m.Experiment(
+                kind=kind,
+                phase=phase.value,
+                base_commit=base_commit,
+                base_generation_id=base_generation_id,
+                trigger=trigger,
+            )
             s.add(row)
             await s.flush()
             return row.id
@@ -125,9 +135,15 @@ class Ledger:
         async with self.session() as s:
             experiment = await s.get_one(m.Experiment, experiment_id)
             for gate in verdict.gates:
-                s.add(m.GateResult(experiment_id=experiment_id, gate=gate.gate.value,
-                                   passed=gate.passed, detail=gate.detail,
-                                   duration_ms=gate.duration_ms))  # fmt: skip
+                s.add(
+                    m.GateResult(
+                        experiment_id=experiment_id,
+                        gate=gate.gate.value,
+                        passed=gate.passed,
+                        detail=gate.detail,
+                        duration_ms=gate.duration_ms,
+                    )
+                )
             failed = next((gate for gate in verdict.gates if not gate.passed), None)
             experiment.rejected_at_gate = failed.gate.value if failed else None
             experiment.status = "accepted" if verdict.accepted else "rejected"
@@ -137,23 +153,42 @@ class Ledger:
                 result = verdict.match
                 wins, draws, losses = _counts(result.games, "candidate")
                 match = m.Match(
-                    experiment_id=experiment_id, kind="sprt",
-                    engine_a=experiment.candidate_commit or "candidate", engine_b=result.opponent,
-                    time_control=result.tc, wins=wins, draws=draws, losses=losses,
-                    pentanomial=result.penta, elo_diff=result.elo, elo_error=result.elo_error,
-                    llr=result.llr, verdict=result.verdict.value, finished_at=m.utcnow(),
-                )  # fmt: skip
+                    experiment_id=experiment_id,
+                    kind="sprt",
+                    engine_a=experiment.candidate_commit or "candidate",
+                    engine_b=result.opponent,
+                    time_control=result.tc,
+                    wins=wins,
+                    draws=draws,
+                    losses=losses,
+                    pentanomial=result.penta,
+                    elo_diff=result.elo,
+                    elo_error=result.elo_error,
+                    llr=result.llr,
+                    verdict=result.verdict.value,
+                    finished_at=m.utcnow(),
+                )
                 s.add(match)
                 await s.flush()
                 for game in result.games:
-                    s.add(m.Game(match_id=match.id, white=game.white, black=game.black,
-                                 result=game.result, termination=game.termination.value,
-                                 pgn=game.pgn))  # fmt: skip
+                    s.add(
+                        m.Game(
+                            match_id=match.id,
+                            white=game.white,
+                            black=game.black,
+                            result=game.result,
+                            termination=game.termination.value,
+                            pgn=game.pgn,
+                        )
+                    )
                 if verdict.accepted and experiment.candidate_commit:
                     top = await s.scalar(select(func.max(m.Generation.id)))
-                    promoted = m.Generation(id=(top or 0) + 1, experiment_id=experiment_id,
-                                            commit_sha=experiment.candidate_commit,
-                                            elo_vs_parent=result.elo)  # fmt: skip
+                    promoted = m.Generation(
+                        id=(top or 0) + 1,
+                        experiment_id=experiment_id,
+                        commit_sha=experiment.candidate_commit,
+                        elo_vs_parent=result.elo,
+                    )
                     s.add(promoted)
             return promoted
 
@@ -180,6 +215,25 @@ class Ledger:
         async with self.session() as s:
             return (await s.scalars(select(m.Generation).order_by(m.Generation.id))).all()
 
+    async def add_rating(
+        self,
+        generation_id: int,
+        source: str,
+        elo: float,
+        error: float | None,
+        detail: dict[str, Any],
+    ) -> None:
+        async with self.session() as s:
+            s.add(
+                m.RatingSnapshot(
+                    generation_id=generation_id,
+                    source=source,
+                    elo=elo,
+                    elo_error=error,
+                    detail=detail,
+                )
+            )
+
     # Agent activity and spend
 
     async def add_event(self, experiment_id: int, kind: str, payload: dict[str, Any]) -> int:
@@ -190,13 +244,26 @@ class Ledger:
             return row.id
 
     async def add_llm_call(
-        self, experiment_id: int, model: str, *, input_tokens: int, cached_tokens: int,
-        output_tokens: int, cost_usd: float,
-    ) -> None:  # fmt: skip
+        self,
+        experiment_id: int,
+        model: str,
+        *,
+        input_tokens: int,
+        cached_tokens: int,
+        output_tokens: int,
+        cost_usd: float,
+    ) -> None:
         async with self.session() as s:
-            s.add(m.LlmCall(experiment_id=experiment_id, model=model, input_tokens=input_tokens,
-                            cached_tokens=cached_tokens, output_tokens=output_tokens,
-                            cost_usd=cost_usd))  # fmt: skip
+            s.add(
+                m.LlmCall(
+                    experiment_id=experiment_id,
+                    model=model,
+                    input_tokens=input_tokens,
+                    cached_tokens=cached_tokens,
+                    output_tokens=output_tokens,
+                    cost_usd=cost_usd,
+                )
+            )
 
     async def spend_since(self, since: datetime) -> float:
         async with self.session() as s:
@@ -218,17 +285,20 @@ class Ledger:
 
     # Jobs
 
-    async def start_job(self, experiment_id: int, command: str, cpus: float,
-                        max_hours: float) -> int:  # fmt: skip
+    async def start_job(
+        self, experiment_id: int, command: str, cpus: float, max_hours: float
+    ) -> int:
         async with self.session() as s:
-            row = m.Job(experiment_id=experiment_id, command=command, cpus=cpus,
-                        max_hours=max_hours)  # fmt: skip
+            row = m.Job(
+                experiment_id=experiment_id, command=command, cpus=cpus, max_hours=max_hours
+            )
             s.add(row)
             await s.flush()
             return row.id
 
-    async def finish_job(self, job_id: int, status: str, exit_code: int | None,
-                         log_tail: str) -> None:  # fmt: skip
+    async def finish_job(
+        self, job_id: int, status: str, exit_code: int | None, log_tail: str
+    ) -> None:
         async with self.session() as s:
             row = await s.get_one(m.Job, job_id)
             row.status, row.exit_code, row.log_tail = status, exit_code, log_tail

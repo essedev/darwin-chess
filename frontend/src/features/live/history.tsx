@@ -1,6 +1,6 @@
 import type { Overview } from '@/lib/api'
 import { cn } from '@/lib/utils'
-import { STATUS, cumulativeElo, num } from './format'
+import { STATUS, eloSeries, num } from './format'
 import { Spark } from './spark'
 
 type Ready = Extract<Overview, { ready: true }>
@@ -8,7 +8,7 @@ type Ready = Extract<Overview, { ready: true }>
 const card = 'rounded-[18px] bg-card p-5 shadow-[inset_0_0_0_1px_var(--border)]'
 
 export function History({ data }: { data: Ready }) {
-  const points = cumulativeElo(data.generations)
+  const { absolute, points } = eloSeries(data.generations)
   const best = points.at(-1)
   const promoted = data.generations.filter((g) => g.id >= 1)
   const current = data.current
@@ -20,7 +20,7 @@ export function History({ data }: { data: Ready }) {
           <>
             <p className="flex items-baseline gap-2.5">
               <b className="text-[44px] leading-none font-semibold tracking-tight tabular-nums">{num(best.elo)}</b>
-              <span className="font-mono text-[13px] text-muted-foreground">Elo sul casuale · gen-{best.id}</span>
+              <span className="font-mono text-[13px] text-muted-foreground">{absolute ? 'Elo' : 'Elo sul casuale'} · gen-{best.id}</span>
             </p>
             <Spark points={points} />
           </>

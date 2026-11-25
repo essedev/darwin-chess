@@ -34,6 +34,7 @@ export type Generation = {
   id: number
   commit: string
   elo_vs_parent: number | null
+  elo_absolute: number | null
   hypothesis: string | null
   tried: number
   created_at: string

@@ -60,6 +60,10 @@ def _wrapper(settings: Settings, spec: EngineSpec, run_id: str) -> str:
     return f"#!/bin/sh\nexec {shlex.join([*shim, *argv])}\n"
 
 
+def _options(spec: EngineSpec) -> list[str]:
+    return [f"option.{name}={value}" for name, value in spec.options]
+
+
 def arena_argv(settings: Settings, plan: MatchPlan, run_id: str, workdir: Path) -> list[str]:
     return [
         settings.docker_bin, "run", "--rm", "--name", f"darwin-arena-{run_id}",
@@ -67,8 +71,8 @@ def arena_argv(settings: Settings, plan: MatchPlan, run_id: str, workdir: Path) 
         "-v", f"{settings.docker_socket}:/var/run/docker.sock",
         "-v", f"{workdir}:{workdir}", "-w", str(workdir),
         settings.arena_image,
-        "-engine", f"name={plan.a.name}", f"cmd={workdir / 'a.sh'}",
-        "-engine", f"name={plan.b.name}", f"cmd={workdir / 'b.sh'}",
+        "-engine", f"name={plan.a.name}", f"cmd={workdir / 'a.sh'}", *_options(plan.a),
+        "-engine", f"name={plan.b.name}", f"cmd={workdir / 'b.sh'}", *_options(plan.b),
         "-each", f"tc={plan.tc}", "proto=uci",
         "-rounds", str(len(plan.openings)), "-repeat",
         "-concurrency", str(plan.concurrency),

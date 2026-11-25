@@ -82,3 +82,11 @@ async def test_sprt_rejects_a_clearly_weaker_engine(settings: Settings) -> None:
     )
     assert not gate.passed
     assert gate.detail["verdict"] == "h0"
+
+
+async def test_stockfish_anchor_rates_a_weak_engine_below_the_ladder(settings: Settings) -> None:
+    from darwin.referee.rating import rate
+
+    rating = await rate(settings, faulty("greedy"), pairs=3, tc="2+0.02", seed=6)
+    assert rating.below_scale  # mate-in-one and greed do not trouble Stockfish 1320
+    assert rating.anchors[0].anchor_elo == 1320 and rating.anchors[0].score < 0.1

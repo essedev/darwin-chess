@@ -32,11 +32,18 @@ async def generations_with_story(ledger: Ledger) -> list[dict[str, Any]]:
                     or 0
                 )
                 previous_experiment = gen.experiment_id
+            rating = await s.scalar(
+                select(m.RatingSnapshot)
+                .where(m.RatingSnapshot.generation_id == gen.id)
+                .where(m.RatingSnapshot.source == "anchors")
+                .order_by(m.RatingSnapshot.id.desc())
+            )
             rows.append(
                 {
                     "id": gen.id,
                     "commit": gen.commit_sha,
                     "elo_vs_parent": gen.elo_vs_parent,
+                    "elo_absolute": rating.elo if rating else None,
                     "hypothesis": hypothesis,
                     "tried": tried,
                     "created_at": gen.created_at.isoformat(),

@@ -14,6 +14,16 @@ def candidate(settings: Settings, binary: Binary, name: str | None = None) -> En
     )
 
 
+def stockfish(settings: Settings, elo: int) -> EngineSpec:
+    """Stockfish limited to `elo` (UCI_Elo, calibrated by its authors on CCRL; 1320 minimum)."""
+    return EngineSpec(
+        name=f"stockfish-{elo}",
+        image=settings.anchors_image,
+        command=("/usr/games/stockfish",),
+        options=(("UCI_LimitStrength", "true"), ("UCI_Elo", str(elo)), ("Hash", "16")),
+    )
+
+
 def random_player(settings: Settings) -> EngineSpec:
     return EngineSpec(
         name=RANDOM_PLAYER,

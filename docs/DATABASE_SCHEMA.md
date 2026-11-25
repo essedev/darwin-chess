@@ -95,7 +95,7 @@ Elo assoluto del campione stimato contro le ancore, o rating Lichess.
 |---|---|---|
 | id | INTEGER | PK |
 | generation_id | INTEGER | FK `generations.id` |
-| source | TEXT | `anchors`, `lichess` |
+| source | TEXT | `anchors` (scala Stockfish), `lichess` |
 | elo / elo_error | REAL | |
 | detail | JSON | risultati per ancora |
 | created_at | DATETIME | |
