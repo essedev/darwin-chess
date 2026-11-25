@@ -15,7 +15,7 @@ An LLM agent (Haiku 5.5, through Anthropic or OpenRouter) writes a chess engine 
 
 ## Commands
 
-- `make install`, `make dev` (API + dashboard), `make check` (format, lint, typecheck, test)
+- `make install`, `make dev` (API + dashboard), `make check` (format, lint, typecheck, test). Never pipe it (`make check | tail`) before a commit or deploy: the pipe returns the exit code of the last command and hides a failure
 - `make db-migrate`, `make db-revision msg='...'`
 - `make run-core` (experiment), `make run-sessions n=3` (trial sessions): they need `DARWIN_LLM_API_KEY` and `make genome-init`
 - `make up` / `make down`: production in Compose (`core` + `api`), with `.env` from `.env.example`

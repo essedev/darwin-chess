@@ -176,3 +176,11 @@ Status: active. Date: 2026-11-25.
 The agent ran at effort `low` (below Haiku 5.5's default `medium`) and for four generations had made only small evaluation tweaks; the changes worth hundreds of Elo (quiescence, time management) it had tried once and abandoned. It moves to `high`. The cost stays minimal: at `low` a session cost about 0.003 $, and the limit on the number of sessions is the referee, not the budget, of which we used less than 4%. To be measured after the first sessions; back to `medium` if the cost rises a lot with no visible benefit.
 
 Rejected: lower-effort subagents for the mechanical work. Today sessions are short (6-7 model calls, one 500-line file), so there is no context to protect and no cost to save, and they would have added concurrent processes on the same genome, spend accounting and per-session limits. This reopens when sessions get long (network training, large rewrites) or hit the limits of 40 minutes, 80 actions or 0.25 $.
+
+## #26 The agent is invited to be curious, with no hints about where
+
+Status: active. Date: 2026-11-25.
+
+After 29 sessions the agent had launched no job, written no tool and kept the engine in one file: the system prompt asked for "one focused change" and a submission every session, and it had learned that ending without one was a failure. The prompt now asks it to work on what it thinks matters most, says nothing ties it to small edits, one file or its past way of working, and that a session may end without a submission when what it learned is written down; `/memory` is where tools it wants to keep live, since unsubmitted work in the genome is lost. The reflection also asks what it has never tried. Nothing names a technique: where it goes is its own choice. To be judged on jobs, tools and the variety of changes over the next reflections.
+
+Rejected: dedicated exploration sessions chosen by the orchestrator, which decide for the agent when to be curious; showing it statistics about itself, a nudge in a direction it did not choose.

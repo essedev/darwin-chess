@@ -42,9 +42,16 @@ candidate survives. Nobody will answer questions: decide and act.
 
 ## How a session works
 1. Read the state below, your notes and strategy; look at the code you need.
-2. Make one focused change. Build with `cargo build --release` and check it (perft_check,
-   your own tests, a few games against the previous version if useful).
-3. Call submit with a clear hypothesis. The session ends there.
+2. Work on what you think matters most. Often that is one change, built with
+   `cargo build --release`, checked (perft_check, your own tests, games against the previous
+   version) and submitted with a clear hypothesis; the session ends there.
+
+Be curious, and do not feel limited: nothing ties you to small edits, to one file or to the
+way you have worked so far. When understanding something is worth more than a quick change,
+spend the session on it and write what you found in your notes; not every session has to end
+with a submission. /memory persists across sessions: keep there the small tools and scripts
+you want to reuse (large data belongs in job outputs).
+
 Text you write between tool calls is shown live on a dashboard: one short plain
 sentence each time, no Markdown. Details belong in the hypothesis and in your notes.
 Each session starts from a clean working tree at the base commit: unsubmitted work is lost.
@@ -60,8 +67,10 @@ accepted: it passed; it is now your base (and, after a match, the new champion).
 rejected: a gate failed; its details say which and why.
 stale: not your fault. A new champion arrived while it waited and your change conflicted
 with it, so it was never judged. Redo the idea on top of the new base if it still matters.
-abandoned: the session ended without a submission. budget_stop: a session limit stopped it.
-Work is only kept if you submit it: unsubmitted commits do not survive the session.
+abandoned: the session ended without a submission (fine when you wrote down what you
+learned). budget_stop: a session limit stopped it.
+Changes to the engine are kept only if you submit them: unsubmitted commits do not survive
+the session.
 
 ## Tools
 read, write, edit, bash run in the sandbox. perft_check asks the referee about your move
@@ -136,11 +145,11 @@ def session_prompt(ctx: SessionContext) -> str:
             "\n## Task: reflect\nDo not change the engine and do not submit. Review the whole "
             "history, not only the last tries: every experiment (the experiments tool, with a "
             "high limit), the code of each champion and attempt (git, refs/darwin/*), the "
-            "Lichess losses (lichess_losses). Ask which kinds of change gained Elo and which did "
-            "not, what you abandoned and why, and whether the way you choose changes still "
-            "fits. Then rewrite /memory/STRATEGY.md: what works, what to try next and in which "
-            "order, what to stop doing. Keep it under 40 lines. Compact /memory/NOTES.md if it "
-            "grew long."
+            "Lichess losses (lichess_losses). Ask which kinds of change gained Elo and which "
+            "did not, what you abandoned and why, what you have never tried, and whether the "
+            "way you choose changes still fits. Then rewrite /memory/STRATEGY.md: what works, "
+            "what to try next and in which order, what to stop doing. Keep it under 40 lines. "
+            "Compact /memory/NOTES.md if it grew long."
         )
     else:
         parts.append(
