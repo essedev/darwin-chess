@@ -9,6 +9,8 @@ from fastapi.testclient import TestClient
 from darwin.api.app import app
 from darwin.api.live import read_live_game
 from darwin.config import get_settings
+from darwin.ledger import lichess
+from darwin.ledger import models as m
 from darwin.ledger.store import Ledger
 from darwin.referee.judge import Phase, Verdict
 from darwin.referee.models import Gate, GateResult
@@ -95,3 +97,109 @@ def test_live_game_follows_the_newest_running_game(tmp_path: Path) -> None:
     assert (game["game"], game["san"], game["last_move"]) == (1, ["e4", "e5"], "e7e5")
     assert game["result"] is None
     assert game["tally"]["candidate"] == {"wins": 0, "draws": 0, "losses": 1}
+
+
+def test_lichess_without_games_is_empty(client: TestClient) -> None:
+    assert client.get("/api/lichess").json() == {"live": None, "recent": [], "performance": {}}
+
+
+def test_lichess_shows_the_live_game_and_the_finished_ones(
+    client: TestClient, ledger_url: str, tmp_path: Path
+) -> None:
+    async def go() -> None:
+        ledger = Ledger(ledger_url)
+        await ledger.seed("0" * 40)
+        await lichess.start_game(
+            ledger,
+            lichess_id="AbCd1234",
+            generation_id=0,
+            color="black",
+            opponent="maia1",
+            opponent_rating=1500,
+            opponent_title="BOT",
+            rated=True,
+            time_control="180+2",
+        )
+        await lichess.finish_game(
+            ledger, "AbCd1234", status="mate", result="win", moves="e2e4", rating_after=1520
+        )
+        await ledger.close()
+
+    asyncio.run(go())
+    current = tmp_path / "data" / "lichess" / "current.json"
+    current.parent.mkdir(parents=True)
+    state = {
+        "game_id": "XyZ98765",
+        "url": "https://lichess.org/XyZ98765",
+        "generation": 0,
+        "color": "white",
+        "opponent": {"name": "maia5", "rating": 1600, "title": "BOT"},
+        "time_control": "180+2",
+        "initial_fen": "startpos",
+        "moves": ["e2e4", "e7e5", "g1f3"],
+        "wtime": 170000,
+        "btime": 175000,
+        "status": "started",
+        "result": None,
+        "updated_at": "2026-11-25T10:00:00+00:00",
+    }
+    current.write_text(json.dumps(state))
+
+    body = client.get("/api/lichess").json()
+    live = body["live"]
+    assert live["game_id"] == "XyZ98765"
+    assert live["opponent"] == {"name": "maia5", "rating": 1600, "title": "BOT"}
+    assert live["san"] == ["e4", "e5", "Nf3"]
+    assert live["last_move"] == "g1f3"
+    assert live["fen"].startswith("rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b")
+    assert body["recent"] == [
+        {
+            "lichess_id": "AbCd1234",
+            "url": "https://lichess.org/AbCd1234",
+            "opponent": "maia1",
+            "opponent_rating": 1500,
+            "opponent_title": "BOT",
+            "color": "black",
+            "result": "win",
+            "status": "mate",
+            "generation_id": 0,
+            "time_control": "180+2",
+            "finished_at": body["recent"][0]["finished_at"],
+        }
+    ]
+    assert body["performance"] == {
+        "0": {"games": 1, "wins": 1, "draws": 0, "losses": 0, "performance": 1900}
+    }
+
+    current.write_text(json.dumps({**state, "status": "mate", "result": "win"}))
+    assert client.get("/api/lichess").json()["live"] is None
+
+
+def test_overview_lists_the_running_job_and_the_last_finished(
+    client: TestClient, ledger_url: str
+) -> None:
+    seed(ledger_url)
+
+    async def go() -> None:
+        ledger = Ledger(ledger_url)
+        async with ledger.session() as s:
+            s.add(m.Job(experiment_id=1, command="selfplay --games 100", cpus=2, max_hours=4))
+            s.add(
+                m.Job(
+                    experiment_id=1,
+                    command="train",
+                    cpus=2,
+                    max_hours=1,
+                    status="failed",
+                    exit_code=2,
+                    finished_at=m.utcnow(),
+                )
+            )
+        await ledger.close()
+
+    asyncio.run(go())
+    jobs = client.get("/api/overview").json()["jobs"]
+    assert [(j["command"], j["max_hours"]) for j in jobs["running"]] == [
+        ("selfplay --games 100", 4)
+    ]
+    assert (jobs["last_finished"]["command"], jobs["last_finished"]["exit_code"]) == ("train", 2)

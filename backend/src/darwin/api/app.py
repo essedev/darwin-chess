@@ -1,7 +1,7 @@
-"""Read-only API for the dashboard: overview, live game, and a server-sent event stream.
+"""Read-only API for the dashboard: overview, live game, Lichess, and a server-sent event stream.
 
-The API never writes: it reads the ledger (SQLite in WAL, while core writes) and the
-fastchess event streams under the data dir.
+The API never writes: it reads the ledger (SQLite in WAL, while core writes), the fastchess
+event streams under the data dir and the file the Lichess bot keeps for its current game.
 """
 
 import asyncio
@@ -15,6 +15,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
+from darwin.api.lichess_live import read_lichess_live
 from darwin.api.live import read_live_game
 from darwin.config import get_settings
 from darwin.ledger import queries
@@ -68,12 +69,21 @@ async def overview(request: Request) -> dict[str, Any]:
         "agent": "paused" if paused and not running else ("working" if running else "idle"),
         "spend": {**spent, "budget": settings.daily_budget_usd, "quota_now": quota},
         "events": await queries.recent_events(ledger, 30),
+        "jobs": await queries.jobs_view(ledger),
     }
 
 
 @app.get("/api/live")
 async def live() -> dict[str, Any] | None:
     return await asyncio.to_thread(read_live_game, get_settings().data_dir / "matches")
+
+
+@app.get("/api/lichess")
+async def lichess(request: Request) -> dict[str, Any]:
+    ledger: Ledger = request.app.state.ledger
+    settings = get_settings()
+    live = await asyncio.to_thread(read_lichess_live, settings.data_dir)
+    return {"live": live, **await queries.lichess_summary(ledger, settings.lichess_url)}
 
 
 def _serve_dashboard() -> None:
@@ -85,20 +95,24 @@ def _serve_dashboard() -> None:
 @app.get("/api/stream")
 async def stream(request: Request) -> StreamingResponse:
     ledger: Ledger = request.app.state.ledger
-    matches = get_settings().data_dir / "matches"
+    data_dir = get_settings().data_dir
+    readers = {
+        "game": lambda: read_live_game(data_dir / "matches"),
+        "lichess": lambda: read_lichess_live(data_dir),
+    }
 
     async def events() -> AsyncIterator[str]:
         last_id = await queries.last_event_id(ledger)
-        last_game: str | None = None
+        last_sent: dict[str, str] = {}
         while not await request.is_disconnected():
             for event in await queries.events_after(ledger, last_id):
                 last_id = event["id"]
                 yield f"event: agent\ndata: {json.dumps(event)}\n\n"
-            game = await asyncio.to_thread(read_live_game, matches)
-            encoded = json.dumps(game)
-            if encoded != last_game:
-                last_game = encoded
-                yield f"event: game\ndata: {encoded}\n\n"
+            for name, read in readers.items():
+                encoded = json.dumps(await asyncio.to_thread(read))
+                if encoded != last_sent.get(name):
+                    last_sent[name] = encoded
+                    yield f"event: {name}\ndata: {encoded}\n\n"
             await asyncio.sleep(STREAM_TICK_S)
 
     return StreamingResponse(

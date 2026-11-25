@@ -1,4 +1,4 @@
-import type { Overview } from '@/lib/api'
+import type { LichessPerformance, Overview } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { STATUS, eloSeries, num } from './format'
 import { Spark } from './spark'
@@ -7,7 +7,7 @@ type Ready = Extract<Overview, { ready: true }>
 
 const card = 'rounded-[18px] bg-card p-5 shadow-[inset_0_0_0_1px_var(--border)]'
 
-export function History({ data }: { data: Ready }) {
+export function History({ data, lichess }: { data: Ready; lichess: LichessPerformance | undefined }) {
   const { absolute, points } = eloSeries(data.generations)
   const best = points.at(-1)
   const promoted = data.generations.filter((g) => g.id >= 1)
@@ -26,6 +26,12 @@ export function History({ data }: { data: Ready }) {
           </>
         ) : (
           <p className="text-[22px] font-semibold tracking-tight">Nessun campione ancora</p>
+        )}
+        {lichess && (
+          <p className="mt-3 text-xs text-muted-foreground">
+            Lichess: <span className="font-medium text-foreground tabular-nums">{lichess.performance}</span> di performance in{' '}
+            {lichess.games === 1 ? '1 partita' : `${lichess.games} partite`} di gen-{data.champion.id}
+          </p>
         )}
       </section>
       <ol className="grid gap-0.5">

@@ -7,6 +7,7 @@ from typing import Any
 from sqlalchemy import func, select
 
 from darwin.ledger import models as m
+from darwin.ledger.lichess import performance
 from darwin.ledger.store import Ledger
 
 
@@ -149,3 +150,70 @@ async def last_event_id(ledger: Ledger) -> int:
 async def recent_events(ledger: Ledger, limit: int) -> list[dict[str, Any]]:
     start = max(0, await last_event_id(ledger) - limit)
     return await events_after(ledger, start, limit)
+
+
+async def lichess_summary(ledger: Ledger, site: str, recent: int = 10) -> dict[str, Any]:
+    """The last finished Lichess games and the performance of every generation that played.
+
+    Performance counts every finished game, not only the recent ones.
+    """
+    async with ledger.session() as s:
+        query = select(m.LichessGame).where(m.LichessGame.finished_at.is_not(None))
+        rows = (await s.scalars(query.order_by(m.LichessGame.id.desc()))).all()
+    return {
+        "recent": [
+            {
+                "lichess_id": g.lichess_id,
+                "url": f"{site.rstrip('/')}/{g.lichess_id}",
+                "opponent": g.opponent,
+                "opponent_rating": g.opponent_rating,
+                "opponent_title": g.opponent_title,
+                "color": g.color,
+                "result": g.result,
+                "status": g.status,
+                "generation_id": g.generation_id,
+                "time_control": g.time_control,
+                "finished_at": g.finished_at.isoformat() if g.finished_at else None,
+            }
+            for g in rows[:recent]
+        ],
+        "performance": performance(rows),
+    }
+
+
+async def jobs_view(ledger: Ledger) -> dict[str, Any]:
+    """Long jobs started by the agent: the ones running and the last one that ended."""
+    async with ledger.session() as s:
+        running = (
+            await s.scalars(
+                select(m.Job).where(m.Job.status == "running").order_by(m.Job.id.desc())
+            )
+        ).all()
+        last = await s.scalar(
+            select(m.Job)
+            .where(m.Job.status != "running")
+            .order_by(m.Job.finished_at.desc(), m.Job.id.desc())
+            .limit(1)
+        )
+    return {
+        "running": [
+            {
+                "id": j.id,
+                "command": j.command,
+                "created_at": j.created_at.isoformat(),
+                "max_hours": j.max_hours,
+            }
+            for j in running
+        ],
+        "last_finished": None
+        if last is None
+        else {
+            "id": last.id,
+            "command": last.command,
+            "status": last.status,
+            "exit_code": last.exit_code,
+            "created_at": last.created_at.isoformat(),
+            "finished_at": last.finished_at.isoformat() if last.finished_at else None,
+            "max_hours": last.max_hours,
+        },
+    }

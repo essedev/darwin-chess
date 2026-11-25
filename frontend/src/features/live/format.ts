@@ -61,3 +61,59 @@ export const TOOLS: Record<string, string> = {
   experiments: 'rilegge gli esperimenti',
   run_job: 'lavoro lungo',
 }
+
+/** Who an arena engine is, in plain Italian: the candidate, a champion, Stockfish. */
+export function playerName(engine: string, candidate: number | undefined, champion: number): string {
+  if (engine === 'candidate') return `Candidato #${candidate ?? ''}`
+  if (engine === 'champion') return `Campione gen-${champion}`
+  if (engine === 'random') return 'Giocatore casuale'
+  const gen = /^gen-(\d+)$/.exec(engine)
+  if (gen) return `Campione gen-${gen[1]}`
+  const stockfish = /^stockfish-(\d+)$/.exec(engine)
+  if (stockfish) return `Stockfish ${stockfish[1]}`
+  return engine
+}
+
+/**
+ * What kind of game the arena is playing, from the two engine names: the kind ("Giudizio")
+ * and who plays ("candidato #6 contro il campione gen-2"); null for an unknown pairing.
+ */
+export function matchLabel(
+  white: string,
+  black: string,
+  candidate: number | undefined,
+  champion: number,
+): { kind: string; players: string } | null {
+  const engines = [white, black]
+  const id = candidate ?? ''
+  if (engines.includes('candidate')) {
+    const other = engines.find((e) => e !== 'candidate')
+    if (other === 'random') return { kind: 'Giudizio', players: `candidato #${id} contro il giocatore casuale` }
+    if (other === 'champion') return { kind: 'Giudizio', players: `candidato #${id} contro il campione gen-${champion}` }
+  }
+  const gen = engines.map((e) => /^gen-(\d+)$/.exec(e)).find(Boolean)
+  const stockfish = engines.map((e) => /^stockfish-(\d+)$/.exec(e)).find(Boolean)
+  if (gen && stockfish) return { kind: 'Misura dell’Elo', players: `gen-${gen[1]} contro Stockfish ${stockfish[1]}` }
+  return null
+}
+
+/** "2 h 14 min", "38 min", "meno di un minuto". */
+export function duration(ms: number): string {
+  const minutes = Math.floor(Math.max(0, ms) / 60000)
+  if (minutes < 1) return 'meno di un minuto'
+  const hours = Math.floor(minutes / 60)
+  return hours > 0 ? `${hours} h ${minutes % 60} min` : `${minutes} min`
+}
+
+/** A chess clock: "2:58". */
+export function clock(ms: number): string {
+  const seconds = Math.ceil(Math.max(0, ms) / 1000)
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
+}
+
+export const RESULTS: Record<string, { label: string; tone: string }> = {
+  win: { label: 'Vinta', tone: 'text-good' },
+  draw: { label: 'Patta', tone: 'text-muted-foreground' },
+  loss: { label: 'Persa', tone: 'text-bad' },
+  aborted: { label: 'Annullata', tone: 'text-muted-foreground' },
+}

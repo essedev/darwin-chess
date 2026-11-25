@@ -25,31 +25,41 @@ class LiveGame:
     termination: str | None = None
 
     def view(self) -> dict[str, Any]:
-        board = chess.Board(self.start_fen)
-        san: list[str] = []
-        for uci in self.moves:
-            move = chess.Move.from_uci(uci)
-            if move not in board.legal_moves:
-                break  # the referee will reject it; show the game up to there
-            san.append(board.san(move))
-            board.push(move)
         return {
             "match": self.match,
             "game": self.game,
             "white": self.white,
             "black": self.black,
-            "fen": board.fen(),
-            "san": san,
-            "start_ply": _ply(self.start_fen),
-            "last_move": self.moves[len(san) - 1] if san else None,
+            **replay(self.start_fen, self.moves),
             "result": self.result,
             "termination": self.termination,
         }
 
 
-def _ply(fen: str) -> int:
-    board = chess.Board(fen)
-    return (board.fullmove_number - 1) * 2 + (0 if board.turn == chess.WHITE else 1)
+def replay(start_fen: str, moves: list[str]) -> dict[str, Any]:
+    """Board after the moves: FEN, SAN list, ply of the start position and the last move.
+
+    Stops at the first move that is not legal (or not UCI at all): the referee rejects it,
+    the board shows the game up to there.
+    """
+    board = chess.Board(start_fen)
+    start_ply = (board.fullmove_number - 1) * 2 + (0 if board.turn == chess.WHITE else 1)
+    san: list[str] = []
+    for uci in moves:
+        try:
+            move = chess.Move.from_uci(uci)
+        except chess.InvalidMoveError:
+            break
+        if move not in board.legal_moves:
+            break
+        san.append(board.san(move))
+        board.push(move)
+    return {
+        "fen": board.fen(),
+        "san": san,
+        "start_ply": start_ply,
+        "last_move": moves[len(san) - 1] if san else None,
+    }
 
 
 def newest_match(matches_dir: Path) -> Path | None:

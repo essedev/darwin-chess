@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 
 export type Phase = 'genesis' | 'first_steps' | 'evolution'
@@ -61,7 +61,17 @@ export type Overview =
       agent: 'working' | 'idle' | 'paused'
       spend: { usd: number; sessions: number; budget: number; quota_now: number }
       events: AgentEvent[]
+      jobs: Jobs
     }
+
+export type Job = { id: number; command: string; created_at: string; max_hours: number }
+
+export type Jobs = {
+  running: Job[]
+  last_finished:
+    | (Job & { status: 'done' | 'failed' | 'killed' | string; exit_code: number | null; finished_at: string | null })
+    | null
+}
 
 export type LiveGame = {
   match: string
@@ -75,6 +85,49 @@ export type LiveGame = {
   result: string | null
   termination: string | null
   tally: Record<string, { wins: number; draws: number; losses: number }>
+}
+
+export type LichessLive = {
+  game_id: string
+  url: string
+  generation: number
+  color: 'white' | 'black'
+  opponent: { name: string; rating: number | null; title: string | null }
+  time_control: string
+  initial_fen: string
+  moves: string[]
+  wtime: number
+  btime: number
+  status: string
+  updated_at: string
+  fen: string
+  san: string[]
+  start_ply: number
+  last_move: string | null
+}
+
+export type LichessResult = 'win' | 'loss' | 'draw' | 'aborted'
+
+export type LichessGame = {
+  lichess_id: string
+  url: string
+  opponent: string
+  opponent_rating: number | null
+  opponent_title: string | null
+  color: 'white' | 'black'
+  result: LichessResult | null
+  status: string
+  generation_id: number
+  time_control: string
+  finished_at: string | null
+}
+
+export type LichessPerformance = { games: number; wins: number; draws: number; losses: number; performance: number }
+
+export type Lichess = {
+  live: LichessLive | null
+  recent: LichessGame[]
+  performance: Record<string, LichessPerformance>
 }
 
 async function getJson<T>(url: string): Promise<T> {
@@ -91,8 +144,21 @@ export function useOverview() {
   })
 }
 
-/** Live agent events and the game on the board, pushed by the API over SSE. */
+export function useLichess() {
+  return useQuery({
+    queryKey: ['lichess'],
+    queryFn: () => getJson<Lichess>('/api/lichess'),
+    refetchInterval: 30000,
+  })
+}
+
+/**
+ * Live agent events and the game on the board, pushed by the API over SSE. The Lichess game
+ * arrives on the same stream and goes into the ['lichess'] query; when it ends the query is
+ * refetched, so the finished game shows up among the recent ones.
+ */
 export function useLiveStream(initial: AgentEvent[]) {
+  const queryClient = useQueryClient()
   const [events, setEvents] = useState<AgentEvent[]>([])
   const [game, setGame] = useState<LiveGame | null>(null)
   const [connected, setConnected] = useState(false)
@@ -108,8 +174,14 @@ export function useLiveStream(initial: AgentEvent[]) {
     source.addEventListener('game', (message) => {
       setGame(JSON.parse((message as MessageEvent<string>).data) as LiveGame | null)
     })
+    source.addEventListener('lichess', (message) => {
+      const live = JSON.parse((message as MessageEvent<string>).data) as LichessLive | null
+      const known = queryClient.getQueryData<Lichess>(['lichess'])
+      if (known && live) queryClient.setQueryData<Lichess>(['lichess'], { ...known, live })
+      else void queryClient.invalidateQueries({ queryKey: ['lichess'] })
+    })
     return () => source.close()
-  }, [])
+  }, [queryClient])
 
   const merged = [...initial.filter((e) => !events.some((x) => x.id === e.id)), ...events]
   return { events: merged, game, connected }

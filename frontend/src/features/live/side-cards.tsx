@@ -1,6 +1,7 @@
 import type { Experiment, Overview } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { GATES, money, num } from './format'
+import { JobCard } from './job-card'
 
 type Ready = Extract<Overview, { ready: true }>
 
@@ -12,8 +13,9 @@ export function SideCards({ data }: { data: Ready }) {
     ? data.previous
     : data.current
   return (
-    <aside className="order-2 grid content-start gap-3.5 lg:order-none">
+    <aside className="order-2 grid min-w-0 content-start gap-3.5 lg:order-none">
       <VerdictCard experiment={shown} judging={data.current?.status === 'judging' ? data.current : null} />
+      <JobCard jobs={data.jobs} />
       <SpendCard spend={data.spend} />
     </aside>
   )

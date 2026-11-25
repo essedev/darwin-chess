@@ -2,12 +2,13 @@ import { History } from '@/features/live/history'
 import { SideCards } from '@/features/live/side-cards'
 import { Stage } from '@/features/live/stage'
 import { TopBar } from '@/features/live/top-bar'
-import { useLiveStream, useOverview } from '@/lib/api'
+import { useLichess, useLiveStream, useOverview } from '@/lib/api'
 
 export default function App() {
   const overview = useOverview()
   const data = overview.data
   const { events, game, connected } = useLiveStream(data?.ready ? data.events : [])
+  const lichess = useLichess()
 
   if (overview.isPending) return <Notice title="Carico la diretta…" />
   if (overview.isError)
@@ -18,8 +19,8 @@ export default function App() {
   return (
     <main className="mx-auto grid min-h-svh grid-cols-1 gap-x-9 gap-y-7 px-4 pt-4 pb-8 sm:px-8 sm:pt-6 sm:pb-10 lg:grid-cols-[270px_minmax(0,1fr)_320px] lg:grid-rows-[auto_1fr]">
       <TopBar data={data} connected={connected} />
-      <History data={data} />
-      <Stage data={data} game={game} events={events} />
+      <History data={data} lichess={lichess.data?.performance[data.champion.id]} />
+      <Stage data={data} game={game} events={events} lichess={lichess} />
       <SideCards data={data} />
     </main>
   )
