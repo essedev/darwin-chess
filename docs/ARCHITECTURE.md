@@ -22,7 +22,7 @@ Il confine di fiducia è il punto centrale del progetto. Un LLM a cui si chiede 
 - **Registro** (`darwin.ledger`): SQLite append-only con esperimenti, verdetti, partite, generazioni, chiamate LLM ed eventi dell'agente. Schema in `DATABASE_SCHEMA.md`.
 - **API** (`darwin.api`): FastAPI, legge il registro e trasmette gli eventi live via SSE.
 - **Dashboard** (`frontend/`): scacchiera live, curva Elo con ancore, timeline delle generazioni, flusso dell'agente, spesa.
-- **Bot Lichess** (milestone M5): il bridge ufficiale `lichess-bot` gioca con il campione in carica.
+- **Bot Lichess** (milestone M5): il bridge ufficiale `lichess-bot` gioca di continuo con il campione in carica. Due usi: la misura nel mondo vero (performance calcolata per generazione, perché l'account mescola le versioni) e la fonte di lezioni. Ogni sconfitta viene analizzata da Stockfish lato arbitro, che segna dove la valutazione crolla, e arriva all'agente riassunta. Lichess non giudica i candidati: troppo lento e rumoroso per quello.
 
 ## Il ciclo di una generazione
 

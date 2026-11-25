@@ -31,3 +31,7 @@ Su quattro direzioni (laboratorio denso, genealogia editoriale, diretta da secon
 ## 2026-11-24: pezzi cburnett e icone Lucide
 
 Pezzi cburnett, il set classico di Lichess e Wikipedia, scelto a vista fra sette set con licenza verificata nel COPYING.md di lila. È GPLv2+: va bene per un progetto personale, ma se il repo diventasse pubblico con un'altra licenza gli SVG restano GPL e vanno dichiarati a parte. Icone Lucide perché sono già il set dei componenti shadcn: un secondo set sarebbe incoerente.
+
+## 2026-11-25: le sconfitte su Lichess diventano lezioni per l'agente
+
+Il bot Lichess gioca sempre con il campione in carica e ogni sconfitta entra in una coda che l'agente legge, riassunta, prima di ogni iterazione: avversari veri trovano debolezze che il gioco contro se stesso non mostra. Le partite perse le analizza Stockfish lato arbitro, che indica la mossa in cui la valutazione crolla ma non la soluzione. È un aiuto esterno dichiarato: la rete continua a imparare solo dalle partite del motore. L'alternativa scartata, dare all'agente solo partita e risultato, renderebbe il feedback molto più povero. Il giudizio sui candidati resta all'arbitro in locale.
