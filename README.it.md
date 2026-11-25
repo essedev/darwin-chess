@@ -15,7 +15,7 @@ Fin dove arriva un agente LLM economico e autonomo nel costruire un motore di sc
 Risultati al 25 novembre 2026, dopo il primo giorno:
 
 - Il campione è **gen-8**, a circa **1.488 ± 115** di Elo assoluto contro Stockfish a forza limitata (margine al 95%).
-- gen-8 nasce dall'**approfondimento iterativo con ordinamento delle mosse MVV-LVA**, che vale **+416 ± 149** Elo su gen-7. Ogni ritocco della valutazione prima di lui aveva aggiunto circa 20 Elo.
+- gen-8 nasce dall'**approfondimento iterativo con ordinamento delle mosse MVV-LVA**, che vale **+416 ± 149** Elo su gen-7. Ogni ritocco della valutazione prima di lui aveva aggiunto fra 17 e 42 Elo.
 - L'agente è Claude Haiku 5.5 dentro pi, a sforzo `high`. Una sessione costa circa 0,01-0,02 $; le prime 29 sessioni sono costate 0,14 $ in tutto. Il collo di bottiglia è la CPU dell'arbitro, non il budget.
 
 ## Hardware e setup
@@ -43,7 +43,7 @@ Dettagli in [Architettura](docs/ARCHITECTURE.md), [Decisioni](docs/DECISIONS.md)
 
 | Data | Campione | Elo assoluto | Nota |
 |---|---|---|---|
-| 2026-11-25 | da gen-3 a gen-7 | da 1.129 a 1.259 | piccoli ritocchi della valutazione, circa +20 Elo l'uno, margini di ± 120-140 |
+| 2026-11-25 | da gen-3 a gen-7 | da 1.129 a 1.259 | piccoli ritocchi della valutazione, fra +17 e +42 Elo l'uno, margini di ± 120-140 |
 | 2026-11-25 | gen-8 | 1.488 ± 115 | approfondimento iterativo con ordinamento MVV-LVA, +416 ± 149 su gen-7 |
 
 L'agente ha passato quattro generazioni a ritoccare la valutazione a sforzo `low`. Due cambiamenti sono arrivati subito prima del salto: lo sforzo di ragionamento portato a `high` (DECISIONS #25) e la riflessione periodica contata dal registro: il contatore in memoria si azzerava a ogni riavvio, quindi l'agente non aveva mai riflettuto. La prima riflessione vera (esperimento 25) è stata seguita dall'approfondimento iterativo (esperimento 26), diventato gen-8.

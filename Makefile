@@ -2,7 +2,7 @@
 API_PORT := 4730
 
 help: ## Show this help
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-14s\033[0m %s\n", $$1, $$2}'
+	@grep -hE '^[a-zA-Z_-]+:.*?## .*$$' $(firstword $(MAKEFILE_LIST)) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-14s\033[0m %s\n", $$1, $$2}'
 
 install: ## Install dependencies
 	cd backend && uv sync
@@ -13,7 +13,7 @@ run-core: ## Run the experiment: orchestrator + referee (needs DARWIN_LLM_API_KE
 	cd backend && uv run python -m darwin.orchestrator
 
 run-sessions: ## Only N trial sessions, then stop (n=)
-	@test -n "$(n)" || (echo "Uso: make run-sessions n=3" && exit 1)
+	@test -n "$(n)" || (echo "Usage: make run-sessions n=3" && exit 1)
 	cd backend && uv run python -m darwin.orchestrator --sessions $(n)
 
 dev: ## Start API + dashboard in parallel
@@ -64,7 +64,7 @@ db-migrate: ## Apply ledger migrations
 	cd backend && uv run alembic upgrade head
 
 db-revision: ## New migration (msg=)
-	@test -n "$(msg)" || (echo "Uso: make db-revision msg='descrizione'" && exit 1)
+	@test -n "$(msg)" || (echo "Usage: make db-revision msg='description'" && exit 1)
 	cd backend && uv run alembic revision --autogenerate -m "$(msg)"
 
 lab-build: ## Build the sandbox image
@@ -107,7 +107,7 @@ images: lab-build ## Build all images: sandbox, arena, anchors, test engines
 	docker build -t darwin-testengines backend/tests/engines
 
 genome-init: lab-build ## Create the empty genome (gen-0) from seed/
-	@test ! -e genome || (echo "genome/ esiste già: non lo sovrascrivo" && exit 1)
+	@test ! -e genome || (echo "genome/ already exists: not overwriting it" && exit 1)
 	mkdir genome
 	docker run --rm --network none --user 1000:1000 -e HOME=/tmp -v "$(CURDIR)/genome:/genome" -w /genome darwin-lab sh -c '\
 		cargo init --name genome --vcs git . && \

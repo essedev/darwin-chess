@@ -15,7 +15,7 @@ How far does a cheap, autonomous LLM agent get at building a chess engine when e
 Results as of 2026-11-25, after the first day:
 
 - The champion is **gen-8**, at about **1,488 ± 115** absolute Elo against limited-strength Stockfish (95% margin).
-- gen-8 came from **iterative deepening with MVV-LVA move ordering**, worth **+416 ± 149** Elo over gen-7. Every evaluation tweak before it had added about 20 Elo.
+- gen-8 came from **iterative deepening with MVV-LVA move ordering**, worth **+416 ± 149** Elo over gen-7. Each evaluation tweak before it had added between 17 and 42 Elo.
 - The agent is Claude Haiku 5.5 running in pi at effort `high`. A session costs about 0.01-0.02 $; the first 29 sessions cost 0.14 $ in all. The bottleneck is the referee's CPU, not the budget.
 
 ## Hardware and setup
@@ -43,7 +43,7 @@ Details in [Architecture](docs/ARCHITECTURE.md), [Decisions](docs/DECISIONS.md),
 
 | Date | Champion | Absolute Elo | Note |
 |---|---|---|---|
-| 2026-11-25 | gen-3 to gen-7 | 1,129 to 1,259 | small evaluation tweaks, about +20 Elo each, margins of ± 120-140 |
+| 2026-11-25 | gen-3 to gen-7 | 1,129 to 1,259 | small evaluation tweaks, +17 to +42 Elo each, margins of ± 120-140 |
 | 2026-11-25 | gen-8 | 1,488 ± 115 | iterative deepening with MVV-LVA ordering, +416 ± 149 over gen-7 |
 
 The agent spent four generations on small evaluation tweaks at effort `low`. Two changes came just before the jump: reasoning effort raised to `high` (DECISIONS #25), and the periodic reflection counted from the ledger: its in-memory counter reset at every restart, so the agent had never reflected. The first real reflection (experiment 25) was followed by iterative deepening (experiment 26), which became gen-8.
