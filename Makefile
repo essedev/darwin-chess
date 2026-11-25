@@ -20,8 +20,11 @@ dev-be: ## Solo API
 dev-fe: ## Solo dashboard
 	cd frontend && pnpm dev
 
-test: ## Test backend
+test: ## Test backend, compresi quelli con container veri (serve make images)
 	cd backend && uv run pytest
+
+test-unit: ## Test backend senza Docker
+	cd backend && uv run pytest -m "not docker and not llm"
 
 lint: ## Lint backend + frontend
 	cd backend && uv run ruff check .
@@ -56,6 +59,11 @@ db-revision: ## Nuova migrazione (msg=)
 
 lab-build: ## Costruisce l'immagine del sandbox
 	docker compose build lab
+
+images: lab-build ## Costruisce tutte le immagini: sandbox, arena, ancore, motori di test
+	docker build -t darwin-arena arena
+	docker build -t darwin-anchors anchors
+	docker build -t darwin-testengines backend/tests/engines
 
 genome-init: lab-build ## Crea il genoma vuoto (gen-0) da seed/
 	@test ! -e genome || (echo "genome/ esiste già: non lo sovrascrivo" && exit 1)

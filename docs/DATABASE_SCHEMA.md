@@ -24,7 +24,7 @@ Un'iterazione dell'agente: un'ipotesi, un candidato, un esito.
 | candidate_commit | TEXT | SHA nel genoma, null se non arriva a consegnare |
 | diff_stat | JSON | file e righe toccate |
 | status | TEXT | `running`, `rejected`, `accepted`, `error`, `budget_stop` |
-| rejected_at_gate | TEXT | `build`, `perft`, `smoke`, `sprt`, null se accettato |
+| rejected_at_gate | TEXT | `build`, `perft`, `smoke`, `match`, null se accettato |
 | lesson | TEXT | riga scritta dall'agente dopo il verdetto |
 | created_at | DATETIME | |
 | finished_at | DATETIME | |
@@ -35,7 +35,7 @@ Un'iterazione dell'agente: un'ipotesi, un candidato, un esito.
 |---|---|---|
 | id | INTEGER | PK |
 | experiment_id | INTEGER | FK `experiments.id` |
-| gate | TEXT | `build`, `perft`, `smoke`, `sprt` |
+| gate | TEXT | `build`, `perft`, `smoke`, `match` (SPRT contro il giocatore casuale o il campione) |
 | passed | BOOLEAN | |
 | detail | JSON | parte pubblica mostrata all'agente (es. mossa con perft errato) |
 | duration_ms | INTEGER | |
@@ -66,7 +66,7 @@ Una serie di partite: SPRT, smoke o ancora.
 | match_id | INTEGER | FK `matches.id` |
 | white / black | TEXT | come `engine_a`/`engine_b` |
 | result | TEXT | `1-0`, `0-1`, `1/2-1/2` |
-| termination | TEXT | `checkmate`, `stalemate`, `repetition`, `fifty_moves`, `material`, `illegal_move`, `timeout`, `crash` |
+| termination | TEXT | `checkmate`, `stalemate`, `repetition`, `fifty_moves`, `material`, `adjudication` (300 mosse), `illegal_move`, `timeout`, `crash` |
 | pgn | TEXT | |
 | created_at | DATETIME | |
 

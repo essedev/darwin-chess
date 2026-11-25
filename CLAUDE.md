@@ -9,7 +9,7 @@ Un agente LLM (Haiku 5.5 via OpenRouter) scrive da zero un motore di scacchi in 
 - Backend `backend/`: Python 3.13 + uv, package `darwin` (`referee`, `orchestrator`, `ledger`, `api`), FastAPI, SQLAlchemy 2.0 async su SQLite, Alembic, python-chess.
 - Frontend `frontend/`: React 19 + TS strict + Vite + Tailwind v4 + shadcn/ui + TanStack Query.
 - Sandbox `lab/`: immagine Docker con Rust, senza rete. Genoma in `genome/` (repo git separato, ignorato).
-- Arena `arena/`: immagine con fastchess (versione fissata) e la CLI di Docker; gioca le partite creando un container per motore.
+- Arena `arena/`: immagine con fastchess (versione fissata) e la CLI di Docker; gioca le partite creando un container per motore. Ancore `anchors/`: giocatore casuale su python-chess; `backend/tests/engines/` ci costruisce sopra i motori difettosi dei test.
 - Agente (M3): pi in modalità RPC, versione fissata, con un'estensione TypeScript per i tool nostri.
 - Porte (portsage): API 4730, Vite 4731.
 
@@ -18,6 +18,7 @@ Un agente LLM (Haiku 5.5 via OpenRouter) scrive da zero un motore di scacchi in 
 - `make install`, `make dev` (API + dashboard), `make check` (format, lint, typecheck, test)
 - `make db-migrate`, `make db-revision msg='...'`
 - `make lab-build`, `make genome-init` (crea `gen-0` da `seed/`, rifiuta se `genome/` esiste)
+- `make images` (sandbox, arena, ancore, motori di test): serve prima di `make test`, che gira anche i test con container veri (marker `docker`, circa un minuto); `make test-unit` li salta
 
 ## Regole del progetto
 
@@ -34,3 +35,5 @@ Un agente LLM (Haiku 5.5 via OpenRouter) scrive da zero un motore di scacchi in 
 - Alembic su SQLite: `render_as_batch=True` già attivo in `alembic/env.py`.
 - I container creati dall'arbitro montano i dati allo stesso path dell'host (`DARWIN_DATA_DIR`, assoluto): un path relativo o diverso rompe i bind mount quando `core` gira in container.
 - server è un MacBook Air M4 senza ventola, non un Mac mini: sotto carico continuo rallenta.
+- fastchess aspetta 60 secondi fissi un motore che ignora `quit`: per questo ogni motore passa da `arena/engine_shim.py`, che dopo 2 secondi elimina il container. L'immagine arena ha solo `python3-minimal` (niente `uuid`, per esempio).
+- I container dei motori sopravvivono al loro client: ogni run porta l'etichetta `darwin.run=<id>` e si ripulisce per etichetta, anche quando fallisce.

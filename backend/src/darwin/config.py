@@ -1,7 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import SecretStr
+from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -12,13 +12,33 @@ class Settings(BaseSettings):
 
     ledger_url: str = "sqlite+aiosqlite:///./data/ledger.sqlite"
     genome_dir: Path = Path("../genome")
+    # Binaries, matches and artifacts. Containers spawned by the referee mount it at the same
+    # path it has on the host, so it must be absolute (relative values are resolved here).
+    data_dir: Path = Path("data")
 
     llm_base_url: str = "https://openrouter.ai/api/v1"
     llm_api_key: SecretStr = SecretStr("")
     llm_model: str = "anthropic/claude-haiku-5.5"
     daily_budget_usd: float = 2.0
 
+    docker_bin: str = "docker"
+    docker_socket: str = "/var/run/docker.sock"
+    lab_image: str = "darwin-lab"
+    arena_image: str = "darwin-arena"
+    anchors_image: str = "darwin-anchors"
+    engine_cpus: float = 1.0
+    engine_memory: str = "1g"
+    build_cpus: float = 2.0
+    build_memory: str = "4g"
+    build_timeout_s: float = 900.0
+    match_concurrency: int = 3
+
     api_port: int = 4730
+
+    @field_validator("genome_dir", "data_dir")
+    @classmethod
+    def _absolute(cls, value: Path) -> Path:
+        return value.expanduser().resolve()
 
 
 @lru_cache
