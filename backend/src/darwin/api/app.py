@@ -16,6 +16,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from darwin.api.code import BadRequest, GitError, Mirror, NotFound
 from darwin.api.explore import router as explore_router
@@ -51,11 +52,45 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await app.state.ledger.close()
 
 
+# Same-origin everything: the bundle, its fonts and the API. Inline styles stay allowed
+# because React and the board set `style` attributes.
+SECURITY_HEADERS = [
+    (b"content-security-policy", b"default-src 'self'; script-src 'self'; "
+     b"style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; "
+     b"connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; "
+     b"frame-ancestors 'none'"),
+    (b"x-content-type-options", b"nosniff"),
+    (b"x-frame-options", b"DENY"),
+    (b"referrer-policy", b"strict-origin-when-cross-origin"),
+]  # fmt: skip
+
+
+class SecurityHeaders:
+    """Adds the headers above to every HTTP response. Plain ASGI, not BaseHTTPMiddleware,
+    so the event stream is never buffered."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def with_headers(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                message["headers"] = [*message.get("headers", []), *SECURITY_HEADERS]
+            await send(message)
+
+        await self.app(scope, receive, with_headers)
+
+
 # Public, read-only: no generated docs or schema to browse.
 app = FastAPI(
     title="darwin-chess", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None
 )
 app.include_router(explore_router)
+app.add_middleware(SecurityHeaders)
 
 
 def _error(status: int) -> Any:

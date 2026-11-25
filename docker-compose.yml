@@ -42,7 +42,8 @@ services:
       # never writes the ledger.
       - ledger:/ledger
     ports:
-      - "4730:4730"
+      # Only this machine: the public reaches it through the tunnel, on the Compose network.
+      - "127.0.0.1:4730:4730"
     restart: unless-stopped
 
   # Publishes the dashboard on darwin.esse.dev through a Cloudflare Tunnel, without opening
