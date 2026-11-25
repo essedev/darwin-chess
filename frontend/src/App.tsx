@@ -27,7 +27,14 @@ export default function App() {
   return (
     <div className="flex min-h-svh flex-col">
       <Nav current={page} />
-      <Suspense fallback={<LoadingNote what={t('what.page')} />}>
+      <Suspense
+        fallback={
+          // A page's code is loading: the big knight in the middle of the page, as the live view does.
+          <main className="flex flex-1 items-center justify-center p-4">
+            <LoadingNote big what={t('what.page')} />
+          </main>
+        }
+      >
         {page === 'diretta' && <LiveView />}
         {page === 'evoluzione' && <EvolutionPage />}
         {page === 'codice' && <CodePage params={params} />}
