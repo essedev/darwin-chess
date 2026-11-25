@@ -17,7 +17,8 @@ from .conftest import faulty
 pytestmark = pytest.mark.docker
 
 FAST = Policy(smoke_pairs=2, smoke_tc="2+0.02")
-VS_RANDOM = MatchPolicy(SprtParams(0, 150), "2+0.02", batch_pairs=6, max_pairs=60)
+# Roomy clock: the Python test engines are slow, and under load a tight one loses on time.
+VS_RANDOM = MatchPolicy(SprtParams(0, 150), "6+0.06", batch_pairs=6, max_pairs=60)
 
 
 @pytest.fixture(autouse=True)
