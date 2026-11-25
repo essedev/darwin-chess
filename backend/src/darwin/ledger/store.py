@@ -196,6 +196,18 @@ class Ledger:
                     s.add(promoted)
             return promoted
 
+    async def iterations_since_reflection(self) -> int:
+        """Iterations after the last reflection (all of them if there was none). Counted here,
+        not in memory: a restart of core must not start the count again."""
+        async with self.session() as s:
+            last = await s.scalar(
+                select(func.max(m.Experiment.id)).where(m.Experiment.kind == "reflection")
+            )
+            query = select(func.count(m.Experiment.id)).where(
+                m.Experiment.kind == "iteration", m.Experiment.id > (last or 0)
+            )
+            return int(await s.scalar(query) or 0)
+
     async def recent_experiments(self, limit: int) -> Sequence[m.Experiment]:
         async with self.session() as s:
             query = select(m.Experiment).where(m.Experiment.kind == "iteration")

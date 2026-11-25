@@ -62,7 +62,6 @@ class Orchestrator:
         self.drain = Drain(settings)
         self.draining = asyncio.Event()
         self.triggers: list[str] = ["start"]
-        self.iterations_since_reflection = 0
 
     # Setup
 
@@ -210,17 +209,15 @@ class Orchestrator:
             if self.draining.is_set():
                 return  # a session in progress has ended: none starts
             trigger = self.triggers.pop(0) if self.triggers else "continue"
-            reflect = self.iterations_since_reflection >= self.settings.reflection_every
+            reflect = (
+                await self.ledger.iterations_since_reflection() >= self.settings.reflection_every
+            )
             outcome = await self.sessions.run(
                 kind="reflection" if reflect else "iteration",
                 trigger=trigger,
                 state=await self.ledger.state(),
             )
             sessions += 1
-            if reflect:
-                self.iterations_since_reflection = 0
-            else:
-                self.iterations_since_reflection += 1
             if outcome.submitted is not None:
                 self.queue.put_nowait(outcome.experiment_id)
                 self.commentary.after_submit(outcome.experiment_id)  # never raises

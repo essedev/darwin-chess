@@ -133,10 +133,14 @@ def session_prompt(ctx: SessionContext) -> str:
     parts.append(f"\n## /memory/NOTES.md (tail)\n{ctx.notes[-NOTES_TAIL_CHARS:]}")
     if ctx.kind == "reflection":
         parts.append(
-            "\n## Task: reflect\nDo not change the engine and do not submit. Review the "
-            "experiments (use the experiments tool for more), then rewrite "
-            "/memory/STRATEGY.md: what works, what to try next and in which order, what to "
-            "stop doing. Keep it under 40 lines. Compact /memory/NOTES.md if it grew long."
+            "\n## Task: reflect\nDo not change the engine and do not submit. Review the whole "
+            "history, not only the last tries: every experiment (the experiments tool, with a "
+            "high limit), the code of each champion and attempt (git, refs/darwin/*), the "
+            "Lichess losses (lichess_losses). Ask which kinds of change gained Elo and which did "
+            "not, what you abandoned and why, and whether the way you choose changes still "
+            "fits. Then rewrite /memory/STRATEGY.md: what works, what to try next and in which "
+            "order, what to stop doing. Keep it under 40 lines. Compact /memory/NOTES.md if it "
+            "grew long."
         )
     else:
         parts.append(

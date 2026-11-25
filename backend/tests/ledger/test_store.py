@@ -138,3 +138,21 @@ async def test_on_trial_is_the_judging_experiment_with_progress(ledger: Ledger) 
     await ledger.set_progress(ids[0], {"games": 0})
     trial = await queries.on_trial(ledger)
     assert trial is not None and trial.id == ids[0]
+
+
+async def test_iterations_since_reflection_survive_a_restart(ledger: Ledger) -> None:
+    await ledger.seed("a" * 40)
+
+    async def session(kind: str) -> None:
+        await ledger.start_experiment(
+            kind=kind, phase=Phase.EVOLUTION, base_commit="a" * 40,
+            base_generation_id=0, trigger="start",
+        )  # fmt: skip
+
+    for _ in range(3):
+        await session("iteration")
+    assert await ledger.iterations_since_reflection() == 3  # never reflected: all of them
+    await session("reflection")
+    assert await ledger.iterations_since_reflection() == 0
+    await session("iteration")
+    assert await ledger.iterations_since_reflection() == 1
