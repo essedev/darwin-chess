@@ -4,8 +4,8 @@ paths:
   - "lab/**"
   - "docker-compose.yml"
 ---
-- L'arbitro è il confine di fiducia: non importa da `darwin.orchestrator` né da `darwin.api`.
-- Ogni binario del genoma gira in un container effimero proprio: `--network none`, 1 CPU, sola lettura.
-- Il perft si verifica su posizioni casuali, non solo su quelle standard (i conteggi noti si scrivono a mano).
-- All'agente arriva solo il `detail` pubblico del verdetto, mai output interno.
-- Il sandbox non riceve mai rete, Stockfish o codice dell'arbitro.
+- The referee is the trust boundary: it does not import from `darwin.orchestrator` or `darwin.api`.
+- Every genome binary runs in its own ephemeral container: `--network none`, 1 CPU, read-only.
+- Perft is checked on random positions, not only on the standard ones (known counts can be hardcoded).
+- The agent receives only the public `detail` of the verdict, never internal output.
+- The sandbox never gets network, Stockfish or referee code.

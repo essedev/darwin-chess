@@ -3,8 +3,8 @@ paths:
   - "*.md"
   - "docs/**/*.md"
 ---
-- Italiano con accenti veri (è, perché, più), mai apostrofo al posto dell'accento.
-- Niente em dash, niente emoji, niente simbolo di paragrafo (si usa `#4.a`).
-- Doc e codice nello stesso commit: se cambi comportamento, aggiorna il file che lo descrive.
-- Niente numeri che il repo sa calcolare (conteggi di file, righe, test): invecchiano.
-- `seed/*.md` è in inglese: entra nel prompt dell'agente.
+- Docs in English. `README.it.md` mirrors `README.md` in the same commit, in Italian with real accents (è, perché, più), never an apostrophe instead of an accent.
+- No em dashes, no emoji, no section sign (write `#4.a`).
+- Docs and code in the same commit: if behaviour changes, update the file that describes it.
+- No numbers the repository can compute (counts of files, lines, tests): they go stale.
+- `seed/*.md` is in English: it enters the agent's prompt.

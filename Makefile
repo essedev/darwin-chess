@@ -1,37 +1,37 @@
 .DEFAULT_GOAL := help
 API_PORT := 4730
 
-help: ## Mostra questo help
+help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-14s\033[0m %s\n", $$1, $$2}'
 
-install: ## Installa dipendenze
+install: ## Install dependencies
 	cd backend && uv sync
 	cd frontend && pnpm install
 	cd agent && pnpm install
 
-run-core: ## Avvia l'esperimento: orchestratore + arbitro (serve DARWIN_LLM_API_KEY)
+run-core: ## Run the experiment: orchestrator + referee (needs DARWIN_LLM_API_KEY)
 	cd backend && uv run python -m darwin.orchestrator
 
-run-sessions: ## Solo N sessioni di prova e poi si ferma (n=)
+run-sessions: ## Only N trial sessions, then stop (n=)
 	@test -n "$(n)" || (echo "Uso: make run-sessions n=3" && exit 1)
 	cd backend && uv run python -m darwin.orchestrator --sessions $(n)
 
-dev: ## Avvia API + dashboard in parallelo
+dev: ## Start API + dashboard in parallel
 	@trap 'kill 0' EXIT; \
 	(cd backend && uv run uvicorn darwin.api.app:app --reload --port $(API_PORT)) & \
 	(cd frontend && pnpm dev) & \
 	wait
 
-dev-be: ## Solo API
+dev-be: ## API only
 	cd backend && uv run uvicorn darwin.api.app:app --reload --port $(API_PORT)
 
-dev-fe: ## Solo dashboard
+dev-fe: ## Dashboard only
 	cd frontend && pnpm dev
 
-test: ## Test backend, compresi quelli con container veri (serve make images)
+test: ## Backend tests, including those with real containers (needs make images)
 	cd backend && uv run pytest
 
-test-unit: ## Test backend senza Docker
+test-unit: ## Backend tests without Docker
 	cd backend && uv run pytest -m "not docker and not llm"
 
 lint: ## Lint backend + frontend
@@ -41,12 +41,12 @@ lint: ## Lint backend + frontend
 format: ## Format backend
 	cd backend && uv run ruff format .
 
-typecheck: ## Typecheck backend + frontend + estensione di pi
+typecheck: ## Typecheck backend + frontend + pi extension
 	cd backend && uv run mypy
 	cd frontend && pnpm exec tsc -b
 	cd agent && pnpm exec tsc -p .
 
-check: ## Giro completo qualità
+check: ## Full quality pass
 	$(MAKE) format
 	$(MAKE) lint
 	$(MAKE) typecheck
@@ -55,29 +55,29 @@ check: ## Giro completo qualità
 build: ## Build dashboard
 	cd frontend && pnpm build
 
-clean: ## Pulisce artefatti di build
+clean: ## Remove build artifacts
 	rm -rf frontend/dist frontend/node_modules backend/.venv
 
-db-migrate: ## Applica migrazioni del ledger
+db-migrate: ## Apply ledger migrations
 	mkdir -p data
 	cd backend && uv run alembic upgrade head
 
-db-revision: ## Nuova migrazione (msg=)
+db-revision: ## New migration (msg=)
 	@test -n "$(msg)" || (echo "Uso: make db-revision msg='descrizione'" && exit 1)
 	cd backend && uv run alembic revision --autogenerate -m "$(msg)"
 
-lab-build: ## Costruisce l'immagine del sandbox
+lab-build: ## Build the sandbox image
 	docker build -t darwin-lab lab
 
-up: ## Produzione: costruisce le immagini e avvia core e api (serve .env con DARWIN_HOME e la chiave)
+up: ## Production: build the images and start core and api (needs .env with DARWIN_HOME and the key)
 	$(MAKE) images
 	docker compose --profile run up -d --build
 
-ledger-to-volume: ## Copia data/ledger.sqlite nel volume del registro (una volta, con core e api fermi)
+ledger-to-volume: ## Copy data/ledger.sqlite into the ledger volume (once, with core and api stopped)
 	sqlite3 data/ledger.sqlite "pragma wal_checkpoint(TRUNCATE)"
 	docker run --rm -v darwin-chess_ledger:/ledger -v "$(CURDIR)/data:/src:ro" alpine sh -c 'test ! -e /ledger/ledger.sqlite && cp /src/ledger.sqlite /ledger/'
 
-up-public: ## Come up, più il tunnel Cloudflare che pubblica la dashboard (solo sul server)
+up-public: ## Like up, plus the Cloudflare tunnel that publishes the dashboard (server only)
 	$(MAKE) images
 	docker compose --profile run --profile public up -d --build
 
@@ -86,7 +86,7 @@ up-public: ## Come up, più il tunnel Cloudflare che pubblica la dashboard (solo
 -include Makefile.local
 DEPLOY_DIR ?= darwin-chess
 
-deploy: ## Porta il codice sul server e riavvia senza interrompere sessione e partita Lichess (only=api: solo il sito)
+deploy: ## Copy the code to the server and restart without interrupting the session or the Lichess game (only=api: site only)
 	@test -n "$(DEPLOY_HOST)" || { echo "set DEPLOY_HOST in Makefile.local"; exit 1; }
 	rsync -az --delete -e "ssh -o BatchMode=yes" --exclude node_modules --exclude .venv \
 		--exclude frontend/dist --exclude genome --exclude data --exclude .env --exclude Makefile.local --exclude __pycache__ \
@@ -94,18 +94,18 @@ deploy: ## Porta il codice sul server e riavvia senza interrompere sessione e pa
 		./ $(DEPLOY_HOST):$(DEPLOY_DIR)/
 	ssh -o BatchMode=yes $(DEPLOY_HOST) 'cd $(DEPLOY_DIR) && PATH=/usr/local/bin:$$PATH ONLY=$(only) scripts/restart-drained.sh'
 
-restart-drained: ## Sull'host di Compose: build, svuota core, riavvia core e api
+restart-drained: ## On the Compose host: build, drain core, restart core and api
 	scripts/restart-drained.sh
 
-down: ## Ferma core e api
+down: ## Stop core and api
 	docker compose --profile run --profile public down
 
-images: lab-build ## Costruisce tutte le immagini: sandbox, arena, ancore, motori di test
+images: lab-build ## Build all images: sandbox, arena, anchors, test engines
 	docker build -t darwin-arena arena
 	docker build -t darwin-anchors anchors
 	docker build -t darwin-testengines backend/tests/engines
 
-genome-init: lab-build ## Crea il genoma vuoto (gen-0) da seed/
+genome-init: lab-build ## Create the empty genome (gen-0) from seed/
 	@test ! -e genome || (echo "genome/ esiste già: non lo sovrascrivo" && exit 1)
 	mkdir genome
 	docker run --rm --network none --user 1000:1000 -e HOME=/tmp -v "$(CURDIR)/genome:/genome" -w /genome darwin-lab sh -c '\

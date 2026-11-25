@@ -2,7 +2,7 @@
 paths:
   - "backend/src/darwin/api/**/*.py"
 ---
-- L'API legge il registro e trasmette eventi: non scrive e non comanda l'orchestratore.
-- Rotte statiche prima delle parametriche; tutte sotto `/api`.
-- Router sottile: query nel modulo `darwin.ledger`, mai SQL nel router.
-- Un router non registrato in `app.py` non è raggiungibile.
+- The API reads the ledger and streams events: it does not write and does not command the orchestrator.
+- Static routes before parametric ones; all under `/api`.
+- Thin routers: queries live in the `darwin.ledger` module, never SQL in a router.
+- A router not registered in `app.py` is unreachable.

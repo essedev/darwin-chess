@@ -1,49 +1,49 @@
-# darwin-chess - Istruzioni per Claude
+# darwin-chess - Instructions for Claude
 
-## Cos'è
+## What it is
 
-Un agente LLM (Haiku 5.5, via Anthropic o OpenRouter) scrive da zero un motore di scacchi in Rust e lo evolve da solo; un arbitro fidato decide quali generazioni sopravvivono. Esecuzione 24/7 su server. Visione e confini in `docs/ARCHITECTURE.md`.
+An LLM agent (Haiku 5.5, through Anthropic or OpenRouter) writes a chess engine in Rust from scratch and evolves it on its own; a trusted referee decides which generations survive. It runs 24/7 on the server, a MacBook Air M4 at home. Vision and boundaries in `docs/ARCHITECTURE.md`.
 
 ## Stack
 
-- Backend `backend/`: Python 3.13 + uv, package `darwin` (`referee`, `orchestrator`, `ledger`, `api`), FastAPI, SQLAlchemy 2.0 async su SQLite, Alembic, python-chess.
+- Backend `backend/`: Python 3.13 + uv, package `darwin` (`referee`, `orchestrator`, `ledger`, `api`), FastAPI, SQLAlchemy 2.0 async on SQLite, Alembic, python-chess.
 - Frontend `frontend/`: React 19 + TS strict + Vite + Tailwind v4 + shadcn/ui + TanStack Query.
-- Sandbox `lab/`: immagine Docker con Rust, senza rete. Genoma in `genome/` (repo git separato, ignorato).
-- Arena `arena/`: immagine con fastchess (versione fissata) e la CLI di Docker; gioca le partite creando un container per motore. Ancore `anchors/`: giocatore casuale su python-chess; `backend/tests/engines/` ci costruisce sopra i motori difettosi dei test.
-- Agente (M3): pi in modalità RPC, versione fissata, con un'estensione TypeScript per i tool nostri.
-- Porte (portsage): API 4730, Vite 4731.
+- Sandbox `lab/`: Docker image with Rust, no network. Genome in `genome/` (separate git repository, ignored).
+- Arena `arena/`: image with fastchess (pinned version) and the Docker CLI; it plays games by creating one container per engine. Anchors `anchors/`: random player on python-chess; `backend/tests/engines/` builds the faulty test engines on top of it.
+- Agent (M3): pi in RPC mode, pinned version, with a TypeScript extension for our own tools.
+- Ports (portsage): API 4730, Vite 4731.
 
-## Comandi
+## Commands
 
 - `make install`, `make dev` (API + dashboard), `make check` (format, lint, typecheck, test)
 - `make db-migrate`, `make db-revision msg='...'`
-- `make run-core` (esperimento), `make run-sessions n=3` (sessioni di prova): servono `DARWIN_LLM_API_KEY` e `make genome-init`
-- `make up` / `make down`: produzione in Compose (`core` + `api`), con `.env` da `.env.example`
-- `make deploy`: aggiorna server senza interrompere la sessione dell'agente e la partita Lichess in corso (svuota `core`, poi riavvia). `make deploy only=api` quando cambia solo il sito: riavvia `api` e lascia lavorare `core`. Mai `docker compose up` a mano mentre lavora
-- `make lab-build`, `make genome-init` (crea `gen-0` da `seed/`, rifiuta se `genome/` esiste)
-- `make images` (sandbox, arena, ancore, motori di test): serve prima di `make test`, che gira anche i test con container veri (marker `docker`, circa un minuto); `make test-unit` li salta
+- `make run-core` (experiment), `make run-sessions n=3` (trial sessions): they need `DARWIN_LLM_API_KEY` and `make genome-init`
+- `make up` / `make down`: production in Compose (`core` + `api`), with `.env` from `.env.example`
+- `make deploy`: updates the server without interrupting the agent's session or the Lichess game in progress (drains `core`, then restarts). The target comes from `DEPLOY_HOST` (an ssh host) and `DEPLOY_DIR` in the untracked `Makefile.local`. `make deploy only=api` when only the site changed: restarts `api` and leaves `core` working. Never `docker compose up` by hand while it works
+- `make lab-build`, `make genome-init` (creates `gen-0` from `seed/`, refuses if `genome/` exists)
+- `make images` (sandbox, arena, anchors, test engines): needed before `make test`, which also runs the tests with real containers (marker `docker`, about a minute); `make test-unit` skips them
 
-## Regole del progetto
+## Project rules
 
-- **Il confine di fiducia non si attraversa**: niente codice dell'arbitro nel sandbox, niente binari del genoma eseguiti sull'host, l'arbitro non importa da `orchestrator` o `api`. Ogni cosa che indebolisce l'isolamento va discussa prima.
-- **Il genoma è dell'agente**: non modificare `genome/` a mano. Per cambiare cosa riceve un genoma nuovo si edita `seed/`.
-- **Spesa LLM**: ogni run che chiama il modello costa. I test LLM stanno dietro il marker `llm`; un batch di iterazioni si lancia solo dopo aver misurato il costo su un campione e averlo fatto approvare.
+- **The trust boundary is never crossed**: no referee code in the sandbox, no genome binaries run on the host, the referee does not import from `orchestrator` or `api`. Anything that weakens isolation is discussed first.
+- **The genome belongs to the agent**: do not edit `genome/` by hand. To change what a new genome receives, edit `seed/`.
+- **LLM spend**: every run that calls the model costs money. LLM tests sit behind the `llm` marker; a batch of iterations starts only after its cost has been measured on a sample and approved.
 - Public repository: code, comments, docs and commits in English; README.md is mirrored in README.it.md in the same commit.
-- File rivolti all'agente (`seed/*.md`, prompt) in inglese.
+- Agent-facing files (`seed/*.md`, prompts) are in English.
 
-## Gotcha
+## Gotchas
 
-- TypeScript 7: `baseUrl` non esiste più, gli alias usano solo `paths`.
-- `uv init --package` non crea `py.typed`: mypy usa `files = ["src", "tests"]`.
-- Nell'immagine `rust` il `CARGO_HOME` è `/usr/local/cargo`, non `~/.cargo`; il sandbox è offline (`CARGO_NET_OFFLINE`), quindi niente crate scaricati.
-- Alembic su SQLite: `render_as_batch=True` già attivo in `alembic/env.py`.
-- Dati e configurazione stanno alla radice: `data/` (registro, mirror, binari, partite, memoria dell'agente, job) e un solo `.env` (da `.env.example`), letti sia in sviluppo da `backend/` sia da Compose.
-- I container creati dall'arbitro montano i dati allo stesso path dell'host (`DARWIN_DATA_DIR`, assoluto): un path relativo o diverso rompe i bind mount quando `core` gira in container.
-- server è un MacBook Air M4 senza ventola, non un Mac mini: sotto carico continuo rallenta.
-- pi risolve i percorsi relativi sulla propria cartella dell'host: l'estensione (`agent/darwin-extension.ts`) li traduce in `/genome` prima di ogni `docker exec`. pi va sempre avviato con i flag di `orchestrator/pi.py` (niente caricamento automatico).
-- Il test `tests/orchestrator/test_docker_session.py` gira pi vero contro un modello finto: rompe se cambia il protocollo RPC o l'API delle estensioni di pi, ed è il primo controllo da fare quando si aggiorna pi.
-- fastchess aspetta 60 secondi fissi un motore che ignora `quit`: per questo ogni motore passa da `arena/engine_shim.py`, che dopo 2 secondi elimina il container. L'immagine arena ha solo `python3-minimal` (niente `uuid`, per esempio).
-- Le crate disponibili all'agente si risolvono da `/opt/vendor` tramite `/.cargo/config.toml` nell'immagine `lab` (letto da qualunque cartella sotto `/`, anche con `CARGO_HOME` diverso). Aggiungerne una: `cargo add` nello stage `vendor` di `lab/Dockerfile`, con versione fissata.
-- PyTorch e rayon vedono tutti i core della macchina, non il tetto `--cpus`: sandbox e job passano `OMP_NUM_THREADS` e `RAYON_NUM_THREADS`.
-- In Compose il registro SQLite sta nel volume `ledger`, non in `data/`: con la condivisione di cartelle di Docker Desktop la memoria condivisa del WAL non è coerente e le connessioni vedevano righe in ritardo (errori di chiave esterna). L'API monta il volume in scrittura anche se non scrive: SQLite in WAL scrive l'indice condiviso anche per leggere. In sviluppo il registro resta in `data/ledger.sqlite`, sul disco del Mac.
-- I container dei motori sopravvivono al loro client: ogni run porta l'etichetta `darwin.run=<id>` e si ripulisce per etichetta, anche quando fallisce.
+- TypeScript 7: `baseUrl` no longer exists, aliases use `paths` only.
+- `uv init --package` does not create `py.typed`: mypy uses `files = ["src", "tests"]`.
+- In the `rust` image `CARGO_HOME` is `/usr/local/cargo`, not `~/.cargo`; the sandbox is offline (`CARGO_NET_OFFLINE`), so no crates are downloaded.
+- Alembic on SQLite: `render_as_batch=True` is already on in `alembic/env.py`.
+- Data and configuration live at the root: `data/` (ledger, mirror, binaries, games, agent memory, jobs) and a single `.env` (from `.env.example`), read both in development from `backend/` and by Compose.
+- Containers created by the referee mount the data at the same path as on the host (`DARWIN_DATA_DIR`, absolute): a relative or different path breaks the bind mounts when `core` runs in a container.
+- The server is a fanless MacBook Air M4, not a Mac mini: under sustained load it slows down.
+- pi resolves relative paths against its own folder on the host: the extension (`agent/darwin-extension.ts`) maps them to `/genome` before every `docker exec`. Always start pi with the flags in `orchestrator/pi.py` (no automatic loading).
+- The test `tests/orchestrator/test_docker_session.py` runs real pi against a fake model: it breaks if pi's RPC protocol or extension API changes, and it is the first check to run when upgrading pi.
+- fastchess waits a fixed 60 seconds for an engine that ignores `quit`: that is why every engine goes through `arena/engine_shim.py`, which removes the container after 2 seconds. The arena image has only `python3-minimal` (no `uuid`, for example).
+- The crates available to the agent resolve from `/opt/vendor` through `/.cargo/config.toml` in the `lab` image (read from any folder under `/`, even with a different `CARGO_HOME`). To add one: `cargo add` in the `vendor` stage of `lab/Dockerfile`, with a pinned version.
+- PyTorch and rayon see all the machine's cores, not the `--cpus` cap: sandbox and jobs pass `OMP_NUM_THREADS` and `RAYON_NUM_THREADS`.
+- In Compose the SQLite ledger lives in the `ledger` volume, not in `data/`: with Docker Desktop's folder sharing the WAL shared memory is not coherent, and connections saw rows late (foreign key errors). The API mounts the volume read-write even though it does not write: SQLite in WAL mode writes the shared index even to read. In development the ledger stays in `data/ledger.sqlite`, on the Mac's disk.
+- Engine containers outlive their client: every run carries the label `darwin.run=<id>` and is cleaned up by label, even when it fails.
