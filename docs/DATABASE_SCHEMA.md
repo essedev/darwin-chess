@@ -95,7 +95,7 @@ Elo assoluto del campione stimato contro le ancore, o rating Lichess.
 |---|---|---|
 | id | INTEGER | PK |
 | generation_id | INTEGER | FK `generations.id` |
-| source | TEXT | `anchors` (scala Stockfish), `lichess` |
+| source | TEXT | `anchors` (scala Stockfish), `anchors_below` (sotto la scala: segna il campione come misurato, `elo` è il gradino più basso e non va mostrato), `lichess` |
 | elo / elo_error | REAL | |
 | detail | JSON | risultati per ancora |
 | created_at | DATETIME | |
@@ -139,6 +139,42 @@ Lavori lunghi solo CPU lanciati dall'agente con `run_job`.
 | exit_code | INTEGER | |
 | log_tail | TEXT | ultime righe dell'output |
 | created_at / finished_at | DATETIME | |
+
+### lichess_games
+
+Le partite del bot su Lichess, ciascuna con il campione che l'ha giocata.
+
+| Campo | Tipo | Note |
+|---|---|---|
+| id | INTEGER | PK |
+| lichess_id | TEXT | UNIQUE, l'id della partita su Lichess |
+| generation_id | INTEGER | FK `generations.id` |
+| color | TEXT | `white`, `black` |
+| opponent / opponent_rating / opponent_title | TEXT / INTEGER / TEXT | |
+| rated | BOOLEAN | |
+| time_control | TEXT | es. `180+2` |
+| status | TEXT | stato di Lichess (`started`, `mate`, `resign`, `outoftime`, ...) |
+| result | TEXT | `win`, `loss`, `draw`, `aborted`; null finché si gioca |
+| moves | TEXT | mosse UCI separate da spazi |
+| rating_after | INTEGER | rating del bot a partita finita |
+| evals | JSON | valutazione di Stockfish per ogni semimossa, dal nostro lato (partite da almeno 10 semimosse) |
+| analysis | JSON | solo sconfitte: la mossa dopo cui la valutazione crolla di più (vedi `referee/analysis.py`) |
+| created_at / finished_at | DATETIME | |
+
+### commentaries
+
+Testi per i visitatori del sito, in italiano e inglese. L'agente non li legge mai.
+
+| Campo | Tipo | Note |
+|---|---|---|
+| id | INTEGER | PK |
+| kind | TEXT | `lichess_game`, `match`, `hypothesis`, `lesson` |
+| subject_id | INTEGER | `lichess_games.id`, `matches.id` o `experiments.id` secondo `kind`; UNIQUE con `kind` |
+| text_it / text_en | TEXT | per `hypothesis` e `lesson` l'inglese è l'originale dell'agente e l'italiano la traduzione |
+| model | TEXT | |
+| input_tokens / output_tokens | INTEGER | |
+| cost_usd | REAL | conta sul tetto dei commenti, separato dal budget dell'agente |
+| created_at | DATETIME | |
 
 ## Relazioni
 

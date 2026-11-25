@@ -122,3 +122,12 @@ Status: attiva. Data: 2026-11-25.
 Il primo avvio su server ha mostrato connessioni SQLite che non vedevano righe appena scritte da un'altra connessione dello stesso processo, con errori di chiave esterna e `core` riavviato. La causa è la cartella condivisa di Docker Desktop: la memoria condivisa del WAL non vi resta coerente, il caso dei filesystem di rete che SQLite sconsiglia. Il registro passa a un volume Docker, dentro la macchina virtuale; il resto di `data/` resta in cartella perché va montato nei container dei motori allo stesso path. Scartato il journal classico senza WAL: si appoggia ai lock dei file, che sulla stessa condivisione non danno più garanzie.
 
 Fermare `core` lasciava accesi arena, motori e sandbox. Ogni container porta ora l'etichetta dell'istanza (`prod` in Compose, `dev` in sviluppo, una propria per i test) e all'avvio `core` rimuove quelli della sua istanza, senza toccare gli altri.
+
+## #20 Sito pubblico e bilingue, commenti per i visitatori separati dall'agente
+
+Status: attiva. Data: 2026-11-25.
+
+La dashboard diventa pubblica (Cloudflare Tunnel su `darwin.esse.dev`) e bilingue, italiano e inglese. Codice, prompt e testi dell'agente restano in inglese: ipotesi e lezioni vengono tradotte in italiano una volta e conservate, i pensieri in diretta e i file della memoria restano originali con un'etichetta, perché tradurre ogni pensiero costerebbe di più e arriverebbe in ritardo.
+
+I commenti leggibili su partite e verdetti li scrive Haiku a partire da dati verificati (valutazioni di Stockfish, statistiche dei match), mai interpretando la partita a occhio. Hanno un budget loro, 0,20 $ al giorno, e l'agente non li legge: un secondo modello che gli spiega le partite cambierebbe la natura dell'esperimento. Il commento dell'arbitro arriva a match finito e non a intervalli di partite, perché a metà match i numeri ballano e il testo direbbe cose che il verdetto poi smentisce.
+
