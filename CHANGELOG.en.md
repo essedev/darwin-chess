@@ -2,6 +2,12 @@
 
 What is new in the lab, most recent first.
 
+## 0.4.0, 25 November 2026
+
+- **A livelier site**: each thing has its own colour, the same on every page (the champion's strength in blue, the generations in violet, the verdict in green, the spend in amber, what is live in coral).
+- **Animated waits**: while data arrives a knight hops across the board, if the lab does not answer the king shakes, when there is nothing yet the pieces walk to their squares.
+- **One game at a time**: the live board follows a game from start to end and shows its result before moving on; our engine is always at the bottom, and the match wins go up game by game.
+
 ## 0.3.0, 25 November 2026
 
 - **Everything in Italian too**: the agent's live thought, its strategy, its notes and the instructions it receives can be read translated. The English original is a click away; only the code stays as it is.

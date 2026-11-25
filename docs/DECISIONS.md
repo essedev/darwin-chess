@@ -159,3 +159,13 @@ Su richiesta di Simone si traducono anche il pensiero in diretta, la strategia, 
 
 Il pensiero italiano arriva qualche secondo dopo l'originale: nel frattempo il sito mostra l'inglese con la sua etichetta. Ogni versione di un file di memoria ha la sua traduzione, legata al CRC32 del testo, così il sito non mostra mai la traduzione di una versione vecchia accanto all'originale nuovo. Oltre 16.000 caratteri un file resta in inglese: tradurlo a ogni cambio diventerebbe una chiamata lunga e cara.
 
+## #24 Identità visiva: un colore per ogni cosa, stati animati in ASCII
+
+Status: attiva. Data: 2026-11-25.
+
+Scelta la variante E del concept C (`docs/concepts/concept-c-identita.html`), tavolozza "e": fondo neutro, finiture minimal (fili da un pixel al posto delle ombre, etichette in maiuscoletto monospaziato, separatori tratteggiati), e un colore per ogni soggetto, uguale in tutto il sito: la forza del campione in blu, le generazioni in viola, il verdetto in verde, la spesa in ambra, quello che è in diretta in corallo. I riquadri sono appena tinti del colore del loro soggetto. Font invariati, Geist e Geist Mono.
+
+Gli stati di caricamento, errore e vuoto sono animazioni ASCII a più colori: un cavallo che salta a L, il re che trema, i pezzi che scendono alla posizione iniziale. Con la riduzione del movimento attiva restano su un fotogramma fermo; sono nascoste agli screen reader, la frase accanto dice lo stato.
+
+Scartate dopo cinque giri: A Terminale, B Taccuino, C Arcade (troppo colorate ed esagerate), D e le sue versioni (troppo monocromatiche: ogni versione era un colore solo in tante sfumature), e2 Pop ed e3 Terra.
+

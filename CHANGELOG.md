@@ -2,6 +2,12 @@
 
 Le novità del laboratorio, dalla più recente.
 
+## 0.4.0, 25 novembre 2026
+
+- **Un sito più vivo**: ogni cosa ha il suo colore, uguale in tutte le pagine (la forza del campione in blu, le generazioni in viola, il verdetto in verde, la spesa in ambra, la diretta in corallo).
+- **Attese animate**: mentre i dati arrivano un cavallo salta sulla scacchiera, se il laboratorio non risponde il re trema, quando non c'è ancora niente i pezzi scendono al loro posto.
+- **Una partita alla volta**: la diretta segue una partita dall'inizio alla fine e mostra il risultato prima di passare alla successiva; il nostro motore sta sempre in basso, e le vittorie del match salgono partita dopo partita.
+
 ## 0.3.0, 25 novembre 2026
 
 - **Tutto in italiano**: anche il pensiero dell'agente in diretta, la sua strategia, i suoi appunti e le istruzioni che riceve si leggono tradotti. L'originale in inglese resta a un clic; solo il codice resta com'è.
