@@ -1,4 +1,4 @@
-# Production on server: `core` and `api` are long-lived; everything else (sandboxes, builds,
+# Production on the server: `core` and `api` are long-lived; everything else (sandboxes, builds,
 # arena, engines, jobs) is started by core as short-lived containers.
 # DARWIN_HOME (absolute, in .env) holds data/ and genome/; they are mounted at the same path
 # as on the host so the containers core starts resolve the same bind mounts.

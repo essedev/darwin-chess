@@ -77,16 +77,19 @@ ledger-to-volume: ## Copia data/ledger.sqlite nel volume del registro (una volta
 	sqlite3 data/ledger.sqlite "pragma wal_checkpoint(TRUNCATE)"
 	docker run --rm -v darwin-chess_ledger:/ledger -v "$(CURDIR)/data:/src:ro" alpine sh -c 'test ! -e /ledger/ledger.sqlite && cp /src/ledger.sqlite /ledger/'
 
-up-public: ## Come up, più il tunnel Cloudflare che pubblica la dashboard (solo su server)
+up-public: ## Come up, più il tunnel Cloudflare che pubblica la dashboard (solo sul server)
 	$(MAKE) images
 	docker compose --profile run --profile public up -d --build
 
-DEPLOY_HOST ?= server
+# The server: DEPLOY_HOST (an ssh host) and DEPLOY_DIR (the repository there, relative to its
+# home), in the untracked Makefile.local or on the command line.
+-include Makefile.local
 DEPLOY_DIR ?= darwin-chess
 
-deploy: ## Porta il codice su server e riavvia senza interrompere sessione e partita Lichess (only=api: solo il sito)
+deploy: ## Porta il codice sul server e riavvia senza interrompere sessione e partita Lichess (only=api: solo il sito)
+	@test -n "$(DEPLOY_HOST)" || { echo "set DEPLOY_HOST in Makefile.local"; exit 1; }
 	rsync -az --delete -e "ssh -o BatchMode=yes" --exclude node_modules --exclude .venv \
-		--exclude frontend/dist --exclude genome --exclude data --exclude .env --exclude __pycache__ \
+		--exclude frontend/dist --exclude genome --exclude data --exclude .env --exclude Makefile.local --exclude __pycache__ \
 		--exclude .mypy_cache --exclude .ruff_cache --exclude .pytest_cache \
 		./ $(DEPLOY_HOST):$(DEPLOY_DIR)/
 	ssh -o BatchMode=yes $(DEPLOY_HOST) 'cd $(DEPLOY_DIR) && PATH=/usr/local/bin:$$PATH ONLY=$(only) scripts/restart-drained.sh'

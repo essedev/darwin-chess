@@ -23,3 +23,6 @@ data/
 genome/
 
 .DS_Store
+
+# Local deploy target
+Makefile.local

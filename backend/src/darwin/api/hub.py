@@ -1,7 +1,7 @@
 """One poller for every live viewer.
 
 The dashboard is public: each open page holding its own loop over the ledger and the
-match files would make server's load grow with the audience. A single task reads once a
+match files would make the server's load grow with the audience. A single task reads once a
 second and fans the changes out to every subscriber; a page that falls behind is dropped
 (the browser reconnects and gets a fresh start).
 """
