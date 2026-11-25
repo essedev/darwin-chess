@@ -1,0 +1,975 @@
+<!doctype html>
+<html lang="it">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Concept B - revisione</title>
+		<!--
+			Concept B: come Diretta ed Evoluzione raccontano lo stato del laboratorio senza liste
+			infinite, senza ripetere la stessa ipotesi tre volte e con un Elo che non mente.
+			Tasti: x a b c per la variante, t tema, p nasconde la barra. Dentro il mock la barra di
+			navigazione funziona (Diretta, Evoluzione) e così IT | EN; le altre voci sono inerti.
+
+			Il problema (sito vero, 25 novembre 2026, gen-5, 18 esperimenti):
+			- i titoli sono paragrafi: l'ipotesi dell'agente (300-400 caratteri, gergo: "go mover",
+			  "perft", "movegen") fa da titolo in quattro posti;
+			- la stessa ipotesi di #18 compare tre volte nella Diretta (riga in gara a sinistra,
+			  scheda "Che cosa sta giudicando" a destra, lista sotto la scacchiera);
+			- liste senza fine: 7 giudizi e 20 partite Lichess sotto la scacchiera, 18 esperimenti
+			  a schermo intero in Evoluzione; la Diretta arriva a circa 2.600 px;
+			- l'Elo contraddice se stesso: 1.193, 1.162, 1.129 (la curva scende) mentre ogni
+			  generazione dichiara +24 e +42. I margini veri sono ± 139, ± 118, ± 136: le tre
+			  misure si sovrappongono, il calo non esiste, ma il sito non lo dice;
+			- gen-3 "+667 Elo" viene da 24 partite, ± 962; gen-1 ha "2.554 di performance" su
+			  Lichess da una partita sola;
+			- le lezioni sono gergo ("a distinct eval term avoids overlapping the pending...");
+			- nella Diretta il nome del sito non è nella barra (sta nella top bar della pagina).
+
+			X  oggi: la replica del sito di oggi, Diretta ed Evoluzione.
+			A  Dieta: stessa struttura di oggi, ogni blocco a dieta. Scommessa: il layout regge, il
+			   problema è la quantità e la scrittura. È il piano A-F discusso in chat.
+			B  Palco: la Diretta ha due colonne, la partita e un solo riquadro "il laboratorio
+			   adesso"; la storia esce dalla Diretta e vive in Evoluzione, dove gli esperimenti
+			   stanno dentro la generazione che hanno prodotto. Scommessa: chi arriva vuole la
+			   partita e una risposta a "come va", la storia è una pagina a sé.
+			C  Cronaca: una colonna sola, una frase di stato in testa, tre numeri, la scacchiera,
+			   poi un unico filo cronologico di quello che è successo oggi (verdetti, promozioni,
+			   partite Lichess). Evoluzione come quaderno: grafico onesto e una tabella filtrabile.
+			   Scommessa: il sito si legge come un notiziario, da telefono prima che da desktop.
+
+			Uguale in A, B, C (deciso in chat, non è l'asse delle varianti):
+			- "darwin-chess" sempre nella barra;
+			- titoli brevi bilingue per ogni esperimento (al massimo 8 parole, scritti dall'agente
+			  al submit; per i 18 passati li scrive Haiku una volta). L'ipotesi lunga resta nei
+			  dettagli, in italiano tradotto;
+			- Elo onesto: il numero principale è l'assoluto con il suo margine al 95%; il grafico
+			  ha le barre d'errore; il guadagno sul campione precedente è secondario e spiegato;
+			- performance Lichess mostrata solo da 5 partite in su;
+			- la lezione diventa "Nota dell'agente", nei dettagli, con le sue parole tradotte.
+
+			Mappatura sul codice di oggi (fattibilità, non piano):
+			- margini dell'Elo assoluto: rating_snapshots.elo_error esiste, l'API non lo espone
+			  (overview e generations/detail danno solo elo_absolute): un campo in più;
+			- titoli brevi: nuovo campo experiments.title / title_it, submit lo chiede, backfill
+			  una tantum con Haiku (stima: 18 chiamate, meno di un centesimo);
+			- filtri e pagine in Evoluzione: /api/experiments ha già limit e before_id, serve un
+			  filtro per stato (o si filtra lato client sulle pagine caricate);
+			- B raggruppa gli esperimenti per generazione: base_commit c'è, il gruppo si ricava
+			  (gli esperimenti fra la promozione di gen-N e quella di gen-N+1);
+			- C mescola verdetti e partite Lichess in un filo: due query già esistenti, unite e
+			  ordinate lato client;
+			- avanzamento del match in corso (partite giocate, LLR parziale): oggi la diretta ha
+			  solo il conteggio della partita sul tabellone, l'LLR parziale non è pubblicato.
+
+			Dati: veri dall'API pubblica e dal registro su server (25/11/2026, 15:00 circa):
+			generazioni, Elo e margini, match, costi, partite Lichess, pensiero dell'agente.
+			Inventati: i titoli brevi (plausibili, scritti da me), l'avanzamento del match di #18
+			(412 partite, V 150 P 120 S 142, LLR +0,8), le note dell'agente riscritte senza gergo
+			nelle varianti. La posizione sulla scacchiera è legale (validata con python-chess); i
+			pezzi cburnett vengono dal CDN di Lichess solo per il mock, come nel concept A.
+			Verifica: Chromium via preview, 1440 px e 390 px, entrambi i temi.
+		-->
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet" />
+		<style>
+			/* Tokens copied from frontend/src/index.css (light, then .dark). */
+			:root {
+				--live: #c2650a;
+				--good: #16803c;
+				--bad: #c0362c;
+				--sq-light: #e6e1d3;
+				--sq-dark: #8b9a7c;
+				--bg: #f4f3ef;
+				--fg: oklch(0.145 0 0);
+				--card: oklch(1 0 0);
+				--muted: oklch(0.97 0 0);
+				--muted-fg: oklch(0.556 0 0);
+				--border: oklch(0.922 0 0);
+				--sans: 'Geist', system-ui, -apple-system, sans-serif;
+				--mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+			}
+			:root[data-theme='dark'] {
+				--live: #f2a33a;
+				--good: #5fd68a;
+				--bad: #f2776b;
+				--sq-light: #d9d3c4;
+				--sq-dark: #77876a;
+				--bg: #0c0c0e;
+				--fg: oklch(0.985 0 0);
+				--card: oklch(0.205 0 0);
+				--muted: oklch(0.269 0 0);
+				--muted-fg: oklch(0.708 0 0);
+				--border: oklch(1 0 0 / 10%);
+			}
+			* { box-sizing: border-box; }
+			html, body { margin: 0; }
+			body { min-height: 100vh; background: var(--bg); color: var(--fg); font: 14px/1.5 var(--sans); -webkit-font-smoothing: antialiased; }
+			[hidden] { display: none !important; }
+			button { font: inherit; color: inherit; cursor: pointer; }
+			a { color: inherit; text-decoration: none; }
+			p, h1, h2, h3, ol, ul { margin: 0; }
+			ol, ul { padding: 0; list-style: none; }
+			.mono { font-family: var(--mono); }
+			.num { font-variant-numeric: tabular-nums; }
+			.mut { color: var(--muted-fg); }
+			.good { color: var(--good); }
+			.bad { color: var(--bad); }
+			.live { color: var(--live); }
+
+			/* Concept chrome: not part of the design. */
+			.switch { position: sticky; top: 0; z-index: 100; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px 12px; background: #111; color: #aaa; font: 12px/1.4 var(--mono); }
+			.switch button { border: 0; padding: 5px 9px; border-radius: 6px; background: #262626; color: #eee; }
+			.switch button[aria-pressed='true'] { background: #eee; color: #111; }
+			.switch p { margin: 0 0 0 8px; flex: 1 1 240px; min-width: 0; }
+			body[data-chrome='off'] .switch { display: none; }
+
+			/* Product chrome: the navigation bar. */
+			.nav { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 16px; padding: 0 32px; border-bottom: 1px solid var(--border); background: color-mix(in oklab, var(--bg) 90%, transparent); backdrop-filter: blur(8px); }
+			body:not([data-chrome='off']) .nav { top: 41px; }
+			.brand { flex: none; font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+			.tabs { display: flex; gap: 4px; min-width: 0; margin-bottom: -1px; overflow-x: auto; scrollbar-width: none; }
+			.tabs a { display: inline-flex; align-items: center; height: 44px; padding: 0 10px; border-bottom: 2px solid transparent; color: var(--muted-fg); font-weight: 500; white-space: nowrap; cursor: pointer; }
+			.tabs a:hover { color: var(--fg); }
+			.tabs a[aria-current='page'] { border-color: var(--live); color: var(--fg); }
+			.tabs a.inert { cursor: default; }
+			.lang { margin-left: auto; display: flex; align-items: center; font: 500 12px var(--mono); }
+			.lang button { height: 32px; padding: 0 6px; border: 0; border-radius: 6px; background: none; color: var(--muted-fg); }
+			.lang button[aria-pressed='true'] { color: var(--fg); }
+			.lang span { color: var(--border); }
+
+			/* Shared pieces. */
+			.card { border-radius: 18px; background: var(--card); padding: 20px; box-shadow: inset 0 0 0 1px var(--border); }
+			.label { font-size: 13px; color: var(--muted-fg); }
+			.eyebrow { font: 500 11px var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted-fg); }
+			.pill { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+			.pill.good { background: color-mix(in oklab, var(--good) 13%, transparent); }
+			.pill.bad { background: color-mix(in oklab, var(--bad) 13%, transparent); }
+			.pill.live { background: color-mix(in oklab, var(--live) 14%, transparent); }
+			.pill.mut { background: var(--muted); }
+			.dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: none; }
+			.pulse { animation: pulse 1.6s ease-in-out infinite; }
+			@keyframes pulse { 50% { opacity: 0.35; } }
+			.link { color: var(--live); font-size: 13px; font-weight: 500; cursor: pointer; background: none; border: 0; padding: 0; }
+			.link:hover { text-decoration: underline; text-underline-offset: 4px; }
+			.clamp2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+			.clamp3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+			.trunc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+			.seg { display: inline-flex; padding: 3px; border-radius: 999px; background: var(--muted); }
+			.seg button { height: 28px; padding: 0 14px; border: 0; border-radius: 999px; background: none; color: var(--muted-fg); font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; }
+			.seg button[aria-pressed='true'] { background: var(--card); color: var(--fg); box-shadow: 0 1px 2px rgb(0 0 0 / 0.12); }
+			.seg.small button { height: 24px; padding: 0 10px; font-size: 12px; }
+			.more { display: flex; justify-content: center; margin-top: 12px; }
+			.more button { height: 34px; padding: 0 16px; border: 0; border-radius: 999px; background: var(--card); box-shadow: inset 0 0 0 1px var(--border); font-size: 13px; font-weight: 500; }
+			.more button:hover { background: var(--muted); }
+			.why { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; border: 0; background: var(--muted); color: var(--muted-fg); font: 600 10px var(--sans); vertical-align: 1px; }
+			.tip { display: none; position: absolute; z-index: 30; left: 50%; bottom: calc(100% + 8px); transform: translateX(-50%); width: 260px; padding: 10px 12px; border-radius: 10px; background: var(--fg); color: var(--bg); font: 400 12px/1.45 var(--sans); text-align: left; }
+			.why:hover .tip, .why:focus .tip { display: block; }
+
+			/* Board. */
+			.board { display: grid; grid-template-columns: repeat(8, 1fr); aspect-ratio: 1; width: 100%; border-radius: 6px; overflow: hidden; }
+			.board i { position: relative; display: block; }
+			.board i.l { background: var(--sq-light); }
+			.board i.d { background: var(--sq-dark); }
+			.board i.hl::after { content: ''; position: absolute; inset: 0; background: rgb(235 200 60 / 0.45); }
+			.board img { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; }
+			.player { display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 0 2px; }
+			.stone { width: 12px; height: 12px; flex: none; border-radius: 50%; box-shadow: 0 0 0 1.5px var(--border); }
+			.stone.w { background: #fbfaf7; }
+			.stone.b { background: #16140f; }
+			.player b { display: block; font-size: 15px; font-weight: 600; }
+			.player .sub { display: block; font-size: 12px; color: var(--muted-fg); }
+			.player .aside { margin-left: auto; text-align: right; }
+			.player .aside b { font: 500 20px/1 var(--mono); }
+			.tag { flex: none; border-radius: 5px; padding: 1px 6px; background: color-mix(in oklab, var(--live) 15%, transparent); color: var(--live); font: 600 10px var(--mono); }
+			.game { display: grid; grid-template-columns: minmax(0, 1fr) 130px; gap: 10px 16px; }
+			.moves { position: relative; min-height: 0; }
+			.moves > div { position: absolute; inset: 0; overflow-y: auto; font: 12px var(--mono); mask-image: linear-gradient(to bottom, transparent, #000 56px); scrollbar-width: none; }
+			.moves .row { display: grid; grid-template-columns: 26px 1fr 1fr; align-items: center; height: 26px; }
+			.moves .row span { padding: 4px 6px; border-radius: 6px; }
+			.moves .row .n { font-size: 11px; color: var(--muted-fg); padding: 0; }
+			.moves .row .cur { background: color-mix(in oklab, var(--live) 22%, transparent); font-weight: 500; }
+
+			/* Elo chart. */
+			.chart { display: block; width: 100%; height: auto; overflow: visible; }
+			.chart .band { fill: var(--live); opacity: 0.1; }
+			.chart .err { stroke: var(--live); stroke-width: 1.5; opacity: 0.55; }
+			.chart .pt { fill: var(--live); }
+			.chart .ln { fill: none; stroke: var(--live); stroke-width: 1.5; stroke-dasharray: 3 3; opacity: 0.7; }
+			.chart text { fill: var(--muted-fg); font: 10px var(--mono); }
+			.chart .grid { stroke: var(--border); }
+
+			/* Rows shared by lists. */
+			.rows { display: grid; }
+			.rows > li + li { border-top: 1px solid var(--border); }
+			.r { display: grid; gap: 4px; padding: 12px 0; }
+			.rows > li:first-child .r { padding-top: 0; }
+			.rows > li:last-child .r { padding-bottom: 0; }
+			.r-head { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+			.r-head b { font-size: 14px; font-weight: 600; min-width: 0; }
+			.r-head .pill { margin-left: auto; }
+			.r-meta { font-size: 12px; color: var(--muted-fg); }
+			.r-text { font-size: 13px; line-height: 1.45; color: var(--muted-fg); }
+
+			/* Expandable rows (Evolution A and C). */
+			.xrow { border-radius: 12px; }
+			.xrow > button { display: grid; width: 100%; align-items: center; gap: 12px; padding: 10px 12px; border: 0; border-radius: 12px; background: none; text-align: left; }
+			.xrow > button:hover { background: color-mix(in oklab, var(--muted) 70%, transparent); }
+			.xrow[open] > button, .xrow.open > button { background: var(--muted); border-radius: 12px 12px 0 0; }
+			.xrow .detail { display: none; padding: 14px 16px 16px; border-radius: 0 0 12px 12px; background: var(--muted); }
+			.xrow.open .detail { display: grid; gap: 10px; }
+			.chev { width: 16px; height: 16px; color: var(--muted-fg); transition: transform 0.15s; }
+			.xrow.open .chev { transform: rotate(90deg); }
+			.note { font-size: 13px; line-height: 1.5; }
+			.note b { font-weight: 600; }
+			.kv { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px; }
+			.kv span { color: var(--muted-fg); }
+			.kv b { font-weight: 500; color: var(--fg); }
+
+			/* Layout of each page and variant. */
+			main { padding: 24px 32px 48px; }
+			.wrap { max-width: 1440px; margin: 0 auto; }
+
+			/* X and A: three columns, as today. */
+			.live3 { display: grid; grid-template-columns: 270px minmax(0, 1fr) 320px; gap: 28px 36px; }
+			.live3 > .top { grid-column: 1 / -1; }
+			.stage { display: grid; justify-items: center; align-content: start; gap: 18px; min-width: 0; }
+			.stage > * { width: 100%; }
+			.stage .boardbox { max-width: min(640px, calc(100vh - 264px)); }
+			.stage .below { max-width: 680px; }
+			.col { display: grid; align-content: start; gap: 14px; min-width: 0; }
+			.topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+			.topbar .gen { display: flex; align-items: baseline; gap: 10px; }
+			.topbar .gen b { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+			.topbar .phase { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted-fg); }
+			.phasebar { display: flex; gap: 4px; }
+			.phasebar i { width: 18px; height: 4px; border-radius: 2px; background: var(--border); }
+			.phasebar i.on { background: var(--live); }
+			.hist li { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 10px; }
+			.hist li.now { background: color-mix(in oklab, var(--live) 12%, transparent); }
+			.hist .id { font: 500 12px var(--mono); color: var(--muted-fg); }
+			.hist li.now .id { color: var(--live); }
+			.hist b { display: block; font-size: 13px; font-weight: 500; }
+			.hist .sub { display: block; font-size: 11px; color: var(--muted-fg); }
+			.hist .v { font: 500 13px var(--mono); }
+			.caption { text-align: center; max-width: 680px; }
+			.caption .t { font-size: 20px; line-height: 1.3; font-weight: 500; text-wrap: balance; }
+			.caption .meta { margin-top: 10px; font: 12px var(--mono); color: var(--muted-fg); }
+			.bigelo { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+			.bigelo b { font-size: 44px; line-height: 1; font-weight: 600; letter-spacing: -0.02em; }
+			.bigelo .pm { font: 500 18px var(--mono); color: var(--muted-fg); }
+
+			/* B: stage and one rail. */
+			.live2 { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 28px 40px; max-width: 1240px; margin: 0 auto; }
+			.rail { display: grid; align-content: start; align-self: start; gap: 0; padding: 0; }
+			.rail > section { padding: 18px 20px; }
+			.rail > section + section { border-top: 1px solid var(--border); }
+			.matchhead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+			.matchhead h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+			.progress { height: 6px; border-radius: 3px; background: var(--muted); position: relative; overflow: hidden; }
+			.progress i { position: absolute; top: 0; bottom: 0; border-radius: 3px; }
+
+			/* C: one column. */
+			.live1 { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+			.headline { font-size: 26px; line-height: 1.25; font-weight: 600; letter-spacing: -0.015em; text-wrap: balance; }
+			.headline em { font-style: normal; color: var(--live); }
+			.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; }
+			.stats > div { padding: 14px 18px; }
+			.stats > div + div { border-left: 1px solid var(--border); }
+			.stats b { display: block; font-size: 24px; line-height: 1.1; font-weight: 600; letter-spacing: -0.01em; }
+			.stats b small { font: 500 13px var(--mono); color: var(--muted-fg); letter-spacing: 0; }
+			.feed { display: grid; }
+			.feed li { display: grid; grid-template-columns: 46px 18px minmax(0, 1fr); gap: 0 10px; }
+			.feed time { font: 12px var(--mono); color: var(--muted-fg); padding-top: 2px; }
+			.feed .rail-dot { position: relative; display: flex; justify-content: center; }
+			.feed .rail-dot::before { content: ''; position: absolute; top: 0; bottom: 0; width: 1px; background: var(--border); }
+			.feed li:first-child .rail-dot::before { top: 8px; }
+			.feed li:last-child .rail-dot::before { bottom: calc(100% - 8px); }
+			.feed .rail-dot i { position: relative; margin-top: 5px; width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 0 4px var(--bg); }
+			.feed .body { padding-bottom: 18px; display: grid; gap: 3px; min-width: 0; }
+			.feed .body b { font-size: 14px; font-weight: 600; }
+
+			/* Evolution. */
+			.page-head { display: grid; gap: 6px; margin-bottom: 24px; }
+			.page-head h1 { font-size: 30px; font-weight: 600; letter-spacing: -0.015em; }
+			.page-head p { font-size: 15px; color: var(--muted-fg); max-width: 70ch; }
+			.evo2 { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: start; }
+			.h2 { font-size: 19px; font-weight: 600; letter-spacing: -0.01em; margin-bottom: 16px; }
+			.tl li { position: relative; display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 0 12px; }
+			.tl .line { position: relative; display: flex; justify-content: center; }
+			.tl .line::before { content: ''; position: absolute; top: 12px; bottom: 0; width: 1px; background: var(--border); }
+			.tl li:last-child .line::before { display: none; }
+			.tl .line i { position: relative; margin-top: 7px; width: 10px; height: 10px; border-radius: 50%; background: color-mix(in oklab, var(--muted-fg) 50%, transparent); box-shadow: 0 0 0 4px var(--bg); }
+			.tl li.champ .line i { background: var(--live); }
+			.tl article { display: grid; gap: 8px; padding-bottom: 28px; min-width: 0; }
+			.tl h3 { font-size: 16px; line-height: 1.35; font-weight: 600; text-wrap: pretty; }
+			.facts { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 13px; font-weight: 500; }
+			.xcard { display: grid; gap: 6px; padding: 14px 16px; border-radius: 14px; background: var(--card); box-shadow: inset 0 0 0 1px var(--border); }
+			.xcard.dash { background: none; box-shadow: none; border: 1px dashed var(--border); }
+			.filters { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px; }
+			.pager { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; font-size: 13px; color: var(--muted-fg); }
+			.pager div { display: flex; gap: 6px; }
+			.pager button { height: 32px; padding: 0 12px; border: 0; border-radius: 999px; background: var(--card); box-shadow: inset 0 0 0 1px var(--border); font-size: 13px; font-weight: 500; }
+			.pager button:disabled { opacity: 0.4; cursor: default; }
+			.erow { grid-template-columns: 40px minmax(0, 1fr) auto 16px; }
+			.erow .id { font: 500 13px var(--mono); color: var(--muted-fg); }
+			.erow b { display: block; font-size: 14px; font-weight: 500; }
+			.erow .sub { display: block; font-size: 12px; color: var(--muted-fg); }
+			.grow { grid-template-columns: 52px minmax(0, 1fr) auto 16px; }
+			.grow .id { font: 500 13px var(--mono); }
+			.grow b { display: block; font-size: 14px; font-weight: 600; }
+			.grow .sub { display: block; font-size: 12px; color: var(--muted-fg); }
+			.grow .elo { text-align: right; font: 500 14px var(--mono); }
+			.grow .elo small { display: block; font-size: 11px; color: var(--muted-fg); }
+			.gens-b { display: grid; gap: 14px; }
+			.gcard { padding: 0; overflow: hidden; }
+			.gcard > header { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; padding: 18px 20px; }
+			.gcard h3 { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
+			.gcard .elo { text-align: right; }
+			.gcard .elo b { font: 600 22px var(--mono); letter-spacing: -0.02em; }
+			.gcard .elo span { display: block; font-size: 12px; color: var(--muted-fg); }
+			.attempts { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 20px 16px; }
+			.att { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border: 0; border-radius: 8px; background: var(--muted); font-size: 12px; }
+			.att.on { background: color-mix(in oklab, var(--live) 16%, transparent); }
+			.att i { width: 7px; height: 7px; border-radius: 50%; }
+			.attdetail { margin: 0 20px 18px; padding: 14px 16px; border-radius: 12px; background: var(--muted); display: grid; gap: 8px; }
+			.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+			.tbl th { text-align: left; font-weight: 500; color: var(--muted-fg); font-size: 12px; padding: 0 10px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+			.tbl td.mono { white-space: nowrap; }
+			.tbl td { padding: 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+			.tbl tr.click { cursor: pointer; }
+			.tbl tr.click:hover td { background: color-mix(in oklab, var(--muted) 60%, transparent); }
+			.tbl tr.det td { background: var(--muted); padding: 14px 16px; }
+			.tbl .ra { text-align: right; white-space: nowrap; }
+			.evo-c { max-width: 960px; margin: 0 auto; display: grid; gap: 28px; }
+
+			/* Narrow screens. */
+			@media (max-width: 1100px) {
+				.live3 { grid-template-columns: minmax(0, 1fr) 300px; }
+				.live3 > .left { grid-column: 1 / -1; order: 3; }
+				.evo2 { grid-template-columns: 1fr; }
+			}
+			@media (max-width: 860px) {
+				.nav { padding: 0 16px; gap: 10px; }
+				main { padding: 16px 16px 40px; }
+				.live3, .live2 { grid-template-columns: minmax(0, 1fr); }
+				.live3 > * { order: 0; }
+				.live3 > .stage { order: 1; }
+				.live3 > .right { order: 2; }
+				.live3 > .left { order: 3; }
+				.game { grid-template-columns: minmax(0, 1fr); }
+				.moves { min-height: 30px; }
+				.moves > div { position: static; display: flex; gap: 2px; overflow-x: auto; mask-image: linear-gradient(to right, transparent, #000 32px); }
+				.moves .row { flex: none; }
+				.game > .spacer { display: none; }
+				.caption .t { font-size: 17px; }
+				.headline { font-size: 21px; }
+				.stats { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+				.stats > div:nth-child(3) { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--border); }
+				.stats b { font-size: 21px; }
+				.stats b small { display: block; margin-top: 2px; }
+				.topbar .gen { flex-direction: column; gap: 2px; }
+				.topbar .phase { margin-left: 0; }
+				.page-head h1 { font-size: 26px; }
+				.tbl .hide-s { display: none; }
+				.bigelo b { font-size: 38px; }
+				.tabs a { padding: 0 8px; }
+			}
+					</style>
+	</head>
+	<body data-v="x">
+		<div class="switch">
+			<span data-buttons></span>
+			<p data-desc></p>
+			<button data-theme-toggle>t tema</button>
+		</div>
+
+		<nav class="nav" data-nav></nav>
+		<main data-main></main>
+
+		<script>
+			const DESC = {
+				x: 'oggi: la replica del sito vero, il termine di paragone',
+				a: 'Dieta: stessa struttura di oggi, ogni blocco ridotto e riscritto',
+				b: 'Palco: la Diretta è la partita più un riquadro; la storia vive in Evoluzione, raggruppata per generazione',
+				c: 'Cronaca: una colonna, una frase di stato, un filo unico di quello che succede; Evoluzione come quaderno'
+			};
+
+			// Data: real (public API and ledger, 25/11/2026), except the short titles, the progress
+			// of #18's match and the plain-language notes, which are invented (see the header).
+			const GENS = [
+				{ id: 5, exp: 15, at: '14:24', title: ['Pedoni che avanzano', 'Reward advancing pawns'], gain: 42, gainErr: 22, abs: 1129, absErr: 136, tried: 2, diff: [1, 6, 0], lichess: [8, 2, 3, 3, 1134], games: [266, 167, 191],
+				  hyp: ['Aggiungere un piccolo bonus di valutazione di 2cp per traversa per i pedoni avanzati verso la promozione (entrambi i colori) nella valutazione del materiale del go mover, così da valorizzare le spinte di pedone e il progresso dei pedoni passati.', "Add a small eval bonus of 2cp per rank for pawns advanced toward promotion (both colours) in the go mover's material eval, so it values pawn pushes and passed-pawn progress."],
+				  lesson: ['#14 è stata respinta al match; un termine di valutazione distinto (torre in 7a traversa) evita la sovrapposizione con la valutazione dell’avanzamento dei pedoni.', '#14 was rejected at match; a distinct eval term (rook on 7th) avoids overlapping the pending pawn-advancement eval.'],
+				  plain: ['Il tentativo precedente (#14) non aveva convinto l’arbitro: ho cambiato un aspetto diverso della valutazione, per non pestare i piedi alla modifica ancora in giudizio.', 'The previous try (#14) did not convince the referee: I changed a different part of the evaluation, so as not to clash with the change still being judged.'] },
+				{ id: 4, exp: 13, at: '14:09', title: ['Alfieri e cavalli al centro', 'Minor pieces to the centre'], gain: 24, gainErr: 15, abs: 1162, absErr: 118, tried: 1, diff: [1, 6, 2], lichess: [4, 1, 0, 3, 979], games: [606, 354, 504],
+				  hyp: ['Aggiungere un bonus di centro di +10 centipedoni per cavalli e alfieri su d4, e4, d5, e5 nella valutazione del materiale usata dalla ricerca a profondità 2, così sviluppa i pezzi verso il centro invece di fare mosse neutre.', 'Add a +10 centipawn centre bonus for knights and bishops on d4, e4, d5, e5 in the material eval used by the depth-2 search, so it develops pieces toward the centre instead of making neutral moves.'],
+				  lesson: ['#13 stava ancora giudicando, quindi ho scelto una modifica di una riga al root-noise che non tocca la valutazione.', '#13 was still judging, so I chose a one-line root-noise change that does not touch the eval.'],
+				  plain: ['Mentre l’arbitro giudicava, ho provato una modifica piccola e separata, così le due prove non si confondono.', 'While the referee was judging, I tried a small, separate change, so the two trials do not get mixed up.'] },
+				{ id: 3, exp: 12, at: '13:56', title: ['Ricerca a tre mosse', 'Search three moves deep'], gain: 667, gainErr: 962, abs: 1193, absErr: 139, tried: 7, diff: [1, 2, 2], lichess: [5, 0, 1, 4, 1153], games: [23, 1, 0],
+				  hyp: ['Approfondire la ricerca della mossa da profondità 2 a profondità 3 (nostra mossa, risposta dell’avversario, nostra mossa) con la stessa valutazione e il rilevamento del matto, così vede le proprie catture successive.', "Deepen the go mover's search from depth 2 to depth 3 (our move, opponent reply, our move) using the same material eval with mate detection, so it sees its own follow-up captures."],
+				  lesson: ['#12 stava ancora giudicando quando è iniziata questa sessione; una modifica distinta alla valutazione evita di entrare in conflitto con la modifica pendente.', '#12 was still judging when this session began; a distinct eval change avoids conflicting with the pending depth-3 search change.'],
+				  plain: ['Quando sono ripartito la ricerca a tre mosse era ancora in giudizio: ho lavorato su altro per non sovrapporre le due modifiche.', 'When I started again the three-move search was still on trial: I worked on something else so the two changes would not overlap.'] },
+				{ id: 2, exp: 5, at: '13:38', title: ['Ricerca alpha-beta', 'Alpha-beta search'], gain: 544, gainErr: 1004, abs: null, tried: 2, diff: [1, 38, 10], lichess: [3, 0, 0, 3, 922], games: [22, 2, 0],
+				  hyp: ['Sostituita l’euristica di cattura a una mossa con un negamax alpha-beta a profondità 2 sul materiale, con rilevamento del matto, così evita di lasciare pezzi in presa e trova il matto in una.', 'Replaced the 1-ply capture heuristic with a depth-2 alpha-beta negamax on material, with checkmate detection, so it avoids hanging pieces and finds mate-in-1.'],
+				  lesson: null, plain: null },
+				{ id: 1, exp: 3, at: '11:44', title: ['Non lasciare pezzi in presa', 'Stop hanging pieces'], vsRandom: true, gain: 104, gainErr: 70, abs: null, tried: 3, diff: [1, 6, 1], lichess: [1, 0, 0, 1, 2554], games: [7, 17, 0],
+				  hyp: ['Il motore catturava e basta; ho aggiunto una penalità per chi si sposta su una casa attaccata, così smette di lasciare pezzi in presa e batte il giocatore casuale con più sicurezza.', 'The mover was greedy capture-only; I added a penalty for moving onto an attacked square, so it avoids hanging pieces and beats a random mover more reliably.'],
+				  lesson: null, plain: null },
+				{ id: 0, seed: true, at: '11:40', title: ['Il seme: un progetto Rust vuoto', 'The seed: an empty Rust project'] }
+			];
+
+			// Experiments, newest first. st: status; gate: where it stopped; m: [games won, drawn, lost, elo, err, opponent].
+			const EXPS = [
+				{ id: 18, st: 'judging', at: '14:26', cost: 0.0019, title: ['Penalità ai pedoni doppiati', 'Doubled-pawn penalty'], hyp: ['Aggiungere una penalità di 8cp per ogni pedone in più su una colonna (pedoni doppiati, per entrambi i lati) alla valutazione materiale del go mover, così da evitare strutture che indeboliscono i suoi pedoni. Distinta dai termini in sospeso per la coppia di alfieri e per la torre in settima traversa; movegen non modificato, quindi perft non è influenzato; compila e restituisce una mossa dalla startpos.', "Add an 8cp penalty per extra pawn on a file (doubled pawns, both sides) to the go mover's material eval, so it avoids structures that weaken its pawns. Distinct from the pending bishop-pair and rook-on-7th terms; movegen untouched so perft is unaffected; builds and returns a move from startpos."] },
+				{ id: 17, st: 'queued', at: '14:26', cost: 0.002, title: ['Bonus per la coppia di alfieri', 'Bishop-pair bonus'], hyp: ['Aggiungere un bonus di +30cp per la coppia di alfieri, così li tiene e li valorizza.', 'Add a +30cp bishop-pair bonus per side, so it keeps and values two bishops.'] },
+				{ id: 16, st: 'stale', at: '14:19', cost: 0.0019, title: ['Torre in settima', 'Rook on the seventh'], hyp: ['Aggiungere un bonus di +8 centipedoni per le torri in settima traversa.', 'Add a +8cp bonus for rooks on the seventh rank.'] },
+				{ id: 15, st: 'accepted', gen: 5, at: '14:11', cost: 0.0021, title: GENS[0].title, m: [266, 167, 191, 42, 22, 'champion'] },
+				{ id: 14, st: 'rejected', gate: 'match', at: '13:56', cost: 0.0023, title: ['Meno casualità nella scelta', 'Less randomness at the root'], hyp: ['Ridurre il rumore di spareggio alla radice da 0..4 a 0..1 centipedoni, così la ricerca sceglie più spesso la mossa migliore per materiale.', 'Reduce the root tie-break noise from 0..4 to 0..1 centipawns, so the search picks the best material move more often.'], m: [279, 306, 327, -18, 17, 'champion'] },
+				{ id: 13, st: 'accepted', gen: 4, at: '13:55', cost: 0.0028, title: GENS[1].title, m: [606, 354, 504, 24, 15, 'champion'] },
+				{ id: 12, st: 'accepted', gen: 3, at: '13:55', cost: 0.0028, title: GENS[2].title, m: [23, 1, 0, 667, 962, 'champion'] },
+				{ id: 11, st: 'rejected', gate: 'smoke', why: ['Ha smesso di rispondere durante una partita.', 'It stopped answering during a game.'], at: '13:55', cost: 0.0033, title: ['Ricerca di quiescenza', 'Quiescence search'], hyp: ['Aggiungere la ricerca di quiescenza (solo catture) alle foglie della ricerca, così smette di valutare male le posizioni a metà di uno scambio.', 'Add quiescence search (captures only) at the leaves, so it stops misjudging positions in the middle of an exchange.'] },
+				{ id: 10, st: 'error', at: '13:46', cost: 0.0029, title: ['Prima le catture', 'Captures first'], hyp: ['Ordinare le mosse con le catture e le promozioni per prime in ogni nodo, così il taglio alfa-beta arriva prima.', 'Order captures and promotions first at every node, so alpha-beta cuts off earlier.'] },
+				{ id: 9, st: 'rejected', gate: 'match', at: '13:46', cost: 0.0011, title: ['Il campione, ripresentato', 'The champion, resubmitted'], hyp: ['Nessuna modifica al motore: l’albero è il campione gen-2, ripresentato come prova di continuità.', 'No change to the engine: the tree is the gen-2 champion, resubmitted as a continuity check.'], m: [1101, 837, 1062, 5, 10, 'champion'] },
+				{ id: 8, st: 'abandoned', at: '13:44', cost: 0.0019, title: null },
+				{ id: 7, st: 'error', at: '13:43', cost: 0.003, title: ['Matti più rapidi', 'Faster mates'], hyp: ['I punteggi di matto ora dipendono dalla profondità, così preferisce i matti più veloci.', 'Mate scores now depend on depth, so it prefers faster mates.'] },
+				{ id: 6, st: 'error', at: '13:38', cost: 0.0006, title: null },
+				{ id: 5, st: 'accepted', gen: 2, at: '13:38', cost: 0.0037, title: GENS[3].title, m: [22, 2, 0, 544, 1004, 'champion'] },
+				{ id: 4, st: 'error', at: '13:37', cost: 0.0015, title: null },
+				{ id: 3, st: 'accepted', gen: 1, at: '11:42', cost: 0.0034, title: GENS[4].title, m: [7, 17, 0, 104, 70, 'random'] },
+				{ id: 2, st: 'stale', at: '11:41', cost: 0.01, title: ['Generatore di mosse completo', 'Full move generator'], hyp: ['Generatore di mosse legali completo, ciclo UCI, perft e un mover alpha-beta a profondità 2.', 'Full legal move generator, UCI loop, perft and a depth-2 alpha-beta mover.'] },
+				{ id: 1, st: 'rules', at: '11:40', cost: 0.0114, title: ['Le regole degli scacchi', 'The rules of chess'], hyp: ['Partendo da uno stub senza UCI né perft: generatore di mosse legali (FEN, arrocco, en passant, promozione), ciclo UCI, perft e un mover che privilegia le catture.', 'Starting from a stub without UCI or perft: legal move generator (FEN, castling, en passant, promotion), UCI loop, perft and a capture-first mover.'] }
+			];
+			EXPS.forEach((e) => { if (e.gen) { const g = GENS.find((x) => x.id === e.gen); e.hyp = g.hyp; } });
+
+			// Judged matches (referee), newest first.
+			const MATCHES = [
+				{ exp: 15, v: 'h1', w: 266, d: 167, l: 191, elo: 42, err: 22, at: '14:24', c: ['Un piccolo bonus ai pedoni che avanzano verso la promozione. Su 624 partite contro il campione la nuova versione ne ha vinte 266, pareggiate 167 e perse 191: il test statistico l’ha giudicata più forte, ed è diventata gen-5.', 'A small bonus for pawns advancing toward promotion. Over 624 games against the champion the new version won 266, drew 167 and lost 191: the statistical test judged it stronger, and it became gen-5.'] },
+				{ exp: 14, v: 'h0', w: 279, d: 306, l: 327, elo: -18, err: 17, at: '14:19', c: ['La modifica non ha funzionato: in 912 partite contro il campione la nuova versione ha ottenuto 279 vittorie, 306 patte e 327 sconfitte. Il test ha concluso che non è più forte, quindi il campione resta.', 'The change did not work: over 912 games against the champion the new version scored 279 wins, 306 draws and 327 losses. The test concluded it is not stronger, so the champion stays.'] },
+				{ exp: 13, v: 'h1', w: 606, d: 354, l: 504, elo: 24, err: 15, at: '14:09', c: ['Un bonus al centro per cavalli e alfieri, per svilupparli verso d4, e4, d5 ed e5. Su 1.464 partite a colori invertiti la nuova versione ha vinto 606 volte contro 504: promossa, è gen-4.', 'A centre bonus for knights and bishops, to develop them toward d4, e4, d5 and e5. Over 1,464 colour-reversed games the new version won 606 against 504: promoted, it is gen-4.'] },
+				{ exp: 12, v: 'h1', w: 23, d: 1, l: 0, elo: 667, err: 962, at: '13:56', c: ['Ora guarda tre mosse avanti invece di due. Ha vinto 23 partite su 24, quasi tutte per matto: superiorità netta, anche se 24 partite non bastano a dire di quanto.', 'It now looks three moves ahead instead of two. It won 23 of 24 games, almost all by mate: clearly stronger, though 24 games cannot say by how much.'] },
+				{ exp: 9, v: 'h0', w: 1101, d: 837, l: 1062, elo: 5, err: 10, at: '13:55', c: ['Il campione ripresentato senza modifiche: 3.000 partite contro se stesso, praticamente in pari. Il test non ha trovato differenze, come doveva.', 'The champion resubmitted unchanged: 3,000 games against itself, practically even. The test found no difference, as it should.'] },
+				{ exp: 5, v: 'h1', w: 22, d: 2, l: 0, elo: 544, err: 1004, at: '13:38', c: ['Ricerca alpha-beta a due mosse al posto delle catture a una mossa: 22 vittorie e 2 patte su 24. Promossa, è gen-2.', 'Two-move alpha-beta search instead of one-move captures: 22 wins and 2 draws out of 24. Promoted, it is gen-2.'] },
+				{ exp: 3, v: 'h1', w: 7, d: 17, l: 0, elo: 104, err: 70, at: '11:44', c: ['Contro un avversario che muove a caso: 7 vittorie, 17 patte, nessuna sconfitta su 24. Basta per diventare la prima generazione.', 'Against an opponent that moves at random: 7 wins, 17 draws, no losses out of 24. Enough to become the first generation.'] }
+			];
+
+			// Lichess games, newest first. r: win draw loss.
+			const LICHESS = [
+				{ r: 'draw', opp: 'turochamp-1ply', elo: 1153, gen: 5, col: 'b', at: '14:53', c: null },
+				{ r: 'win', opp: 'dala-900', elo: 938, gen: 5, col: 'b', at: '14:49', c: null },
+				{ r: 'loss', opp: 'maia5', elo: 1445, gen: 5, col: 'w', at: '14:48', c: ['Sconfitta per matto in 30 mosse. Il momento decisivo è all’ottava, Df3: la donna esce presto e il nero guadagna tempi attaccandola.', 'Lost to mate in 30 moves. The turning point is move 8, Qf3: the queen comes out early and Black gains time attacking it.'] },
+				{ r: 'draw', opp: 'felipe_bot_53', elo: 1117, gen: 5, col: 'w', at: '14:43', c: null },
+				{ r: 'draw', opp: 'croco_little_bot', elo: 1178, gen: 5, col: 'w', at: '14:39', c: ['Patta dopo 37 mosse. Dopo un inizio incerto il motore prende un vantaggio di materiale, ma non trova il modo di convertirlo.', 'Draw after 37 moves. After a shaky start the engine wins material, but finds no way to convert it.'] },
+				{ r: 'loss', opp: 'maia1', elo: 1374, gen: 5, col: 'w', at: '14:36', c: ['Sconfitta per matto in 30 mosse, a 3+2. Il motore lascia il re al centro e subisce un attacco diretto.', 'Lost to mate in 30 moves, at 3+2. The engine leaves its king in the centre and gets attacked directly.'] },
+				{ r: 'win', opp: 'dala-1300', elo: 1182, gen: 5, col: 'b', at: '14:33', c: ['Vittoria per matto in 29 mosse, col nero. Per gran parte della partita il motore tiene il vantaggio di materiale.', 'Won by mate in 29 moves, with Black. For most of the game the engine keeps its material edge.'] },
+				{ r: 'loss', opp: 'bernstein-2ply', elo: 1087, gen: 5, col: 'b', at: '14:31', c: null },
+				{ r: 'win', opp: 'dala-1100', elo: 1126, gen: 4, col: 'b', at: '14:21', c: null },
+				{ r: 'loss', opp: 'joshsbot', elo: 1242, gen: 4, col: 'w', at: '14:20', c: null }
+			];
+
+			const SAN = 'e4 e5 Nf3 Nc6 Bc4 Bc5 c3 Nf6 d4 exd4 cxd4 Bb4+ Nc3 Nxe4 O-O Nxc3 bxc3 d5 Ba3 dxc4 Re1+ Be6 Rxe6+ fxe6 Qb3'.split(' ');
+			const FEN = 'r2qk2r/ppp3pp/2n1p3/8/1bpP4/BQP2N2/P4PPP/R5K1';
+			const LAST = ['d1', 'b3'];
+			const THOUGHT = "I submitted a doubled-pawn penalty: 8cp per extra pawn on a file, applied to both sides in the go mover's material eval. It builds and `go` from startpos returns `b1c3`. I did not run perft_check, since movegen is untouched. The referee will judge it next session.";
+			const THOUGHT_X = THOUGHT + ' The change is in `src/main.rs`, inside `eval()`. I picked this term to avoid overlapping the pending bishop-pair (#17) and rook-on-7th (#16) changes.';
+			// Invented: progress of #18's match (the live API has no partial LLR today).
+			const RUN = { games: 412, w: 150, d: 120, l: 142, llr: 0.8, bound: 2.94, since: '14:27' };
+
+			// UI state inside the mock.
+			const S = { page: 'diretta', lang: 'it', tab: 'arena', liveMore: false, evoFilter: 'all', evoPage: 0, open: {}, feed: 'all', attempt: {} };
+			const L = () => (S.lang === 'it' ? 0 : 1);
+			const tx = (pair) => (pair ? pair[L()] : '');
+			const T = (it, en) => (S.lang === 'it' ? it : en);
+			const n = (v) => new Intl.NumberFormat(S.lang === 'it' ? 'it-IT' : 'en-GB').format(v);
+			const sgn = (v) => (v > 0 ? '+' : v < 0 ? '−' : '') + n(Math.abs(v));
+			const money = (v) => (S.lang === 'it' ? `${v.toFixed(2).replace('.', ',')} $` : `$${v.toFixed(2)}`);
+			const cents = (v) => (S.lang === 'it' ? `${(v * 100).toFixed(2).replace('.', ',')} ¢` : `${(v * 100).toFixed(2)}¢`);
+			const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+			const plain = (s) => s.replace(/`/g, '');
+
+			const STATUS = {
+				judging: [['in giudizio', 'on trial'], 'live'],
+				queued: [['in coda', 'queued'], 'mut'],
+				accepted: [['promosso', 'promoted'], 'good'],
+				rejected: [['scartato', 'rejected'], 'bad'],
+				error: [['errore', 'error'], 'bad'],
+				abandoned: [['nessuna consegna', 'nothing submitted'], 'mut'],
+				stale: [['superato', 'overtaken'], 'mut'],
+				rules: [['regole superate', 'rules passed'], 'good']
+			};
+			const GATE = { build: ['compila', 'builds'], perft: ['regole', 'rules'], smoke: ['partite pulite', 'clean games'], match: ['match', 'match'] };
+			const RES = { win: [['Vinta', 'Won'], 'good'], draw: [['Patta', 'Draw'], 'mut'], loss: [['Persa', 'Lost'], 'bad'] };
+			const pill = (st) => `<span class="pill ${STATUS[st][1]}">${tx(STATUS[st][0])}</span>`;
+			const titleOf = (e) => (e.title ? tx(e.title) : T('Senza ipotesi', 'No hypothesis'));
+			const chev = '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>';
+			const ext = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>';
+			const why = (text) => `<button class="why" type="button" aria-label="${T('Spiegazione', 'Explanation')}">?<span class="tip" role="tooltip">${text}</span></button>`;
+
+			// Board and game.
+			function board() {
+				const rows = FEN.split('/');
+				let html = '';
+				rows.forEach((row, r) => {
+					let c = 0;
+					for (const ch of row) {
+						if (/\d/.test(ch)) { for (let k = 0; k < +ch; k++) html += sq(r, c++, null); }
+						else html += sq(r, c++, ch);
+					}
+				});
+				return `<div class="board" role="img" aria-label="${T('Scacchiera', 'Board')}">${html}</div>`;
+			}
+			function sq(r, c, p) {
+				const name = 'abcdefgh'[c] + (8 - r);
+				const cls = (r + c) % 2 === 0 ? 'l' : 'd';
+				const hl = LAST.includes(name) ? ' hl' : '';
+				const img = p ? `<img alt="" src="https://lichess1.org/assets/piece/cburnett/${p === p.toUpperCase() ? 'w' : 'b'}${p.toUpperCase()}.svg">` : '';
+				return `<i class="${cls}${hl}">${img}</i>`;
+			}
+			function moves() {
+				let rows = '';
+				for (let i = 0; i < SAN.length; i += 2) {
+					const last = i + 2 >= SAN.length;
+					const w = SAN[i], b = SAN[i + 1];
+					rows += `<div class="row"><span class="n">${i / 2 + 1}</span><span class="${last && !b ? 'cur' : ''}">${w}</span><span class="${last && b ? 'cur' : ''}">${b || ''}</span></div>`;
+				}
+				return `<div class="moves"><div data-scroll>${rows}</div></div>`;
+			}
+			function player(colour, name, sub, aside, tag) {
+				return `<div class="player"><span class="stone ${colour}"></span><span style="min-width:0"><span style="display:flex;align-items:center;gap:6px">${tag ? `<span class="tag">${tag}</span>` : ''}<b class="trunc">${name}</b></span><span class="sub">${sub}</span></span>${aside ? `<span class="aside">${aside}</span>` : ''}</div>`;
+			}
+			function game(opts = {}) {
+				const pts = (v) => `<b class="num">${v}</b><span class="sub">${T('vinte', 'won')}</span>`;
+				const black = player('b', opts.blackName || T('Campione gen-5', 'Champion gen-5'), opts.blackSub || T('nero', 'black'), opts.points ? pts(RUN.l) : '');
+				const white = player('w', opts.whiteName || T('Candidato #18', 'Candidate #18'), opts.whiteSub || T('bianco', 'white'), opts.points ? pts(RUN.w) : '');
+				return `<div class="game">${black}<span class="spacer"></span><div>${board()}</div>${moves()}${white}</div>`;
+			}
+
+			// Elo: honest numbers and the chart with error bars.
+			const RATED = GENS.filter((g) => g.abs !== null && !g.seed).slice().reverse();
+			function eloChart(opts = {}) {
+				const narrow = innerWidth < 600 && opts.axis;
+				const W = narrow ? 360 : opts.w || 300, H = narrow ? 170 : opts.h || 120, padL = opts.axis ? 34 : 6, padR = 8, padT = 8, padB = opts.axis ? 22 : 8;
+				const lo = 950, hi = 1350;
+				const pts = RATED;
+				const x = (i) => padL + ((W - padL - padR) * (i + 0.5)) / pts.length;
+				const y = (v) => padT + (H - padT - padB) * (1 - (v - lo) / (hi - lo));
+				let s = '';
+				if (opts.axis) [1000, 1100, 1200, 1300].forEach((v) => { s += `<line class="grid" x1="${padL}" x2="${W - padR}" y1="${y(v)}" y2="${y(v)}"/><text x="${padL - 6}" y="${y(v) + 3}" text-anchor="end">${n(v)}</text>`; });
+				// The band where all three measures agree.
+				const top = Math.min(...pts.map((p) => p.abs + p.absErr)), bot = Math.max(...pts.map((p) => p.abs - p.absErr));
+				if (opts.band) s += `<rect class="band" x="${padL}" width="${W - padL - padR}" y="${y(top)}" height="${y(bot) - y(top)}" rx="3"/>`;
+				s += `<path class="ln" d="${pts.map((p, i) => `${i ? 'L' : 'M'}${x(i)},${y(p.abs)}`).join(' ')}"/>`;
+				pts.forEach((p, i) => {
+					s += `<line class="err" x1="${x(i)}" x2="${x(i)}" y1="${y(p.abs + p.absErr)}" y2="${y(p.abs - p.absErr)}"/>`;
+					s += `<line class="err" x1="${x(i) - 5}" x2="${x(i) + 5}" y1="${y(p.abs + p.absErr)}" y2="${y(p.abs + p.absErr)}"/><line class="err" x1="${x(i) - 5}" x2="${x(i) + 5}" y1="${y(p.abs - p.absErr)}" y2="${y(p.abs - p.absErr)}"/>`;
+					s += `<circle class="pt" cx="${x(i)}" cy="${y(p.abs)}" r="4"/>`;
+					if (opts.axis) s += `<text x="${x(i)}" y="${H - 6}" text-anchor="middle">gen-${p.id}</text>`;
+				});
+				return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${T('Elo contro Stockfish per generazione, con margine', 'Elo against Stockfish per generation, with margin')}">${s}</svg>`;
+			}
+			const ELO_TIP = () => T(
+				'Misurato facendo giocare il campione contro Stockfish a forza limitata. Il ± è il margine al 95%: con poche decine di partite è largo. Gen-3, gen-4 e gen-5 cadono tutte nella fascia colorata, quindi per ora non si vede né un calo né una crescita.',
+				'Measured by playing the champion against strength-limited Stockfish. The ± is the 95% margin: with a few dozen games it is wide. Gen-3, gen-4 and gen-5 all fall in the shaded band, so for now there is neither a drop nor a rise to see.'
+			);
+			const GAIN_TIP = () => T(
+				'Il guadagno viene dal match diretto contro il campione precedente: dice solo che la nuova versione batte la vecchia, non quanto è forte in assoluto. Guadagni piccoli contro se stessi spesso non si vedono contro avversari diversi.',
+				'The gain comes from the head-to-head match against the previous champion: it only says the new version beats the old one, not how strong it is overall. Small gains against itself often do not show against other opponents.'
+			);
+			function lichessPerf(g) {
+				const [games, w, d, l, perf] = g.lichess;
+				if (games < 5) return T(`Lichess: ${games} ${games === 1 ? 'partita' : 'partite'}, troppo poche per una stima`, `Lichess: ${games} ${games === 1 ? 'game' : 'games'}, too few for an estimate`);
+				return T(`Lichess: ${n(perf)} di performance in ${games} partite`, `Lichess: ${n(perf)} performance over ${games} games`);
+			}
+
+			// Navigation bar: the brand always there (the decision F), except in X's Diretta.
+			function nav() {
+				const pages = [['diretta', 'Diretta', 'Live'], ['evoluzione', 'Evoluzione', 'Evolution'], ['codice', 'Codice', 'Code'], ['mente', 'Mente', 'Mind'], ['laboratorio', 'Laboratorio', 'Lab']];
+				const brand = S.v === 'x' && S.page === 'diretta' ? '' : `<a class="brand" data-go="diretta" href="#">darwin-chess</a>`;
+				return `${brand}<div class="tabs">${pages.map(([k, it, en]) => `<a ${['diretta', 'evoluzione'].includes(k) ? `data-go="${k}"` : 'class="inert"'} ${S.page === k ? 'aria-current="page"' : ''}>${T(it, en)}</a>`).join('')}</div>
+				<div class="lang" role="group"><button data-lang="it" aria-pressed="${S.lang === 'it'}">IT</button><span>|</span><button data-lang="en" aria-pressed="${S.lang === 'en'}">EN</button></div>`;
+			}
+
+			// X: today, faithful.
+			function liveX() {
+				const hist = [
+					`<li class="now"><span class="id">#18</span><span style="min-width:0"><b class="trunc">${esc(tx(EXPS[0].hyp))}</b><span class="sub">${T('in giudizio', 'on trial')}</span></span><span></span></li>`,
+					...GENS.filter((g) => !g.seed).map((g) => `<li><span class="id">gen-${g.id}</span><span style="min-width:0"><b class="trunc">${esc(tx(g.hyp))}</b><span class="sub trunc">${g.vsRandom ? T('batte il casuale', 'beats random') : `+${n(g.gain)} Elo`} · ${g.tried} ${T(g.tried === 1 ? 'tentativo' : 'tentativi', g.tried === 1 ? 'attempt' : 'attempts')}</span></span><span class="v num">${g.abs ? n(g.abs) : ''}</span></li>`),
+					`<li><span class="id">gen-0</span><span><b>${T('Il seme vuoto', 'The empty seed')}</b><span class="sub">25 nov</span></span><span></span></li>`
+				].join('');
+				const spark = (() => {
+					const pts = RATED.map((g) => g.abs), W = 300, H = 84, lo = 0, hi = Math.max(...pts);
+					const x = (i) => 4 + ((W - 8) * i) / (pts.length - 1), y = (v) => 6 + (H - 12) * (1 - (v - lo) / (hi - lo));
+					const line = pts.map((v, i) => `${i ? 'L' : 'M'}${x(i)},${y(v)}`).join(' ');
+					return `<svg class="chart" viewBox="0 0 ${W} ${H}" style="margin-top:14px"><path d="${line} L${x(pts.length - 1)},${H} L${x(0)},${H} Z" fill="var(--live)" opacity=".1"/><path d="${line}" fill="none" stroke="var(--live)" stroke-width="2"/><circle cx="${x(pts.length - 1)}" cy="${y(pts.at(-1))}" r="3.5" fill="var(--live)"/></svg>`;
+				})();
+				const list = S.tab === 'arena'
+					? `<section class="card"><h2 class="label" style="font-weight:400;margin-bottom:10px">${T('Ultimi giudizi dell’arbitro', 'The referee’s latest verdicts')}</h2><ol class="rows">${MATCHES.map((m) => {
+						const e = EXPS.find((x) => x.id === m.exp);
+						return `<li><div class="r"><div class="r-head"><b>${T(`Candidato #${m.exp} contro ${m.exp === 3 ? 'il giocatore casuale' : 'il campione'}`, `Candidate #${m.exp} vs ${m.exp === 3 ? 'the random player' : 'the champion'}`)}</b><span class="pill ${m.v === 'h1' ? 'good' : 'bad'}">${m.v === 'h1' ? T('promosso', 'promoted') : T('scartato', 'rejected')}</span></div><p class="r-meta num">${T(`${n(m.w)} vinte, ${n(m.d)} patte, ${n(m.l)} perse`, `${n(m.w)} won, ${n(m.d)} drawn, ${n(m.l)} lost`)} · ${sgn(m.elo)} ± ${n(m.err)} Elo · 8+0.08 · 25 nov, ${m.at}</p><p class="clamp2" style="font-size:13px;line-height:1.4">${esc(tx(e.hyp))}</p><p class="r-text clamp3">${esc(tx(m.c))}</p></div></li>`;
+					}).join('')}</ol></section>`
+					: lichessList(LICHESS, true);
+				return `<div class="live3 wrap">
+					<header class="top topbar"><span style="font-size:17px;font-weight:700">darwin-chess</span>
+						<span class="gen" style="border-left:1px solid var(--border);padding-left:16px"><b>${T('Generazione 5', 'Generation 5')}</b><span class="label">${T('in gara il candidato per la 6', 'the candidate for 6 is racing')}</span></span>
+						<span class="pill bad"><i class="dot pulse"></i>${T('In diretta', 'Live')}</span>
+						<span class="phase"><span class="phasebar"><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span><span>${T('Fase 3 di 4', 'Phase 3 of 4')} · <b style="color:var(--fg)">${T('Evoluzione', 'Evolution')}</b></span></span>
+					</header>
+					<aside class="col left">
+						<section class="card"><p class="label" style="margin-bottom:10px">${T('Come sta andando', 'How it is going')}</p>
+							<p class="bigelo"><b class="num">${n(1129)}</b><span class="mono label">Elo · gen-5</span></p>${spark}
+							<p class="label" style="font-size:12px;margin-top:12px">${T('Lichess: <b style="color:var(--fg);font-weight:500">1134</b> di performance in 8 partite di gen-5', 'Lichess: <b style="color:var(--fg);font-weight:500">1134</b> performance over 8 games of gen-5')}</p></section>
+						<ol class="hist">${hist}</ol>
+						<p class="label" style="font-size:12px;padding:0 10px">${T('18 tentativi, 5 promossi', '18 attempts, 5 promoted')}</p>
+					</aside>
+					<div class="stage">
+						<div class="boardbox" style="display:grid;gap:12px">
+							<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px">${tabs()}${S.tab === 'arena' ? `<p class="label"><b style="color:var(--fg);font-weight:600">${T('Giudizio', 'Trial')}</b> · ${T('candidato #18 contro il campione gen-5', 'candidate #18 vs champion gen-5')}</p>` : ''}</div>
+							${S.tab === 'arena' ? game({ points: true }) : lichessGame()}
+						</div>
+						<div class="caption" style="margin:0 auto"><p class="eyebrow" style="margin-bottom:8px"><i class="dot" style="display:inline-block;background:var(--live);width:6px;height:6px;margin-right:6px"></i>${T('Ultimo pensiero', 'Last thought')}</p>
+							<p class="t clamp3" lang="en">${esc(plain(THOUGHT_X))}</p><p class="meta">submit · 14:27</p>${S.lang === 'it' ? '<p class="label" style="font-size:12px;margin-top:6px">L’agente pensa e scrive in inglese, la lingua in cui lavora.</p>' : ''}</div>
+						<div class="below" style="margin:0 auto">${list}</div>
+					</div>
+					<aside class="col right">
+						<section class="card"><p class="label" style="margin-bottom:10px">${T('Che cosa sta giudicando l’arbitro', 'What the referee is judging')}</p><p style="font-size:22px;font-weight:600;margin-bottom:14px">${T('Candidato #18', 'Candidate #18')}</p><p class="label" style="font-size:12px;line-height:1.6">${esc(tx(EXPS[0].hyp))}</p></section>
+						${spendCard()}
+					</aside>
+				</div>`;
+			}
+			function tabs() {
+				return `<div class="seg" role="tablist"><button data-tab="arena" aria-pressed="${S.tab === 'arena'}">${T('Arbitro', 'Referee')}</button><button data-tab="lichess" aria-pressed="${S.tab === 'lichess'}">Lichess <i class="dot pulse" style="width:6px;height:6px;background:var(--bad)"></i></button></div>`;
+			}
+			function lichessGame() {
+				return game({ blackName: 'maia5', blackSub: '1445 · ' + T('nero', 'black'), whiteName: T('darwin-chess-bot', 'darwin-chess-bot'), whiteSub: 'gen-5 · ' + T('bianco', 'white') });
+			}
+			function lichessList(items, withText) {
+				return `<section class="card"><h2 class="label" style="font-weight:400;margin-bottom:10px">${T('Ultime partite su Lichess', 'Latest games on Lichess')}</h2><ol style="display:grid;gap:4px;margin:0 -10px">${items.map((g) => `<li style="display:grid;gap:4px;padding:8px 10px;border-radius:10px"><a href="#" style="display:grid;grid-template-columns:64px minmax(0,1fr) auto;align-items:center;gap:10px"><b class="${RES[g.r][1]}" style="font-size:13px">${tx(RES[g.r][0])}</b><span style="min-width:0"><span style="display:flex;align-items:center;gap:6px"><span class="tag">BOT</span><b class="trunc" style="font-size:13px;font-weight:500">${g.opp}</b><span class="mono mut" style="font-size:11px">${g.elo}</span></span><span class="sub mut" style="display:block;font-size:11px">gen-${g.gen} ${T(g.col === 'w' ? 'col bianco' : 'col nero', g.col === 'w' ? 'with white' : 'with black')} · 180+2 · 25 nov, ${g.at}</span></span><span class="mut">${ext}</span></a>${withText && g.c ? `<p class="r-text clamp3" style="padding-left:74px">${esc(tx(g.c))}</p>` : ''}</li>`).join('')}</ol></section>`;
+			}
+			function spendCard(compact) {
+				return `<section class="card"><p class="label" style="margin-bottom:10px">${T('Quanto abbiamo speso oggi?', 'How much have we spent today?')}</p><p style="display:flex;align-items:baseline;gap:10px"><b class="num" style="font-size:${compact ? 26 : 32}px;line-height:1;font-weight:600">${money(0.06)}</b><span class="mono label">${T('di', 'of')} ${money(2)}</span></p><div class="progress" style="margin-top:12px"><i style="left:0;width:3%;background:var(--live)"></i></div><p class="label" style="font-size:12px;margin-top:10px">${T('18 sessioni oggi', '18 sessions today')}</p></section>`;
+			}
+
+			// A: same structure, every block on a diet.
+			function liveA() {
+				const last5 = GENS.filter((g) => !g.seed).slice(0, 5);
+				const hist = [
+					`<li class="now"><span class="id">#18</span><span style="min-width:0"><b class="trunc">${tx(EXPS[0].title)}</b><span class="sub">${T('in giudizio contro gen-5', 'on trial against gen-5')}</span></span><span></span></li>`,
+					...last5.map((g) => `<li><span class="id">gen-${g.id}</span><span style="min-width:0"><b class="trunc">${tx(g.title)}</b><span class="sub trunc">${g.tried === 1 ? T('al primo tentativo', 'first try') : T(`dopo ${g.tried} tentativi`, `after ${g.tried} tries`)}</span></span><span class="v num">${g.abs ? n(g.abs) : '<span class="mut">–</span>'}</span></li>`)
+				].join('');
+				const shown = S.liveMore ? 7 : 3;
+				const list = S.tab === 'arena'
+					? `<section class="card"><div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px"><h2 class="label" style="font-weight:400">${T('Ultimi verdetti dell’arbitro', 'The referee’s latest verdicts')}</h2><a class="link" data-go="evoluzione">${T('Tutti in Evoluzione', 'All in Evolution')}</a></div><ol class="rows">${MATCHES.slice(0, shown).map((m) => {
+						const e = EXPS.find((x) => x.id === m.exp);
+						return `<li><div class="r"><div class="r-head"><span class="mono mut" style="font-size:13px">#${m.exp}</span><b class="trunc">${tx(e.title)}</b><span class="pill ${m.v === 'h1' ? 'good' : 'bad'}">${m.v === 'h1' ? (e.gen ? `gen-${e.gen}` : T('promosso', 'promoted')) : T('scartato', 'rejected')}</span></div><p class="r-meta num">${n(m.w + m.d + m.l)} ${T('partite', 'games')} · ${sgn(m.elo)} ± ${n(m.err)} ${T('sul campione', 'vs champion')} · ${m.at}</p><p class="r-text clamp2">${esc(tx(m.c))}</p></div></li>`;
+					}).join('')}</ol>${S.liveMore ? '' : `<div class="more"><button data-more>${T('Mostra altri 4', 'Show 4 more')}</button></div>`}</section>`
+					: lichessList(LICHESS.slice(0, shown), true).replace('</ol></section>', `</ol>${S.liveMore ? '' : `<div class="more"><button data-more>${T('Mostra altre 7', 'Show 7 more')}</button></div>`}</section>`);
+				return `<div class="live3 wrap">
+					<header class="top topbar">
+						<span class="gen"><b>${T('Generazione 5', 'Generation 5')}</b><span class="label">${T('il candidato #18 prova a diventare la 6', 'candidate #18 is trying to become 6')}</span></span>
+						<span class="pill bad"><i class="dot pulse"></i>${T('In diretta', 'Live')}</span>
+						<span class="phase"><span class="phasebar"><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span><span>${T('Evoluzione', 'Evolution')}</span></span>
+					</header>
+					<aside class="col left">
+						${eloCardA()}
+						<div><ol class="hist">${hist}</ol><p style="padding:6px 10px 0"><a class="link" data-go="evoluzione">${T('Tutte le 6 generazioni e 18 tentativi', 'All 6 generations and 18 attempts')}</a></p></div>
+					</aside>
+					<div class="stage">
+						<div class="boardbox" style="display:grid;gap:12px">
+							<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px">${tabs()}</div>
+							${S.tab === 'arena' ? `<div class="matchhead"><span class="mono live" style="font-size:13px;font-weight:500">#18</span><h1 style="font-size:19px">${tx(EXPS[0].title)}</h1><span class="label">${T('contro il campione gen-5', 'against champion gen-5')}</span></div>` : ''}
+							${S.tab === 'arena' ? game({ points: true }) : lichessGame()}
+						</div>
+						<div class="caption" style="margin:0 auto"><p class="eyebrow" style="margin-bottom:8px">${T('Ultimo pensiero dell’agente', 'The agent’s last thought')} · 14:27</p><p class="t clamp2" lang="en" title="${esc(plain(THOUGHT))}">${esc(plain(THOUGHT))}</p></div>
+						<div class="below" style="margin:0 auto">${list}</div>
+					</div>
+					<aside class="col right">
+						${verdictCard()}
+						${spendCard(true)}
+					</aside>
+				</div>`;
+			}
+			function eloCardA() {
+				return `<section class="card"><p class="label" style="margin-bottom:10px;display:flex;align-items:center;gap:6px">${T('Forza del campione', 'Champion strength')} ${why(ELO_TIP())}</p>
+					<p class="bigelo"><b class="num">${n(1129)}</b><span class="pm">± 136</span></p>
+					<p class="label" style="font-size:12px;margin-top:6px">${T('Elo contro Stockfish · gen-5', 'Elo against Stockfish · gen-5')}</p>
+					<div style="margin-top:12px">${eloChart({ w: 300, h: 110, band: true })}</div>
+					<p class="label" style="font-size:12px;margin-top:8px">${T('Gen-3, 4 e 5 stanno nello stesso margine: ancora nessuna differenza misurabile.', 'Gen-3, 4 and 5 sit inside the same margin: no measurable difference yet.')}</p>
+					<p class="label" style="font-size:12px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">${lichessPerf(GENS[0])}</p></section>`;
+			}
+			function verdictCard() {
+				const share = RUN.llr / RUN.bound;
+				return `<section class="card"><p class="label" style="margin-bottom:10px">${T('Il candidato è più forte del campione?', 'Is the candidate stronger than the champion?')}</p>
+					<p style="font-size:22px;font-weight:600;letter-spacing:-0.01em">${T('Ancora non si sa', 'Not known yet')}</p>
+					<p class="label" style="font-size:12px;margin-top:4px">${n(RUN.games)} ${T('partite', 'games')} · ${T(`V ${RUN.w} P ${RUN.d} S ${RUN.l}`, `W ${RUN.w} D ${RUN.d} L ${RUN.l}`)}</p>
+					<div class="progress" style="margin-top:14px"><span style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--border)"></span><i style="left:50%;width:${share * 50}%;background:var(--good)"></i></div>
+					<div class="mono label" style="display:flex;justify-content:space-between;font-size:11px;margin-top:6px"><span>${T('scarta', 'reject')}</span><span>${T('verso: promosso', 'leaning: promote')}</span><span>${T('promuove', 'promote')}</span></div>
+					<p class="label" style="font-size:12px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">${T('Ultimo verdetto: <b style="color:var(--fg);font-weight:500">#15 promosso</b>, è diventato gen-5 (+42 ± 22 sul campione precedente).', 'Last verdict: <b style="color:var(--fg);font-weight:500">#15 promoted</b>, it became gen-5 (+42 ± 22 against the previous champion).')}</p></section>`;
+			}
+
+			// B: the stage and one rail; the story moves to Evolution.
+			function liveB() {
+				const share = RUN.llr / RUN.bound;
+				const feedItems = feedB();
+				return `<div class="live2">
+					<div class="stage" style="justify-items:stretch">
+						<div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px">${tabs()}<span class="pill bad"><i class="dot pulse"></i>${T('In diretta', 'Live')}</span></div>
+						${S.tab === 'arena'
+							? `<div class="matchhead"><h1>${tx(EXPS[0].title)}</h1><span class="label">${T('candidato #18 contro il campione gen-5', 'candidate #18 against champion gen-5')}</span></div>`
+							: `<div class="matchhead"><h1>${T('darwin-chess-bot contro maia5', 'darwin-chess-bot vs maia5')}</h1><a class="link" href="#" style="display:inline-flex;gap:6px;align-items:center">${T('Apri su Lichess', 'Open on Lichess')} ${ext}</a></div>`}
+						<div style="max-width:min(100%,calc(100vh - 250px));width:100%;margin:0 auto">${S.tab === 'arena' ? game({ points: true }) : lichessGame()}</div>
+						<div class="caption" style="margin:0 auto"><p class="eyebrow" style="margin-bottom:8px">${T('L’agente, 14:27', 'The agent, 14:27')}</p><p class="t clamp2" lang="en">${esc(plain(THOUGHT))}</p></div>
+					</div>
+					<aside class="card rail">
+						<section><p class="label" style="display:flex;align-items:center;gap:6px">${T('Campione', 'Champion')} · gen-5 ${why(ELO_TIP())}</p>
+							<p class="bigelo" style="margin-top:6px"><b class="num" style="font-size:38px">${n(1129)}</b><span class="pm">± 136 Elo</span></p>
+							<div style="margin-top:10px">${eloChart({ w: 320, h: 90, band: true })}</div>
+							<p class="label" style="font-size:12px;margin-top:6px">${T('Le ultime tre generazioni cadono nello stesso margine.', 'The last three generations fall within the same margin.')}</p></section>
+						<section><p class="label">${T('In gara per diventare gen-6', 'Racing to become gen-6')}</p>
+							<p style="font-size:15px;font-weight:600;margin-top:4px">#18 · ${tx(EXPS[0].title)}</p>
+							<div class="progress" style="margin-top:12px"><span style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--border)"></span><i style="left:50%;width:${share * 50}%;background:var(--good)"></i></div>
+							<p class="label" style="font-size:12px;margin-top:8px">${n(RUN.games)} ${T('partite', 'games')}, ${T('per ora pende verso il sì', 'leaning toward yes so far')} · <span class="mono">LLR ${String(RUN.llr).replace('.', S.lang === 'it' ? ',' : '.')} / ±2,94</span></p>
+							<p class="label" style="font-size:12px;margin-top:6px">${T('In coda: #17 Bonus per la coppia di alfieri', 'Queued: #17 Bishop-pair bonus')}</p></section>
+						<section style="display:flex;align-items:baseline;justify-content:space-between;gap:10px"><p class="label">${T('Speso oggi', 'Spent today')}</p><p class="mono" style="font-size:13px"><b style="font-weight:600">${money(0.06)}</b> <span class="mut">/ ${money(2)} · 18 ${T('sessioni', 'sessions')}</span></p></section>
+					</aside>
+					<section style="grid-column:1/-1;max-width:none" class="card">
+						<div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px"><h2 style="font-size:15px;font-weight:600">${T('Appena successo', 'Just happened')}</h2>
+							<div class="seg small"><button data-feed="all" aria-pressed="${S.feed === 'all'}">${T('Tutto', 'All')}</button><button data-feed="arena" aria-pressed="${S.feed === 'arena'}">${T('Arbitro', 'Referee')}</button><button data-feed="lichess" aria-pressed="${S.feed === 'lichess'}">Lichess</button></div></div>
+						<ol class="rows" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px 28px">${feedItems.slice(0, 3).map((f) => `<li style="border-top:0"><div class="r" style="padding:0">${f}</div></li>`).join('')}</ol>
+						<p style="margin-top:14px"><a class="link" data-go="evoluzione">${T('Tutta la storia in Evoluzione', 'The whole story in Evolution')}</a></p>
+					</section>
+				</div>`;
+			}
+			function feedB() {
+				const arena = MATCHES.map((m) => ({ at: m.at, html: matchItem(m) }));
+				const li = LICHESS.map((g) => ({ at: g.at, html: lichessItem(g) }));
+				const all = S.feed === 'arena' ? arena : S.feed === 'lichess' ? li : [...arena, ...li].sort((a, b) => b.at.localeCompare(a.at));
+				return all.map((x) => x.html);
+			}
+			function matchItem(m) {
+				const e = EXPS.find((x) => x.id === m.exp);
+				return `<div class="r-head"><span class="mono mut" style="font-size:12px">${m.at}</span><span class="pill ${m.v === 'h1' ? 'good' : 'bad'}" style="margin-left:0">${m.v === 'h1' ? (e.gen ? T(`promosso, gen-${e.gen}`, `promoted, gen-${e.gen}`) : T('promosso', 'promoted')) : T('scartato', 'rejected')}</span></div><b style="font-size:14px;font-weight:600">#${m.exp} ${tx(e.title)}</b><p class="r-text clamp2">${esc(tx(m.c))}</p>`;
+			}
+			function lichessItem(g) {
+				return `<div class="r-head"><span class="mono mut" style="font-size:12px">${g.at}</span><span class="pill ${RES[g.r][1]}" style="margin-left:0">Lichess · ${tx(RES[g.r][0]).toLowerCase()}</span></div><b style="font-size:14px;font-weight:600">${T('contro', 'vs')} ${g.opp} <span class="mono mut" style="font-weight:400;font-size:12px">${g.elo}</span></b><p class="r-text clamp2">${g.c ? esc(tx(g.c)) : T(`gen-${g.gen} ${g.col === 'w' ? 'col bianco' : 'col nero'}, 3+2. Commento in arrivo.`, `gen-${g.gen} ${g.col === 'w' ? 'with white' : 'with black'}, 3+2. Commentary coming.`)}</p>`;
+			}
+
+			// C: one column, a news feed.
+			function liveC() {
+				const items = feedC();
+				const shown = S.liveMore ? items.length : 5;
+				return `<div class="live1">
+					<div style="display:grid;gap:10px">
+						<p style="display:flex;align-items:center;gap:10px"><span class="pill bad"><i class="dot pulse"></i>${T('In diretta', 'Live')}</span><span class="label">${T('Fase Evoluzione · 25 novembre', 'Evolution phase · 25 November')}</span></p>
+						<h1 class="headline">${T(`Il candidato #18, <em>${tx(EXPS[0].title).toLowerCase()}</em>, sfida il campione gen-5. Dopo ${n(RUN.games)} partite pende verso il sì.`, `Candidate #18, <em>${tx(EXPS[0].title).toLowerCase()}</em>, is challenging champion gen-5. After ${n(RUN.games)} games it is leaning toward yes.`)}</h1>
+					</div>
+					<div class="card stats" style="padding:0">
+						<div><span class="label" style="display:flex;align-items:center;gap:6px">${T('Forza', 'Strength')} ${why(ELO_TIP())}</span><b class="num">${n(1129)} <small>± 136</small></b><span class="label" style="font-size:12px">${T('Elo contro Stockfish', 'Elo against Stockfish')}</span></div>
+						<div><span class="label">${T('Generazione', 'Generation')}</span><b class="num">5 <small>${T('su 18 tentativi', 'from 18 attempts')}</small></b><span class="label" style="font-size:12px">${T('ultima promossa alle 14:24', 'last promoted at 14:24')}</span></div>
+						<div><span class="label">${T('Speso oggi', 'Spent today')}</span><b class="num">${money(0.06)} <small>/ ${money(2)}</small></b><span class="label" style="font-size:12px">${T('18 sessioni', '18 sessions')}</span></div>
+					</div>
+					<div style="display:grid;gap:12px">
+						<div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px">${tabs()}<span class="label">${S.tab === 'arena' ? T('#18 col bianco, gen-5 col nero', '#18 with white, gen-5 with black') : T('gen-5 contro maia5, 3+2', 'gen-5 vs maia5, 3+2')}</span></div>
+						${S.tab === 'arena' ? game({ points: true }) : lichessGame()}
+						<p class="label" style="font-size:13px;text-align:center"><span class="eyebrow">${T('L’agente', 'The agent')}</span><br><span lang="en" class="clamp2" style="color:var(--fg);font-size:15px;font-weight:500">${esc(plain(THOUGHT))}</span></p>
+					</div>
+					<section>
+						<h2 style="font-size:17px;font-weight:600;margin-bottom:16px">${T('Oggi nel laboratorio', 'Today in the lab')}</h2>
+						<ol class="feed">${items.slice(0, shown).join('')}</ol>
+						${S.liveMore ? '' : `<div class="more" style="justify-content:flex-start;margin-left:74px"><button data-more>${T(`Mostra altri ${items.length - 5}`, `Show ${items.length - 5} more`)}</button></div>`}
+					</section>
+				</div>`;
+			}
+			function feedC() {
+				const out = [];
+				const dot = (c) => `<span class="rail-dot"><i style="background:${c}"></i></span>`;
+				MATCHES.forEach((m) => {
+					const e = EXPS.find((x) => x.id === m.exp);
+					const ok = m.v === 'h1';
+					out.push({ at: m.at, html: `<li><time>${m.at}</time>${dot(ok ? 'var(--good)' : 'var(--bad)')}<div class="body"><b>${ok && e.gen ? T(`Nasce gen-${e.gen}: ${tx(e.title).toLowerCase()}`, `Gen-${e.gen} is born: ${tx(e.title).toLowerCase()}`) : T(`Scartato #${m.exp}: ${tx(e.title).toLowerCase()}`, `Rejected #${m.exp}: ${tx(e.title).toLowerCase()}`)}</b><p class="r-text clamp2">${esc(tx(m.c))}</p></div></li>` });
+				});
+				LICHESS.filter((g) => g.c).forEach((g) => {
+					out.push({ at: g.at, html: `<li><time>${g.at}</time>${dot('var(--muted-fg)')}<div class="body"><b>${T(`Lichess: ${tx(RES[g.r][0]).toLowerCase()} contro ${g.opp}`, `Lichess: ${tx(RES[g.r][0]).toLowerCase()} against ${g.opp}`)} <span class="mono mut" style="font-weight:400;font-size:12px">${g.elo}</span></b><p class="r-text clamp2">${esc(tx(g.c))}</p></div></li>` });
+				});
+				out.push({ at: '14:26', html: `<li><time>14:26</time>${dot('var(--live)')}<div class="body"><b>${T('In giudizio #18: penalità ai pedoni doppiati', 'On trial #18: doubled-pawn penalty')}</b><p class="r-text">${T('In coda dietro: #17 bonus per la coppia di alfieri.', 'Queued behind it: #17 bishop-pair bonus.')}</p></div></li>` });
+				return out.sort((a, b) => b.at.localeCompare(a.at)).map((x) => x.html);
+			}
+
+			// Evolution pages.
+			function evoX() {
+				return `<div class="wrap"><header class="page-head"><h1>${T('Evoluzione', 'Evolution')}</h1><p>${T('Ogni generazione è una modifica dell’agente che ha battuto il campione in carica. Sotto, tutti i tentativi, anche quelli scartati.', 'Each generation is a change by the agent that beat the reigning champion. Below, every attempt, the rejected ones too.')}</p></header>
+				<div class="evo2"><section><h2 class="h2">${T('Le generazioni', 'The generations')}</h2><ol class="tl">${GENS.map((g, i) => `<li class="${i === 0 ? 'champ' : ''}"><span class="line"><i></i></span><article>
+					<p class="label" style="font-size:12px;display:flex;gap:10px;flex-wrap:wrap"><span class="mono ${i === 0 ? 'live' : ''}" style="font-size:13px;font-weight:500;${i ? 'color:var(--fg)' : ''}">gen-${g.id}</span>${i === 0 ? `<span class="live" style="font-weight:500">${T('campione attuale', 'current champion')}</span>` : ''}<span>25 nov, ${g.at}</span></p>
+					<h3>${g.seed ? tx(g.title) : esc(tx(g.hyp))}</h3>
+					${g.seed ? '' : `<p class="facts"><span class="good">${g.vsRandom ? T('batte il giocatore casuale', 'beats the random player') : T(`+${n(g.gain)} Elo sul campione precedente`, `+${n(g.gain)} Elo over the previous champion`)}</span>${g.abs ? `<span class="mut">${T('circa', 'about')} ${n(g.abs)} Elo</span>` : ''}<span class="mut">${g.tried === 1 ? T('al primo tentativo', 'first try') : T(`dopo ${g.tried} tentativi`, `after ${g.tried} attempts`)}</span><span class="mut">1 file · +${g.diff[1]} −${g.diff[2]} ${T('righe', 'lines')}</span></p>
+					<p class="label">${T(`Su Lichess: <b class="mono" style="color:var(--fg);font-weight:500">${n(g.lichess[4])}</b> di performance in ${g.lichess[0]} partite`, `On Lichess: <b class="mono" style="color:var(--fg);font-weight:500">${n(g.lichess[4])}</b> performance over ${g.lichess[0]} games`)}</p>`}
+					${g.lesson ? `<p class="label" style="line-height:1.6"><b style="color:var(--fg);font-weight:500">${T('Cosa ha imparato:', 'What it learnt:')}</b> ${esc(tx(g.lesson))}</p>` : ''}
+					<a class="link">${g.seed ? T('Sfoglia il codice di partenza', 'Browse the starting code') : T('Cosa è cambiato nel codice', 'What changed in the code')}</a></article></li>`).join('')}</ol></section>
+				<section><h2 class="h2">${T('Tutti gli esperimenti', 'All experiments')}</h2><ol style="display:grid;gap:8px">${EXPS.map((e) => `<li class="xcard"><p style="display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px;font-size:12px"><span class="mono" style="font-size:13px;font-weight:500">#${e.id}</span><span class="${STATUS[e.st][1]}" style="font-weight:600">${tx(STATUS[e.st][0])}</span><span class="mut">25 nov, ${e.at}</span><span class="mono mut" style="margin-left:auto">${cents(e.cost)}</span></p><p style="font-size:14px;line-height:1.4;${e.hyp ? '' : 'color:var(--muted-fg)'}">${e.hyp ? esc(tx(e.hyp)) : T('Nessuna ipotesi registrata', 'No hypothesis recorded')}</p>${e.gate ? `<p class="label"><span class="bad" style="font-weight:500">${T('Fermato a', 'Stopped at')} «${tx(GATE[e.gate])}»</span>${e.m ? `: ${sgn(e.m[3])} ± ${e.m[4]} Elo ${T('contro il campione in', 'against the champion over')} ${n(e.m[0] + e.m[1] + e.m[2])} ${T('partite', 'games')}` : e.why ? `: ${tx(e.why)}` : ''}</p>` : ''}${e.hyp ? `<a class="link">${T('Vedi le modifiche', 'See the changes')}</a>` : ''}</li>`).join('')}</ol></section></div></div>`;
+			}
+
+			const FILTERS = [['all', 'Tutti', 'All'], ['accepted', 'Promossi', 'Promoted'], ['rejected', 'Scartati', 'Rejected'], ['error', 'Errori', 'Errors']];
+			const matchFilter = (e) => S.evoFilter === 'all' || (S.evoFilter === 'accepted' ? ['accepted', 'rules'].includes(e.st) : S.evoFilter === 'rejected' ? ['rejected', 'stale', 'abandoned'].includes(e.st) : e.st === 'error');
+			function expDetail(e) {
+				const m = e.m;
+				const gates = e.st === 'error' ? `<p class="label">${T('Non è arrivato all’arbitro: la sessione si è chiusa con un errore prima della consegna.', 'It never reached the referee: the session ended with an error before submitting.')}</p>` : '';
+				return `${e.hyp ? `<p class="note"><b>${T('L’ipotesi', 'The hypothesis')}</b><br>${esc(tx(e.hyp))}</p>` : ''}
+					${m ? `<p class="kv"><span>${T('Match', 'Match')} <b class="num">${n(m[0] + m[1] + m[2])} ${T('partite', 'games')}</b></span><span>${T('Risultato', 'Score')} <b class="num">${T(`V ${n(m[0])} P ${n(m[1])} S ${n(m[2])}`, `W ${n(m[0])} D ${n(m[1])} L ${n(m[2])}`)}</b></span><span>${T('Contro', 'Against')} <b>${m[5] === 'random' ? T('il casuale', 'random') : T('il campione', 'the champion')}</b></span><span>${T('Differenza', 'Difference')} <b class="num">${sgn(m[3])} ± ${n(m[4])} Elo</b></span></p>` : ''}
+					${e.why ? `<p class="note bad">${T('Fermato a', 'Stopped at')} «${tx(GATE[e.gate])}»: ${tx(e.why)}</p>` : ''}${gates}
+					${e.st === 'stale' ? `<p class="label">${T('Mentre aspettava il giudizio è nato un campione nuovo: la modifica era scritta sul vecchio, quindi non è stata giudicata.', 'While it waited, a new champion was born: the change was written against the old one, so it was not judged.')}</p>` : ''}
+					<p class="kv"><span>${T('Costo', 'Cost')} <b class="mono">${cents(e.cost)}</b></span><span>${T('Consegnato', 'Submitted')} <b>25 nov, ${e.at}</b></span>${e.hyp ? `<a class="link">${T('Vedi le modifiche', 'See the changes')}</a>` : ''}</p>`;
+			}
+			function genDetail(g) {
+				return `<p class="note"><b>${T('L’ipotesi', 'The hypothesis')}</b><br>${esc(tx(g.hyp))}</p>
+					<p class="kv"><span>${T('Contro Stockfish', 'Against Stockfish')} <b class="num">${g.abs ? `${n(g.abs)} ± ${g.absErr}` : T('non misurata', 'not measured')}</b></span><span style="display:inline-flex;align-items:center;gap:6px">${g.vsRandom ? T('Contro il casuale', 'Against random') : T('Sul campione precedente', 'Over the previous champion')} <b class="num">${sgn(g.gain)} ± ${n(g.gainErr)}</b> ${why(GAIN_TIP())}</span><span>${T('Match', 'Match')} <b class="num">${n(g.games[0] + g.games[1] + g.games[2])} ${T('partite', 'games')}</b></span></p>
+					<p class="kv"><span>${lichessPerf(g)}</span><span>${T('Codice', 'Code')} <b class="mono">+${g.diff[1]} −${g.diff[2]}</b></span></p>
+					${g.plain ? `<p class="note"><b>${T('Nota dell’agente', 'The agent’s note')}</b><br>${tx(g.plain)}</p>` : ''}
+					<p><a class="link">${T('Cosa è cambiato nel codice', 'What changed in the code')}</a></p>`;
+			}
+			function evoA() {
+				const list = EXPS.filter(matchFilter);
+				const per = 10, pages = Math.max(1, Math.ceil(list.length / per));
+				const page = Math.min(S.evoPage, pages - 1);
+				const slice = list.slice(page * per, page * per + per);
+				const gens = GENS.map((g, i) => {
+					const key = `g${g.id}`;
+					const open = S.open[key];
+					if (g.seed) return `<li class="xrow"><button class="grow" style="cursor:default"><span class="id mut">gen-0</span><span><b>${tx(g.title)}</b><span class="sub">25 nov, ${g.at}</span></span><span></span><span></span></button></li>`;
+					return `<li class="xrow ${open ? 'open' : ''}"><button class="grow" data-open="${key}" aria-expanded="${!!open}"><span class="id ${i === 0 ? 'live' : ''}">gen-${g.id}</span><span style="min-width:0"><b class="trunc">${tx(g.title)}</b><span class="sub">${i === 0 ? `<span class="live" style="font-weight:500">${T('campione', 'champion')}</span> · ` : ''}${g.tried === 1 ? T('al primo tentativo', 'first try') : T(`dopo ${g.tried} tentativi`, `after ${g.tried} attempts`)} · ${g.at}</span></span><span class="elo">${g.abs ? `${n(g.abs)}<small>± ${g.absErr}</small>` : `<span class="mut" style="font-size:12px;font-family:var(--sans)">${g.vsRandom ? T('batte il casuale', 'beats random') : T('non misurata', 'not rated')}</span>`}</span>${chev}</button><div class="detail">${genDetail(g)}</div></li>`;
+				}).join('');
+				const exps = slice.map((e) => {
+					const key = `e${e.id}`;
+					const open = S.open[key];
+					const sub = e.gen ? T(`è diventato gen-${e.gen}`, `became gen-${e.gen}`) : e.gate ? `${T('fermato a', 'stopped at')} «${tx(GATE[e.gate])}»${e.m ? ` · ${sgn(e.m[3])} ± ${e.m[4]}` : ''}` : `25 nov, ${e.at}`;
+					return `<li class="xrow ${open ? 'open' : ''}"><button class="erow" data-open="${key}" aria-expanded="${!!open}"><span class="id">#${e.id}</span><span style="min-width:0"><b class="trunc" style="${e.title ? '' : 'color:var(--muted-fg)'}">${titleOf(e)}</b><span class="sub trunc">${sub}</span></span>${pill(e.st)}${chev}</button><div class="detail">${expDetail(e)}</div></li>`;
+				}).join('');
+				return `<div class="wrap"><header class="page-head"><h1>${T('Evoluzione', 'Evolution')}</h1><p>${T('Ogni generazione è una modifica dell’agente che ha battuto il campione in carica. Apri una riga per i dettagli.', 'Each generation is a change by the agent that beat the reigning champion. Open a row for the details.')}</p></header>
+				<div class="evo2"><section><h2 class="h2">${T('Le generazioni', 'The generations')}</h2>
+					<div class="card" style="margin-bottom:14px"><p class="label" style="display:flex;align-items:center;gap:6px;margin-bottom:8px">${T('Elo contro Stockfish, con margine al 95%', 'Elo against Stockfish, with 95% margin')} ${why(ELO_TIP())}</p>${eloChart({ w: 560, h: 170, axis: true, band: true })}</div>
+					<ol style="display:grid;gap:2px">${gens}</ol></section>
+				<section><h2 class="h2">${T('Tutti gli esperimenti', 'All experiments')} <span class="mut" style="font-weight:400;font-size:15px">${EXPS.length}</span></h2>
+					<div class="filters"><div class="seg small">${FILTERS.map(([k, it, en]) => `<button data-filter="${k}" aria-pressed="${S.evoFilter === k}">${T(it, en)} <span class="mono mut">${EXPS.filter((e) => { const f = S.evoFilter; S.evoFilter = k; const r = matchFilter(e); S.evoFilter = f; return r; }).length}</span></button>`).join('')}</div></div>
+					<ol style="display:grid;gap:2px">${exps}</ol>
+					<div class="pager"><span>${T(`${page * per + 1}-${Math.min(list.length, page * per + per)} di ${list.length}`, `${page * per + 1}-${Math.min(list.length, page * per + per)} of ${list.length}`)}</span><div><button data-page="-1" ${page === 0 ? 'disabled' : ''}>${T('Più recenti', 'Newer')}</button><button data-page="1" ${page >= pages - 1 ? 'disabled' : ''}>${T('Più vecchi', 'Older')}</button></div></div>
+				</section></div></div>`;
+			}
+
+			// B: experiments live inside the generation they led to.
+			function groups() {
+				// Experiments between gen-(N-1)'s promotion and gen-N's, plus the ones still open.
+				const byGen = { open: [16, 17, 18], 5: [14, 15], 4: [13], 3: [6, 7, 8, 9, 10, 11, 12], 2: [4, 5], 1: [2, 3], 0: [1] };
+				return byGen;
+			}
+			function evoB() {
+				const by = groups();
+				const att = (ids, key) => ids.map((id) => {
+					const e = EXPS.find((x) => x.id === id);
+					const c = { good: 'var(--good)', bad: 'var(--bad)', live: 'var(--live)', mut: 'var(--muted-fg)' }[STATUS[e.st][1]];
+					return `<button class="att ${S.attempt[key] === id ? 'on' : ''}" data-att="${key}:${id}"><i style="background:${c}"></i><span class="mono">#${id}</span>${e.title ? `<span class="trunc" style="max-width:180px">${tx(e.title)}</span>` : ''}</button>`;
+				}).join('');
+				const attDetail = (key) => {
+					const id = S.attempt[key];
+					if (!id) return '';
+					const e = EXPS.find((x) => x.id === id);
+					return `<div class="attdetail"><p style="display:flex;align-items:center;gap:10px"><b style="font-size:14px">#${e.id} ${titleOf(e)}</b>${pill(e.st)}</p>${expDetail(e)}</div>`;
+				};
+				const open = `<section class="card gcard" style="box-shadow:inset 0 0 0 1px color-mix(in oklab,var(--live) 40%,var(--border))"><header><div><p class="label"><span class="live mono" style="font-weight:500">gen-6</span> · ${T('in lavorazione', 'in the making')}</p><h3 style="margin-top:4px">${T('Tre tentativi aperti', 'Three open attempts')}</h3></div><div class="elo"><span>${T('#18 in giudizio da', '#18 on trial since')} ${RUN.since}</span></div></header><div class="attempts">${att(by.open.slice().reverse(), 'open')}</div>${attDetail('open')}</section>`;
+				const cards = GENS.map((g, i) => {
+					const key = `g${g.id}`;
+					const ids = by[g.id].slice().reverse();
+					return `<section class="card gcard"><header><div style="min-width:0"><p class="label"><span class="mono ${i === 0 ? 'live' : ''}" style="font-weight:500;${i ? 'color:var(--fg)' : ''}">gen-${g.id}</span>${i === 0 ? ` · <span class="live">${T('campione', 'champion')}</span>` : ''} · 25 nov, ${g.at}</p><h3 style="margin-top:4px">${tx(g.title)}</h3>
+						${g.seed ? '' : `<p class="label" style="font-size:12px;margin-top:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">${g.vsRandom ? T('batte il giocatore casuale', 'beats the random player') : T(`${sgn(g.gain)} ± ${n(g.gainErr)} sul campione precedente`, `${sgn(g.gain)} ± ${n(g.gainErr)} over the previous champion`)} ${why(GAIN_TIP())} · ${lichessPerf(g)}</p>`}
+						${g.plain ? `<p class="note" style="margin-top:10px;color:var(--muted-fg)">«${tx(g.plain)}» <span style="font-size:12px">${T('nota dell’agente', 'the agent’s note')}</span></p>` : ''}</div>
+						<div class="elo">${g.abs ? `<b class="num">${n(g.abs)}</b><span>± ${g.absErr} Elo</span>` : g.seed ? '' : `<span>${T('Elo non misurato', 'Elo not rated')}</span>`}</div></header>
+						${ids.length ? `<p class="label" style="font-size:12px;padding:0 20px 8px">${g.seed ? T('Prima, le regole:', 'Before it, the rules:') : T(`${ids.length === 1 ? 'Un tentativo' : `${ids.length} tentativi`} per arrivarci:`, `${ids.length === 1 ? 'One attempt' : `${ids.length} attempts`} to get here:`)}</p><div class="attempts">${att(ids, key)}</div>${attDetail(key)}` : ''}</section>`;
+				}).join('');
+				return `<div class="wrap" style="max-width:1040px"><header class="page-head"><h1>${T('Evoluzione', 'Evolution')}</h1><p>${T('Ogni generazione con i tentativi che l’hanno preceduta. Tocca un tentativo per sapere com’è andato.', 'Each generation with the attempts that came before it. Tap an attempt to see how it went.')}</p></header>
+					<div class="card" style="margin-bottom:18px"><div style="display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:10px"><p class="label" style="display:flex;align-items:center;gap:6px">${T('Elo contro Stockfish, con margine al 95%', 'Elo against Stockfish, with 95% margin')} ${why(ELO_TIP())}</p><p class="label" style="font-size:12px">${T('gen-1 e gen-2 erano troppo deboli per la scala', 'gen-1 and gen-2 were too weak for the ladder')}</p></div>${eloChart({ w: 980, h: 170, axis: true, band: true })}</div>
+					<div class="gens-b">${open}${cards}</div></div>`;
+			}
+
+			// C: a lab notebook. Chart, then one filterable table.
+			function evoC() {
+				const list = EXPS.filter(matchFilter);
+				const per = 10, pages = Math.max(1, Math.ceil(list.length / per));
+				const page = Math.min(S.evoPage, pages - 1);
+				const slice = list.slice(page * per, page * per + per);
+				const rows = slice.map((e) => {
+					const key = `e${e.id}`;
+					const result = e.gen ? `<span class="good" style="font-weight:500">gen-${e.gen}</span>` : e.m ? `<span class="mono">${sgn(e.m[3])} ± ${e.m[4]}</span>` : e.gate ? `<span class="mut">${tx(GATE[e.gate])}</span>` : '<span class="mut">–</span>';
+					return `<tr class="click" data-open="${key}"><td class="mono mut">#${e.id}</td><td><b style="font-weight:500;${e.title ? '' : 'color:var(--muted-fg)'}">${titleOf(e)}</b></td><td>${pill(e.st)}</td><td class="ra hide-s">${result}</td><td class="ra mono mut hide-s">${e.at}</td></tr>${S.open[key] ? `<tr class="det"><td colspan="5"><div style="display:grid;gap:10px">${expDetail(e)}</div></td></tr>` : ''}`;
+				}).join('');
+				const gens = GENS.filter((g) => !g.seed).map((g, i) => `<tr class="click" data-open="g${g.id}"><td class="mono ${i === 0 ? 'live' : ''}" style="font-weight:500">gen-${g.id}</td><td><b style="font-weight:500">${tx(g.title)}</b></td><td class="ra mono">${g.abs ? `${n(g.abs)} <span class="mut">± ${g.absErr}</span>` : '<span class="mut">–</span>'}</td><td class="ra mono hide-s">${g.vsRandom ? T('casuale', 'random') : sgn(g.gain)} <span class="mut">± ${n(g.gainErr)}</span></td><td class="ra mono hide-s">${g.lichess[0] >= 5 ? n(g.lichess[4]) : '<span class="mut">–</span>'}</td></tr>${S.open['g' + g.id] ? `<tr class="det"><td colspan="5"><div style="display:grid;gap:10px">${genDetail(g)}</div></td></tr>` : ''}`).join('');
+				return `<div class="evo-c"><header class="page-head" style="margin:0"><h1>${T('Evoluzione', 'Evolution')}</h1><p>${T('Il quaderno del laboratorio: quanto è forte ogni generazione, e ogni tentativo con il suo esito.', 'The lab notebook: how strong each generation is, and every attempt with its outcome.')}</p></header>
+					<section class="card"><p class="label" style="display:flex;align-items:center;gap:6px;margin-bottom:8px">${T('Elo contro Stockfish, con margine al 95%', 'Elo against Stockfish, with 95% margin')} ${why(ELO_TIP())}</p>${eloChart({ w: 900, h: 180, axis: true, band: true })}<p class="label" style="font-size:12px;margin-top:8px">${T('La fascia è dove le tre misure si sovrappongono: 1.054-1.265. Finché non ne esce, il motore non è misurabilmente cambiato contro avversari esterni.', 'The band is where the three measures overlap: 1,054-1,265. Until a point leaves it, the engine has not measurably changed against outside opponents.')}</p></section>
+					<section><h2 class="h2">${T('Generazioni', 'Generations')}</h2><table class="tbl"><thead><tr><th></th><th></th><th class="ra">${T('Stockfish', 'Stockfish')}</th><th class="ra hide-s"><span style="display:inline-flex;align-items:center;gap:6px">${T('sul precedente', 'over previous')} ${why(GAIN_TIP())}</span></th><th class="ra hide-s">Lichess</th></tr></thead><tbody>${gens}</tbody></table></section>
+					<section><div style="display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:12px"><h2 class="h2" style="margin:0">${T('Tentativi', 'Attempts')}</h2><div class="seg small">${FILTERS.map(([k, it, en]) => `<button data-filter="${k}" aria-pressed="${S.evoFilter === k}">${T(it, en)}</button>`).join('')}</div></div>
+					<table class="tbl"><thead><tr><th style="width:44px"></th><th></th><th></th><th class="ra hide-s">${T('esito', 'outcome')}</th><th class="ra hide-s">${T('ora', 'time')}</th></tr></thead><tbody>${rows}</tbody></table>
+					<div class="pager"><span>${T(`${page * per + 1}-${Math.min(list.length, page * per + per)} di ${list.length}`, `${page * per + 1}-${Math.min(list.length, page * per + per)} of ${list.length}`)}</span><div><button data-page="-1" ${page === 0 ? 'disabled' : ''}>${T('Più recenti', 'Newer')}</button><button data-page="1" ${page >= pages - 1 ? 'disabled' : ''}>${T('Più vecchi', 'Older')}</button></div></div></section></div>`;
+			}
+
+			function render() {
+				const v = S.v;
+				document.querySelector('[data-nav]').innerHTML = nav();
+				document.documentElement.lang = S.lang;
+				const live = { x: liveX, a: liveA, b: liveB, c: liveC }[v];
+				const evo = { x: evoX, a: evoA, b: evoB, c: evoC }[v];
+				document.querySelector('[data-main]').innerHTML = S.page === 'diretta' ? live() : evo();
+				document.querySelectorAll('[data-scroll]').forEach((el) => (el.scrollTop = el.scrollHeight, el.scrollLeft = el.scrollWidth));
+			}
+
+			// Interactions inside the mock.
+			document.addEventListener('click', (e) => {
+				const t = e.target.closest('[data-go],[data-lang],[data-tab],[data-more],[data-open],[data-filter],[data-page],[data-feed],[data-att],a[href="#"]');
+				if (!t) return;
+				e.preventDefault();
+				if (t.dataset.go) { S.page = t.dataset.go; S.liveMore = false; scrollTo(0, 0); }
+				else if (t.dataset.lang) S.lang = t.dataset.lang;
+				else if (t.dataset.tab) { S.tab = t.dataset.tab; S.liveMore = false; }
+				else if (t.hasAttribute('data-more')) S.liveMore = true;
+				else if (t.dataset.open) S.open[t.dataset.open] = !S.open[t.dataset.open];
+				else if (t.dataset.filter) { S.evoFilter = t.dataset.filter; S.evoPage = 0; }
+				else if (t.dataset.page) S.evoPage = Math.max(0, S.evoPage + +t.dataset.page);
+				else if (t.dataset.feed) S.feed = t.dataset.feed;
+				else if (t.dataset.att) { const [k, id] = t.dataset.att.split(':'); S.attempt[k] = S.attempt[k] === +id ? null : +id; }
+				else return;
+				render();
+			});
+
+			// Concept chrome, from the template.
+			const KEY = `concept:${location.pathname}`;
+			const root = document.documentElement;
+			const body = document.body;
+			const load = () => { try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { return {}; } };
+			const save = (state) => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {} };
+			const name = (v) => DESC[v].split(':')[0];
+			document.querySelector('[data-buttons]').innerHTML = Object.keys(DESC).map((v) => `<button data-v="${v}">${v.toUpperCase()} ${name(v)}</button>`).join(' ');
+			const pick = (v) => {
+				if (!DESC[v]) return;
+				S.v = v;
+				body.dataset.v = v;
+				document.querySelectorAll('.switch [data-v]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === v)));
+				document.querySelector('[data-desc]').textContent = DESC[v];
+				history.replaceState(null, '', `${location.search}#${v}`);
+				render();
+			};
+			const setTheme = (t) => { root.dataset.theme = t; save({ ...load(), theme: t }); };
+			document.querySelector('.switch').addEventListener('click', (e) => { const b = e.target.closest('[data-v]'); if (b) pick(b.dataset.v); });
+			document.querySelector('[data-theme-toggle]').addEventListener('click', () => setTheme(root.dataset.theme === 'dark' ? 'light' : 'dark'));
+			addEventListener('keydown', (e) => {
+				if (e.metaKey || e.ctrlKey || e.altKey || e.target.closest('input, textarea, select, [contenteditable]')) return;
+				const k = e.key.toLowerCase();
+				if (k === 't') setTheme(root.dataset.theme === 'dark' ? 'light' : 'dark');
+				else if (k === 'p') body.dataset.chrome = body.dataset.chrome === 'off' ? 'on' : 'off';
+				else pick(k);
+			});
+			root.dataset.theme = load().theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+			// Query parameters open a given state directly: ?page=evoluzione&lang=en&theme=dark&w=390.
+			const Q = new URLSearchParams(location.search);
+			if (Q.get('page')) S.page = Q.get('page');
+			if (Q.get('lang')) S.lang = Q.get('lang');
+			if (Q.get('theme')) root.dataset.theme = Q.get('theme');
+			if (Q.get('chrome') === 'off') body.dataset.chrome = 'off';
+			pick(DESC[location.hash.slice(1)] ? location.hash.slice(1) : 'x');
+		</script>
+	</body>
+</html>
