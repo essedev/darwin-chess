@@ -6,6 +6,7 @@ the session prompt, kept short because every token of it is paid on every call.
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import datetime
 
 from darwin.ledger import models as m
 from darwin.referee.judge import Phase
@@ -34,7 +35,11 @@ candidate survives. Nobody will answer questions: decide and act.
 - The referee runs target/release/genome alone, with no other file: embed whatever it needs
   (network weights, tables) in the binary, for example with include_bytes!.
 - Jobs (run_job) get 2 CPUs, 4 GB of RAM, up to 12 hours and a disk quota (10 GB each, 40 GB
-  in total); delete outputs you no longer need.
+  in total); delete outputs you no longer need. A job runs on a copy of your working tree as
+  it is when you start it, uncommitted changes included: /job/src, its working directory
+  (/jobs/<id>/src from a session), with its output in /job/out (/jobs/<id>/out). /memory is
+  not mounted in jobs: copy into /genome what a job needs before starting it. When a job
+  ends, a new session starts, woken by job_done:<id>.
 - /memory/NOTES.md and /memory/STRATEGY.md: your memory across sessions. They are not part of
   the engine and survive rejected experiments. Keep both short: they are in your prompt.
 - /jobs/<id>/out: output of jobs you started with run_job.
@@ -69,8 +74,8 @@ stale: not your fault. A new champion arrived while it waited and your change co
 with it, so it was never judged. Redo the idea on top of the new base if it still matters.
 abandoned: the session ended without a submission (fine when you wrote down what you
 learned). budget_stop: a session limit stopped it.
-Changes to the engine are kept only if you submit them: unsubmitted commits do not survive
-the session.
+Changes to the engine are judged only if you submit them. When a session ends without a
+submission, whatever changed in /genome is kept, never judged, as refs/darwin/wip-<id>.
 
 ## Tools
 read, write, edit, bash run in the sandbox. perft_check asks the referee about your move
@@ -94,6 +99,9 @@ class SessionContext:
     strategy: str
     max_tool_calls: int
     new_lichess_losses: int  # since the previous session started
+    started_at: datetime | None = None
+    max_minutes: float = 40.0
+    max_usd: float = 0.25
 
 
 def _experiment_line(row: m.Experiment) -> str:
@@ -111,12 +119,22 @@ def _gate_line(gate: m.GateResult) -> str:
     return f"- {gate.gate}: {'passed' if gate.passed else 'FAILED'} {detail}"
 
 
+def _limits_line(ctx: SessionContext) -> str:
+    start = f"started at {ctx.started_at:%H:%M} UTC and " if ctx.started_at else ""
+    return (
+        f"This session {start}ends at the first of: {ctx.max_minutes:g} minutes, "
+        f"{ctx.max_tool_calls} tool calls, {ctx.max_usd:g} $ of model cost (`date` gives the "
+        "time). While it is open no other session starts and the referee waits for your "
+        "submission."
+    )
+
+
 def session_prompt(ctx: SessionContext) -> str:
     parts = [
         f"# Session ({ctx.kind}, woken by: {ctx.trigger})",
         f"Phase: {ctx.phase.value}. Champion: gen-{ctx.champion.id} "
         f"({ctx.champion.commit_sha[:12]}). Your working tree starts at {ctx.base_commit[:12]}.",
-        f"Tool calls available this session: {ctx.max_tool_calls}.",
+        _limits_line(ctx),
     ]
     if ctx.new_lichess_losses:
         parts.append(

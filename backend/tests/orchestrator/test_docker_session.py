@@ -6,6 +6,7 @@ import json
 import socket
 import subprocess
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
@@ -72,6 +73,13 @@ def git(repo: Path, *args: str) -> None:
     )
 
 
+def mirror_show(mirror: Path, spec: str) -> str:
+    done = subprocess.run(
+        ["git", "--git-dir", str(mirror), "show", spec], capture_output=True, text=True, check=True
+    )
+    return done.stdout
+
+
 def genome_gen0(repo: Path) -> str:
     done = subprocess.run(
         ["git", "-C", str(repo), "rev-parse", "gen-0"], capture_output=True, text=True, check=True
@@ -96,29 +104,33 @@ def genome(tmp_path: Path) -> Path:
     return repo
 
 
-@pytest.fixture
-async def fake_llm() -> AsyncIterator[tuple[int, list[dict[str, Any]]]]:
+@asynccontextmanager
+async def scripted_llm(
+    script: list[dict[str, Any]],
+) -> AsyncIterator[tuple[int, list[dict[str, Any]]]]:
     seen: list[dict[str, Any]] = []
     port = free_port()
     server = uvicorn.Server(
-        uvicorn.Config(make_app(SCRIPT, seen), host="127.0.0.1", port=port, log_level="warning")
+        uvicorn.Config(make_app(script, seen), host="127.0.0.1", port=port, log_level="warning")
     )
     task = asyncio.create_task(server.serve())
     while not server.started:  # noqa: ASYNC110  (uvicorn exposes a flag, not an event)
         await asyncio.sleep(0.05)
-    yield port, seen
-    server.should_exit = True
-    await task
+    try:
+        yield port, seen
+    finally:
+        server.should_exit = True
+        await task
 
 
-async def test_a_scripted_session_reaches_a_verdict(
-    tmp_path: Path,
-    genome: Path,
-    ledger: Ledger,
-    fake_llm: tuple[int, list[dict[str, Any]]],
-    images: None,
-) -> None:
-    port, seen = fake_llm
+@pytest.fixture
+async def fake_llm() -> AsyncIterator[tuple[int, list[dict[str, Any]]]]:
+    async with scripted_llm(SCRIPT) as served:
+        yield served
+
+
+def scripted_settings(tmp_path: Path, genome: Path, port: int) -> Settings:
+    """Settings for a session whose model is the scripted fake on `port`."""
     settings = Settings(
         data_dir=tmp_path / "data",
         genome_dir=genome,
@@ -151,6 +163,18 @@ async def test_a_scripted_session_reaches_a_verdict(
             }
         )
     )
+    return settings
+
+
+async def test_a_scripted_session_reaches_a_verdict(
+    tmp_path: Path,
+    genome: Path,
+    ledger: Ledger,
+    fake_llm: tuple[int, list[dict[str, Any]]],
+    images: None,
+) -> None:
+    port, seen = fake_llm
+    settings = scripted_settings(tmp_path, genome, port)
 
     # A verdict from an earlier session: this one must see it and file the lesson on it.
     gen0 = genome_gen0(genome)
@@ -204,3 +228,21 @@ async def test_a_scripted_session_reaches_a_verdict(
     notes = (settings.data_dir / "agent" / "memory" / "NOTES.md").read_text()
     assert "seed engine is not UCI yet" in notes  # memory outlives the rejected experiment
     assert seen and "darwin" in json.dumps(seen[0]["messages"][0])  # our system prompt
+
+
+async def test_work_left_unsubmitted_is_kept_as_a_wip_ref(
+    tmp_path: Path, genome: Path, ledger: Ledger, images: None
+) -> None:
+    script: list[dict[str, Any]] = [
+        {"tool": "write", "args": {"path": "src/idea.rs", "content": "// half done\n"}},
+        {"text": "Out of time, stopping without a submission."},
+    ]
+    async with scripted_llm(script) as (port, _):
+        settings = scripted_settings(tmp_path, genome, port)
+        await ledger.seed(genome_gen0(genome))
+        await Orchestrator(settings, ledger).run(max_sessions=1)
+
+    (experiment,) = await ledger.recent_experiments(1)
+    assert experiment.status == "abandoned"
+    shown = mirror_show(settings.mirror_dir, f"refs/darwin/wip-{experiment.id}:src/idea.rs")
+    assert shown == "// half done\n"

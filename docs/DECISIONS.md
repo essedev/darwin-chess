@@ -184,3 +184,11 @@ Status: active. Date: 2026-11-25.
 After 29 sessions the agent had launched no job, written no tool and kept the engine in one file: the system prompt asked for "one focused change" and a submission every session, and it had learned that ending without one was a failure. The prompt now asks it to work on what it thinks matters most, says nothing ties it to small edits, one file or its past way of working, and that a session may end without a submission when what it learned is written down; `/memory` is where tools it wants to keep live, since unsubmitted work in the genome is lost. The reflection also asks what it has never tried. Nothing names a technique: where it goes is its own choice. To be judged on jobs, tools and the variety of changes over the next reflections.
 
 Rejected: dedicated exploration sessions chosen by the orchestrator, which decide for the agent when to be curious; showing it statistics about itself, a nudge in a direction it did not choose.
+
+## #27 The agent knows its limits, and unsubmitted work is kept
+
+Status: active. Date: 2026-11-26.
+
+Session 30 slept 15 minutes inside the session waiting for its own test match: it did not know the session closes after 40 minutes (it knew only the tool-call limit), nor that a job starts from a copy of its working tree and wakes a new session when it ends, nor that its unsubmitted changes would be thrown away. The session prompt now states the start time and the three limits (40 minutes, 80 tool calls, 0.25 $) and that the referee waits while the session is open; the system prompt says what a job sees and that its end wakes a session. A session that ends without a submission (abandoned, stopped by a limit, failed) leaves its changes as `refs/darwin/wip-<id>`, never judged. The 40 minutes stay: waiting belongs in jobs, and the limit is reviewed once sessions cut short while doing useful work show up.
+
+Rejected: raising the limit to 90 minutes, which would only lengthen the waits inside sessions while the referee sits idle; reopening a session when its job ends, which would bring back a context the design keeps fresh on purpose.

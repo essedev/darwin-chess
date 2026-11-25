@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import UTC, datetime
 
 from darwin.ledger import models as m
@@ -61,3 +62,10 @@ def test_new_lichess_losses_are_announced_only_when_there_are_some() -> None:
     assert "Lichess" not in session_prompt(context())
     assert "1 new loss since" in session_prompt(context(new_lichess_losses=1))
     assert "3 new losses since your last session" in session_prompt(context(new_lichess_losses=3))
+
+
+def test_the_session_prompt_states_every_limit_and_the_start_time() -> None:
+    ctx = replace(context(), started_at=datetime(2026, 11, 25, 22, 51, tzinfo=UTC))
+    text = session_prompt(ctx)
+    assert "started at 22:51 UTC" in text
+    assert "40 minutes, 80 tool calls, 0.25 $" in text

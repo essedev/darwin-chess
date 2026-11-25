@@ -5,13 +5,14 @@ import asyncio
 import logging
 import time
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any
 
 from darwin.config import Settings
 from darwin.ledger import lichess
 from darwin.ledger.commentary import THOUGHT
 from darwin.ledger.store import LabState, Ledger
-from darwin.orchestrator import prompts
+from darwin.orchestrator import prompts, sandbox
 from darwin.orchestrator.jobs import Jobs
 from darwin.orchestrator.pi import PiError, PiProcess
 from darwin.orchestrator.sandbox import Sandbox
@@ -99,6 +100,9 @@ class SessionRunner:
                 strategy=await self._memory(box, "STRATEGY.md"),
                 max_tool_calls=s.session_max_tool_calls,
                 new_lichess_losses=new_losses,
+                started_at=datetime.now(UTC),
+                max_minutes=s.session_max_minutes,
+                max_usd=s.session_max_usd,
             )
             system = s.data_dir / "agent" / "system-prompt.md"
             system.parent.mkdir(parents=True, exist_ok=True)
@@ -144,12 +148,27 @@ class SessionRunner:
             self.router.unregister(token)
             if pi is not None:
                 await pi.close()
+            if tools.submitted is None and kind == "iteration":
+                await self._keep_unsubmitted(box, experiment_id, state.base_commit)
             await box.stop()
         if tools.submitted is not None:
             return Outcome(experiment_id, tools.submitted, "judging", cost)
         status = "reflected" if kind == "reflection" else "abandoned"
         await self.ledger.finish_experiment(experiment_id, status)
         return Outcome(experiment_id, None, status, cost)
+
+    async def _keep_unsubmitted(self, box: Sandbox, experiment_id: int, base: str) -> None:
+        """A session that ends without a submission (abandoned, stopped by a limit, failed)
+        leaves its changes as refs/darwin/wip-<id>: never judged, but the next sessions can
+        pick the work up instead of redoing it. Best effort: it never fails the session."""
+        try:
+            sha = await box.commit_all(f"wip-{experiment_id}: unsubmitted, never judged", base)
+            if sha is None or not (await box.diff_stat(base, sha)).get("files"):
+                return
+            await sandbox.archive(self.settings, sha, f"wip-{experiment_id}")
+            log.info("session %s: unsubmitted work kept as wip-%s", experiment_id, experiment_id)
+        except Exception:
+            log.exception("session %s: could not keep the unsubmitted work", experiment_id)
 
     async def _memory(self, box: Sandbox, name: str) -> str:
         """Read through the sandbox: the file is the agent's, it could be a link to anywhere."""
