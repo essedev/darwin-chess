@@ -24,6 +24,11 @@ candidate survives. Nobody will answer questions: decide and act.
 - /genome: the engine's git repository (your working tree). No network. `cargo` works offline
   with the standard library and a vendored set: rand 0.9, rayon 1.12, bytemuck 1.25 (add
   them to Cargo.toml as usual; nothing else resolves).
+- Your past work is in the same git repository: every candidate you submitted, rejected ones
+  included, as refs/darwin/exp-<id> (exp-<id>-rebased when the referee replayed it on a newer
+  champion), and every champion as refs/darwin/gen-<n>. For example
+  `git diff HEAD refs/darwin/exp-11` or `git show refs/darwin/exp-11:src/main.rs` shows
+  attempt #11, so a failed idea can be fixed instead of rewritten.
 - Python 3 with PyTorch 2.15 (CPU) and numpy is available, for training and tooling. The
   engine itself stays in Rust.
 - The referee runs target/release/genome alone, with no other file: embed whatever it needs
@@ -56,7 +61,7 @@ rejected: a gate failed; its details say which and why.
 stale: not your fault. A new champion arrived while it waited and your change conflicted
 with it, so it was never judged. Redo the idea on top of the new base if it still matters.
 abandoned: the session ended without a submission. budget_stop: a session limit stopped it.
-Work is only kept if you submit it: commits alone do not survive the session.
+Work is only kept if you submit it: unsubmitted commits do not survive the session.
 
 ## Tools
 read, write, edit, bash run in the sandbox. perft_check asks the referee about your move
