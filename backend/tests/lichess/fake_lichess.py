@@ -9,6 +9,7 @@ import asyncio
 import json
 import random
 import socket
+import time
 from collections.abc import AsyncIterator
 from typing import Any
 from urllib.parse import parse_qs
@@ -54,6 +55,8 @@ class FakeLichess:
         self.accepted: list[str] = []
         self.declined: list[tuple[str, str]] = []
         self.challenged: list[tuple[str, dict[str, str]]] = []
+        self.refusing: set[str] = set()  # bots whose challenge Lichess rejects at once
+        self.challenged_at: list[float] = []
         self.refused_moves: list[str] = []
 
     def start_game(self) -> None:
@@ -124,9 +127,12 @@ class FakeLichess:
             return {"ok": True}
 
         @app.post("/api/challenge/{username}")
-        async def challenge(username: str, request: Request) -> dict[str, Any]:
+        async def challenge(username: str, request: Request) -> Any:
             form = {k: v[0] for k, v in parse_qs((await request.body()).decode()).items()}
             self.challenged.append((username, form))
+            self.challenged_at.append(time.monotonic())
+            if username in self.refusing:
+                return JSONResponse({"error": f"{username} played 100 games today"}, 400)
             return {"id": "out1", "status": "created"}
 
         @app.get("/api/bot/game/stream/{game_id}")

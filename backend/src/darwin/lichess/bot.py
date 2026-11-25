@@ -15,7 +15,7 @@ from typing import Any
 from darwin.config import Settings
 from darwin.ledger.store import Ledger
 from darwin.lichess import rules
-from darwin.lichess.client import LichessClient, RateLimited
+from darwin.lichess.client import LichessClient, LichessError, RateLimited
 from darwin.lichess.game import Game
 from darwin.referee.models import EngineSpec
 
@@ -27,6 +27,9 @@ EngineFor = Callable[[], Awaitable[tuple[int, EngineSpec] | None]]
 MAX_BACKOFF_S = 60.0
 RATE_LIMIT_S = 61.0  # Lichess asks for at least a minute after a 429
 PENDING_TTL_S = 60.0
+
+
+CHALLENGE_ATTEMPTS = 5
 
 
 class LichessBot:
@@ -176,21 +179,30 @@ class LichessBot:
             return
         await self._identify()
         bots = await self.client.online_bots()
-        name = rules.pick_opponent(
-            bots, me=self.me, my_rating=self.rating, speed=self.speed, rng=self.rng
-        )
-        if name is None:
-            log.info("lichess: no online bot near %d in %s", self.rating, self.speed)
-            return
-        self.pending_id, self.pending_since = None, time.monotonic()
-        try:
-            await self.client.challenge(
-                name, self.settings.lichess_clock_s, self.settings.lichess_increment_s
+        # Lichess refuses some challenges outright (an opponent's daily cap, its own rules):
+        # try another bot at once instead of losing a matchmaking round.
+        for _attempt in range(CHALLENGE_ATTEMPTS):
+            name = rules.pick_opponent(
+                bots, me=self.me, my_rating=self.rating, speed=self.speed, rng=self.rng
             )
-        except Exception:
-            self._clear_pending()
-            raise
-        log.info("lichess: challenged %s", name)
+            if name is None:
+                log.info("lichess: no online bot near %d in %s", self.rating, self.speed)
+                return
+            self.pending_id, self.pending_since = None, time.monotonic()
+            try:
+                await self.client.challenge(
+                    name, self.settings.lichess_clock_s, self.settings.lichess_increment_s
+                )
+            except RateLimited:
+                self._clear_pending()
+                raise
+            except LichessError as refused:
+                self._clear_pending()
+                log.info("lichess: %s refused at once (%s), trying another", name, refused)
+                bots = [b for b in bots if str(b.get("username") or b.get("id") or "") != name]
+                continue
+            log.info("lichess: challenged %s", name)
+            return
 
     # One game
 

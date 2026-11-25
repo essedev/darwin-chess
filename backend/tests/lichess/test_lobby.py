@@ -5,7 +5,10 @@ import asyncio
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from darwin.ledger.store import Ledger
+from darwin.lichess import rules
 from darwin.referee.models import EngineSpec
 
 from .conftest import bot_settings, running_bot, until
@@ -74,3 +77,25 @@ async def test_challenges_a_bot_near_its_rating_once(
     assert form["rated"] == "true"
     assert (form["clock.limit"], form["clock.increment"]) == ("180", "2")
     assert form["variant"] == "standard"
+
+
+async def test_a_refused_challenge_moves_on_to_another_bot_at_once(
+    tmp_path: Path,
+    fake: FakeLichess,
+    lichess_url: str,
+    ledger: Ledger,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def first_listed(bots: list[dict[str, Any]], *, me: str, **_: Any) -> str | None:
+        names = [str(b["username"]) for b in bots if str(b["username"]).lower() != me]
+        return names[0] if names else None
+
+    monkeypatch.setattr(rules, "pick_opponent", first_listed)  # Busy first, then Free
+    fake.bots += [blitz_user("Busy", 1600), blitz_user("Free", 1600)]
+    fake.refusing.add("Busy")
+    settings = bot_settings(tmp_path, lichess_url, challenge_every_s=3)
+    async with running_bot(settings, ledger, champion):
+        await until(lambda: any(name == "Free" for name, _ in fake.challenged), 10)
+    assert [name for name, _ in fake.challenged] == ["Busy", "Free"]
+    # Same matchmaking round: the retry did not wait for the next one, 3 s later.
+    assert fake.challenged_at[1] - fake.challenged_at[0] < 1.0
