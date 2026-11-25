@@ -1,10 +1,11 @@
 import { type I18n, useI18n } from '@/i18n/context'
 import type { Job, Jobs } from '@/lib/api'
 import { useNow } from '@/lib/use-now'
+import { panel } from '@/components/panel'
 import { cn } from '@/lib/utils'
 import { duration } from './format'
 
-const card = 'rounded-[18px] bg-card p-5 shadow-[inset_0_0_0_1px_var(--border)]'
+const card = `${panel} p-5`
 const RECENT_MS = 24 * 60 * 60 * 1000
 
 /**

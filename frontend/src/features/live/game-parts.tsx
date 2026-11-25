@@ -5,7 +5,10 @@ import { Board } from './board'
 
 export const START = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
 
-/** Board with the black player above, the white one below and the moves beside it. */
+/**
+ * Black above the board, white below, the moves in their own column beside it. On narrow
+ * screens the moves run in one line under the board.
+ */
 export function GameFrame(props: {
   top: ReactNode
   bottom: ReactNode
@@ -14,15 +17,19 @@ export function GameFrame(props: {
   san: string[]
   startPly: number
 }) {
+  const t = useT()
   return (
-    <div className="grid w-full min-w-0 grid-cols-1 gap-x-4 gap-y-2.5 lg:grid-cols-[minmax(0,1fr)_130px]">
-      {props.top}
-      <span className="hidden lg:block" />
-      <div className="min-w-0">
+    <div className="grid w-full min-w-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_132px]">
+      <div className="grid min-w-0 gap-2.5">
+        {props.top}
         <Board fen={props.fen} lastMove={props.lastMove} />
+        {props.bottom}
       </div>
-      <Moves san={props.san} startPly={props.startPly} />
-      {props.bottom}
+      {/* Beside the board the column starts at its top edge: below the player row above. */}
+      <div className="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] gap-2 lg:py-[52px]">
+        <p className="hidden font-mono text-[11px] font-medium tracking-wider text-muted-foreground uppercase lg:block">{t('arena.moves')}</p>
+        <Moves san={props.san} startPly={props.startPly} />
+      </div>
     </div>
   )
 }
@@ -35,8 +42,8 @@ export function Player(props: {
   aside?: ReactNode
 }) {
   return (
-    <div className="flex min-h-10 items-center gap-3 px-0.5">
-      <span className={`size-3 flex-none rounded-full shadow-[0_0_0_1.5px_var(--border)] ${props.colour === 'white' ? 'bg-[#fbfaf7]' : 'bg-[#16140f]'}`} />
+    <div className="flex min-h-[42px] items-center gap-3 px-0.5">
+      <span className={`size-3.5 flex-none rounded-full shadow-[0_0_0_1.5px_var(--border)] ${props.colour === 'white' ? 'bg-[#fbfaf7]' : 'bg-[#16140f]'}`} />
       <span className="min-w-0">
         <span className="flex items-center gap-1.5">
           {props.badge && (
@@ -46,7 +53,7 @@ export function Player(props: {
         </span>
         <span className="block text-xs text-muted-foreground">{props.detail}</span>
       </span>
-      {props.aside && <span className="ml-auto text-right">{props.aside}</span>}
+      {props.aside && <span className="ml-auto flex-none text-right">{props.aside}</span>}
     </div>
   )
 }
@@ -55,10 +62,10 @@ export function Player(props: {
 export function Points({ value }: { value: number }) {
   const t = useT()
   return (
-    <>
-      <b className="block font-mono text-xl leading-none font-medium tabular-nums">{value}</b>
+    <span className="flex items-baseline gap-1.5">
+      <b className="font-mono text-[22px] leading-none font-medium tabular-nums">{value}</b>
       <span className="text-xs text-muted-foreground">{t('arena.won')}</span>
-    </>
+    </span>
   )
 }
 

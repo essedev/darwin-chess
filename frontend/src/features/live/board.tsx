@@ -14,20 +14,27 @@ export function Board({ fen, lastMove }: { fen: string; lastMove: string | null 
   const highlight = { background: 'rgb(242 163 58 / 0.38)' }
   const squareStyles = lastMove ? { [lastMove.slice(0, 2)]: highlight, [lastMove.slice(2, 4)]: highlight } : {}
   return (
-    <div className="overflow-hidden rounded-[10px] shadow-[0_0_0_1px_var(--border),0_12px_32px_-12px_rgb(0_0_0/0.35)]">
+    // A tray around the board: 8px of the panel surface, radii concentric (8 + 8 = 16).
+    <div className="rounded-[16px] bg-card p-2 shadow-[var(--panel-shadow)]">
+      <div className="overflow-hidden rounded-[8px]">
       <Chessboard
         options={{
           id: 'live',
           position: fen,
           pieces,
           allowDragging: false,
-          showNotation: false,
+          showNotation: true,
+          lightSquareNotationStyle: { color: 'var(--sq-dark)' },
+          darkSquareNotationStyle: { color: 'var(--sq-light)' },
+          alphaNotationStyle: { fontSize: '10px', fontWeight: 600, position: 'absolute', bottom: 2, right: 4, userSelect: 'none' },
+          numericNotationStyle: { fontSize: '10px', fontWeight: 600, position: 'absolute', top: 3, left: 4, userSelect: 'none' },
           animationDurationInMs: 150,
           squareStyles,
           lightSquareStyle: { backgroundColor: 'var(--sq-light)' },
           darkSquareStyle: { backgroundColor: 'var(--sq-dark)' },
         }}
       />
+      </div>
     </div>
   )
 }

@@ -1,4 +1,5 @@
-import { failureText, plainText } from '@/features/live/format'
+import { ExpandRow, Fact } from '@/components/expand-row'
+import { failureText, plainText, titleText } from '@/features/live/format'
 import { type I18n, pickText, useI18n } from '@/i18n/context'
 import { LangBadge } from '@/i18n/parts'
 import type { ExperimentRow as Experiment } from '@/lib/api'
@@ -6,87 +7,105 @@ import { href } from '@/lib/use-route'
 import { cn } from '@/lib/utils'
 
 const TONE: Record<string, string> = {
-  accepted: 'text-good',
-  rejected: 'text-bad',
-  error: 'text-bad',
-  abandoned: 'text-bad',
-  budget_stop: 'text-bad',
-  running: 'text-live',
-  judging: 'text-live',
+  accepted: 'bg-good/12 text-good',
+  rejected: 'bg-bad/12 text-bad',
+  error: 'bg-bad/12 text-bad',
+  budget_stop: 'bg-bad/12 text-bad',
+  running: 'bg-live/14 text-live',
+  judging: 'bg-live/14 text-live',
 }
 
+/** One line per experiment (number, title, outcome); its story opens in place. */
 export function ExperimentRow({ experiment: e }: { experiment: Experiment }) {
   const i18n = useI18n()
   const { t, label, lang, f } = i18n
   const reflection = e.kind === 'reflection'
-  const hypothesis = pickText(lang, { en: e.hypothesis, it: e.hypothesis_it })
-  const reason = rejection(i18n, e)
+  const title = titleText(lang, e.title, { en: e.hypothesis, it: e.hypothesis_it })
+  const status = reflection ? t('experiment.reflection') : label('status', e.status)
   return (
-    <li
-      className={cn(
-        'grid gap-1.5 rounded-[14px] px-4 py-3.5',
-        reflection ? 'border border-dashed' : 'bg-card shadow-[inset_0_0_0_1px_var(--border)]',
-      )}
-    >
-      <p className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5 text-[12px]">
-        <span className="font-mono text-[13px] font-medium">#{e.id}</span>
-        {reflection ? (
-          <span className="rounded-full bg-muted px-2 py-px font-medium text-muted-foreground">{t('experiment.reflection')}</span>
-        ) : (
-          <span className={cn('font-semibold', TONE[e.status] ?? 'text-muted-foreground')}>{label('status', e.status)}</span>
-        )}
-        <time dateTime={e.created_at} className="text-muted-foreground">{f.dateTime(e.created_at)}</time>
-        {e.cost_usd !== null && (
-          <span className="ml-auto font-mono text-muted-foreground tabular-nums" title={t('experiment.costTitle')}>
-            {f.preciseMoney(e.cost_usd)}
+    <ExpandRow
+      columns="grid-cols-[40px_minmax(0,1fr)_auto_16px]"
+      line={
+        <>
+          <span className="font-mono text-[13px] font-medium text-muted-foreground">#{e.id}</span>
+          <span className="min-w-0">
+            <b className={cn('block truncate text-[14px] font-medium', !title && 'text-muted-foreground')} lang={title?.lang}>
+              {title?.text ?? (reflection ? t('experiment.reflectionTitle') : t('experiment.noHypothesis'))}
+            </b>
+            <span className="block truncate text-[12px] text-muted-foreground">{summary(i18n, e) ?? f.dateTime(e.created_at)}</span>
           </span>
-        )}
-      </p>
-      <p className={cn('text-[14px] leading-snug text-pretty', !hypothesis && reflection && 'text-muted-foreground italic')}
-         lang={hypothesis?.lang}>
-        {hypothesis?.fallback && <LangBadge lang={hypothesis.lang} className="mr-1.5" />}
-        {hypothesis
-          ? plainText(hypothesis.text)
-          : reflection
-            ? t('experiment.reflectionText')
-            : t('experiment.noHypothesis')}
-      </p>
-      {reason && (
-        <p className="text-[13px] leading-relaxed text-muted-foreground">
-          <span className="font-medium text-bad">{t('experiment.stoppedAt', { gate: reason.gate })}</span>
-          {reason.why && `: ${reason.why}`}
-        </p>
-      )}
-      {e.candidate_commit && (
-        <a
-          href={href('codice', { diff: `exp-${e.id}` })}
-          className="w-fit cursor-pointer text-[13px] font-medium text-live underline-offset-4 hover:underline"
-        >
-          {t('experiment.seeChanges')}
-        </a>
-      )}
-    </li>
+          <span className={cn('rounded-full px-2 py-px text-[12px] font-semibold whitespace-nowrap', TONE[e.status] ?? 'bg-muted text-muted-foreground')}>
+            {status}
+          </span>
+        </>
+      }
+    >
+      <Details experiment={e} />
+    </ExpandRow>
   )
 }
 
-/** Which gate stopped it and why, in plain words; null when it was not rejected. */
-function rejection(i18n: I18n, e: Experiment): { gate: string; why: string } | null {
-  const { t, tn, label, f } = i18n
+/** The second line: what became of it, in a few words; null to show the date instead. */
+function summary(i18n: I18n, e: Experiment): string | null {
+  const { t, label, f } = i18n
+  if (e.generation_id != null) return t('experiment.became', { gen: e.generation_id })
   if (!e.rejected_at_gate) return null
-  const gate = label('gate', e.rejected_at_gate)
-  const failed = e.gates.find((g) => g.gate === e.rejected_at_gate)
-  if (e.rejected_at_gate === 'match' && e.match) {
-    const m = e.match
-    const elo = m.elo === null ? '' : `${f.signed(m.elo)}${m.elo_error === null ? '' : ` ± ${f.num(Math.round(m.elo_error))}`} Elo `
-    const why = t('experiment.matchWhy', {
-      elo,
-      opponent: opponent(i18n, m.opponent),
-      games: tn('count.games', m.wins + m.draws + m.losses),
-      wdl: t('matches.wdl', { w: m.wins, d: m.draws, l: m.losses }),
-    })
-    return { gate, why }
-  }
-  return { gate, why: failed ? failureText(i18n, failed.detail, failed.gate) : '' }
+  const m = e.match
+  const elo = e.rejected_at_gate === 'match' && m?.elo != null
+    ? ` · ${f.signed(m.elo)}${m.elo_error == null ? '' : ` ± ${f.num(Math.round(m.elo_error))}`}`
+    : ''
+  return `${t('experiment.stoppedAtShort', { gate: label('gate', e.rejected_at_gate) })}${elo}`
+}
+
+function Details({ experiment: e }: { experiment: Experiment }) {
+  const i18n = useI18n()
+  const { t, tn, label, lang, f } = i18n
+  const hypothesis = pickText(lang, { en: e.hypothesis, it: e.hypothesis_it })
+  const m = e.match
+  const failed = e.rejected_at_gate ? e.gates.find((g) => g.gate === e.rejected_at_gate) : undefined
+  return (
+    <>
+      {hypothesis ? (
+        <p>
+          <b className="block font-semibold">{t('detail.hypothesis')}</b>
+          {hypothesis.fallback && <LangBadge lang={hypothesis.lang} className="mr-1.5" />}
+          <span lang={hypothesis.lang}>{plainText(hypothesis.text)}</span>
+        </p>
+      ) : (
+        e.kind === 'reflection' && <p className="text-muted-foreground">{t('experiment.reflectionText')}</p>
+      )}
+      {m && (
+        <p className="flex flex-wrap gap-x-4 gap-y-1">
+          <Fact label={t('detail.match')}>{tn('count.games', m.wins + m.draws + m.losses)}</Fact>
+          <Fact label={t('detail.score')}>{t('verdict.wdl', { w: f.num(m.wins), d: f.num(m.draws), l: f.num(m.losses) })}</Fact>
+          <Fact label={t('detail.against')}>{opponent(i18n, m.opponent)}</Fact>
+          {m.elo !== null && (
+            <Fact label={t('detail.difference')}>
+              {f.signed(m.elo)}{m.elo_error === null ? '' : ` ± ${f.num(Math.round(m.elo_error))}`} Elo
+            </Fact>
+          )}
+        </p>
+      )}
+      {e.rejected_at_gate && e.rejected_at_gate !== 'match' && (
+        <p className="text-bad">
+          {t('experiment.stoppedAt', { gate: label('gate', e.rejected_at_gate) })}
+          {failed && `: ${failureText(i18n, failed.detail, failed.gate)}`}
+        </p>
+      )}
+      {['stale', 'error', 'abandoned', 'budget_stop'].includes(e.status) && (
+        <p className="text-muted-foreground">{t(`experiment.why.${e.status as 'stale' | 'error' | 'abandoned' | 'budget_stop'}`)}</p>
+      )}
+      <p className="flex flex-wrap items-center gap-x-4 gap-y-1">
+        {e.cost_usd !== null && <Fact label={t('detail.cost')}>{f.preciseMoney(e.cost_usd)}</Fact>}
+        <Fact label={t('detail.when')}>{f.dateTime(e.created_at)}</Fact>
+        {e.candidate_commit && (
+          <a href={href('codice', { diff: `exp-${e.id}` })} className="cursor-pointer font-medium text-live underline-offset-4 hover:underline">
+            {t('experiment.seeChanges')}
+          </a>
+        )}
+      </p>
+    </>
+  )
 }
 
 function opponent({ t }: I18n, name: string): string {

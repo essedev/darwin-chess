@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 
 export type Phase = 'genesis' | 'first_steps' | 'evolution'
@@ -10,6 +10,17 @@ export type Gate = { gate: string; passed: boolean; detail: Record<string, unkno
  * fields added for the bilingual dashboard are optional: an older API simply leaves them out.
  */
 export type Commentary = { it: string | null; en: string | null }
+
+/** The match of the experiment on trial so far, rewritten after every SPRT batch. */
+export type MatchProgress = {
+  games: number
+  wins: number
+  draws: number
+  losses: number
+  llr: number
+  /** Null until the first batch is played: the referee is still building and checking. */
+  bounds: [number, number] | null
+}
 
 export type MatchSummary = {
   opponent: string
@@ -28,6 +39,8 @@ export type Experiment = {
   id: number
   phase: Phase
   status: string
+  title?: Commentary | null
+  progress?: MatchProgress | null
   hypothesis: string | null
   hypothesis_it?: string | null
   rejected_at_gate: string | null
@@ -43,6 +56,8 @@ export type Generation = {
   commit: string
   elo_vs_parent: number | null
   elo_absolute: number | null
+  elo_absolute_error?: number | null
+  title?: Commentary | null
   hypothesis: string | null
   hypothesis_it?: string | null
   tried: number
@@ -66,6 +81,8 @@ export type Overview =
       generations: Generation[]
       experiments: Record<string, number> & { total: number }
       current: Experiment | null
+      /** The experiment the referee is judging now (the queued ones are "judging" too). */
+      on_trial?: Experiment | null
       previous: Experiment | null
       agent: 'working' | 'idle' | 'paused'
       spend: { usd: number; sessions: number; budget: number; quota_now: number }
@@ -136,6 +153,7 @@ export type LichessPerformance = { games: number; wins: number; draws: number; l
 
 export type Lichess = {
   live: LichessLive | null
+  profile_url?: string | null
   recent: LichessGame[]
   performance: Record<string, LichessPerformance>
 }
@@ -155,6 +173,7 @@ export type JudgedMatch = {
   verdict: 'h1' | 'h0' | 'continue' | string | null
   time_control: string
   finished_at: string | null
+  title?: Commentary | null
   hypothesis_en: string | null
   hypothesis_it?: string | null
   commentary?: Commentary | null
@@ -252,9 +271,12 @@ export type GenerationDetail = {
   parent_commit: string | null
   created_at: string
   elo_vs_parent: number | null
+  elo_vs_parent_error?: number | null
   elo_absolute: number | null
+  elo_absolute_error?: number | null
   below_ladder: boolean
   experiment_id: number | null
+  title?: Commentary | null
   hypothesis: string | null
   hypothesis_it?: string | null
   lesson: string | null
@@ -269,6 +291,8 @@ export type ExperimentRow = {
   kind: 'iteration' | 'reflection'
   phase: Phase
   status: string
+  generation_id?: number | null
+  title?: Commentary | null
   trigger: string
   hypothesis: string | null
   hypothesis_it?: string | null
@@ -284,7 +308,11 @@ export type ExperimentRow = {
   match: MatchSummary | null
 }
 
-export type ExperimentPage = { items: ExperimentRow[]; next_before_id: number | null }
+export type ExperimentPage = {
+  items: ExperimentRow[]
+  next_before_id: number | null
+  counts?: Record<string, number> & { total: number }
+}
 
 export type CodeTree = { ref: string; commit: string; generation: number | null; files: { path: string; size: number }[] }
 
@@ -331,13 +359,15 @@ export function useGenerationsDetail() {
   })
 }
 
-export function useExperiments() {
-  return useInfiniteQuery({
-    queryKey: ['experiments'],
-    queryFn: ({ pageParam }) =>
-      getJson<ExperimentPage>(`/api/experiments?limit=50${pageParam === null ? '' : `&before_id=${pageParam}`}`),
-    initialPageParam: null as number | null,
-    getNextPageParam: (last) => last.next_before_id,
+/** One page of experiments below `beforeId` (null: the newest), only with these statuses. */
+export function useExperimentPage(statuses: readonly string[], beforeId: number | null, limit = 10) {
+  const params = new URLSearchParams({ limit: String(limit) })
+  if (statuses.length) params.set('status', statuses.join(','))
+  if (beforeId !== null) params.set('before_id', String(beforeId))
+  return useQuery({
+    queryKey: ['experiments', statuses.join(','), beforeId, limit],
+    queryFn: () => getJson<ExperimentPage>(`/api/experiments?${params.toString()}`),
+    placeholderData: keepPreviousData,
     refetchInterval: 60000,
   })
 }

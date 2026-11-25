@@ -1,107 +1,166 @@
-import { ErrorNote, LoadingNote, StateNote, card } from '@/components/page'
-import { plainText } from '@/features/live/format'
+import { ExpandRow, Fact } from '@/components/expand-row'
+import { ErrorNote, LoadingNote, StateNote } from '@/components/page'
+import { Help, panel } from '@/components/panel'
+import { EloChart } from '@/features/live/elo-chart'
+import { type EloPoint, MIN_PERFORMANCE_GAMES, plainText, titleText } from '@/features/live/format'
 import { pickText, useI18n } from '@/i18n/context'
-import { LangBadge, Rich } from '@/i18n/parts'
+import { LangBadge } from '@/i18n/parts'
 import { type GenerationDetail, useGenerationsDetail } from '@/lib/api'
 import { href } from '@/lib/use-route'
 import { cn } from '@/lib/utils'
 
+/** Every champion, newest first: the Elo chart with its margins, then one row each. */
 export function GenerationTimeline() {
   const { t } = useI18n()
   const generations = useGenerationsDetail()
+  const rated: EloPoint[] = (generations.data ?? [])
+    .filter((g) => g.elo_absolute !== null && g.elo_absolute_error != null)
+    .map((g) => ({ id: g.id, elo: g.elo_absolute ?? 0, error: g.elo_absolute_error ?? 0 }))
+    .reverse()
   return (
-    <section aria-labelledby="generations" className="grid min-w-0 gap-4">
+    <section aria-labelledby="generations" className="grid min-w-0 content-start gap-4">
       <h2 id="generations" className="text-[19px] font-semibold tracking-tight">{t('generations.title')}</h2>
       {generations.isPending ? (
         <LoadingNote what={t('what.generations')} />
       ) : generations.isError ? (
         <ErrorNote what={t('what.generations')} onRetry={() => void generations.refetch()} />
       ) : generations.data.length === 0 ? (
-        <StateNote title={t('generations.none.title')} text={t('generations.none.text')} className={card} />
+        <StateNote title={t('generations.none.title')} text={t('generations.none.text')} className={cn(panel, 'p-5')} />
       ) : (
-        <ol className="grid">
-          {generations.data.map((g, i) => (
-            <GenerationItem key={g.id} generation={g} champion={i === 0} last={i === generations.data.length - 1} />
-          ))}
-        </ol>
+        <>
+          {rated.length > 0 && (
+            <div className={cn(panel, 'p-5')}>
+              <p className="mb-2 flex items-center gap-1.5 text-[12px] text-muted-foreground">
+                {t('elo.chartTitle')} <Help text={t('elo.help')} />
+              </p>
+              <EloChart points={rated} height={170} axis />
+            </div>
+          )}
+          <ol className="grid gap-0.5">
+            {generations.data.map((g, i) => (
+              <GenerationRow key={g.id} generation={g} champion={i === 0} />
+            ))}
+          </ol>
+        </>
       )}
     </section>
   )
 }
 
-function GenerationItem({ generation: g, champion, last }: { generation: GenerationDetail; champion: boolean; last: boolean }) {
+function GenerationRow({ generation: g, champion }: { generation: GenerationDetail; champion: boolean }) {
   const { t, lang, f } = useI18n()
-  const seed = g.id === 0
-  const hypothesis = seed ? null : pickText(lang, { en: g.hypothesis, it: g.hypothesis_it })
-  const lesson = pickText(lang, { en: g.lesson, it: g.lesson_it })
-  const headline = seed ? t('generations.seed') : hypothesis ? plainText(hypothesis.text) : t('experiment.noHypothesis')
+  const columns = 'grid-cols-[52px_minmax(0,1fr)_auto_16px]'
+  if (g.id === 0) {
+    return (
+      <ExpandRow
+        columns="grid-cols-[52px_minmax(0,1fr)_auto]"
+        line={
+          <>
+            <span className="font-mono text-[13px] font-medium text-muted-foreground">gen-0</span>
+            <span className="min-w-0">
+              <b className="block text-[14px] font-semibold">{t('generations.seed')}</b>
+              <span className="block text-[12px] text-muted-foreground">{f.dateTime(g.created_at)}</span>
+            </span>
+            <a href={href('codice', { ref: 'gen-0' })} className="cursor-pointer text-[12px] font-medium text-live underline-offset-4 hover:underline">
+              {t('generations.browseSeed')}
+            </a>
+          </>
+        }
+      />
+    )
+  }
+  const title = titleText(lang, g.title, { en: g.hypothesis, it: g.hypothesis_it })
   return (
-    <li className="relative grid grid-cols-[20px_minmax(0,1fr)] gap-x-3">
-      <span aria-hidden className="relative flex justify-center">
-        {!last && <i className="absolute top-3 bottom-0 w-px bg-border" />}
-        <i className={cn('relative mt-[7px] size-2.5 rounded-full ring-4 ring-background', champion ? 'bg-live' : 'bg-muted-foreground/50')} />
-      </span>
-      <article className="grid min-w-0 gap-2 pb-7">
-        <p className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5 text-[12px] text-muted-foreground">
-          <span className={cn('font-mono text-[13px] font-medium', champion ? 'text-live' : 'text-foreground')}>gen-{g.id}</span>
-          {champion && <span className="font-medium text-live">{t('generations.champion')}</span>}
-          <time dateTime={g.created_at}>{f.dateTime(g.created_at)}</time>
-        </p>
-        <h3 className="text-[16px] leading-snug font-semibold text-pretty" lang={hypothesis?.lang}>
-          {hypothesis?.fallback && <LangBadge lang={hypothesis.lang} className="mr-1.5" />}
-          {headline}
-        </h3>
-        {!seed && <Facts generation={g} />}
-        {lesson && (
-          <p className="text-[13px] leading-relaxed text-muted-foreground">
-            <span className="font-medium text-foreground">{t('generations.lesson')} </span>
-            {lesson.fallback && <LangBadge lang={lesson.lang} className="mr-1.5" />}
-            <span lang={lesson.lang}>{plainText(lesson.text)}</span>
-          </p>
-        )}
-        <a
-          href={seed ? href('codice', { ref: 'gen-0' }) : href('codice', { diff: `gen-${g.id}` })}
-          className="w-fit cursor-pointer text-[13px] font-medium text-live underline-offset-4 hover:underline"
-        >
-          {seed ? t('generations.browseSeed') : t('generations.whatChanged')}
-        </a>
-      </article>
-    </li>
+    <ExpandRow
+      columns={columns}
+      line={
+        <>
+          <span className={cn('font-mono text-[13px] font-medium', champion && 'text-live')}>gen-{g.id}</span>
+          <span className="min-w-0">
+            <b className="block truncate text-[14px] font-semibold" lang={title?.lang}>{title?.text ?? t('experiment.noHypothesis')}</b>
+            <span className="block truncate text-[12px] text-muted-foreground">
+              {champion && <span className="font-medium text-live">{t('generations.champion')} · </span>}
+              {g.tried <= 1 ? t('generations.firstTry') : t('generations.afterTries', { n: g.tried })} · {f.time(g.created_at)}
+            </span>
+          </span>
+          <span className="text-right font-mono text-[14px] font-medium tabular-nums">
+            {g.elo_absolute !== null ? (
+              <>
+                {f.num(Math.round(g.elo_absolute))}
+                {g.elo_absolute_error != null && (
+                  <small className="block text-[11px] font-normal text-muted-foreground">± {f.num(Math.round(g.elo_absolute_error))}</small>
+                )}
+              </>
+            ) : (
+              <span className="font-sans text-[12px] font-normal text-muted-foreground">
+                {g.below_ladder ? t('generations.belowLadderShort') : t('generations.notRated')}
+              </span>
+            )}
+          </span>
+        </>
+      }
+    >
+      <GenerationDetails generation={g} />
+    </ExpandRow>
   )
 }
 
-function Facts({ generation: g }: { generation: GenerationDetail }) {
-  const { t, tn, f } = useI18n()
-  const facts: { text: string; tone?: string }[] = []
-  if (g.id === 1) facts.push({ text: t('generations.beatsRandom'), tone: 'text-good' })
-  else if (g.elo_vs_parent !== null) facts.push({ text: t('generations.gain', { elo: f.signed(g.elo_vs_parent) }), tone: 'text-good' })
-  if (g.below_ladder) facts.push({ text: t('generations.belowLadder') })
-  else if (g.elo_absolute !== null) facts.push({ text: t('generations.about', { elo: f.num(Math.round(g.elo_absolute)) }) })
-  facts.push({ text: g.tried <= 1 ? t('generations.firstTry') : t('generations.afterTries', { n: g.tried }) })
-  if (g.diff_stat) {
-    const { files, insertions, deletions } = g.diff_stat
-    facts.push({ text: t('generations.diff', { files: tn('count.files', files), plus: f.num(insertions), minus: f.num(deletions) }) })
-  }
+function GenerationDetails({ generation: g }: { generation: GenerationDetail }) {
+  const { t, tn, lang, f } = useI18n()
+  const hypothesis = pickText(lang, { en: g.hypothesis, it: g.hypothesis_it })
+  const note = pickText(lang, { en: g.lesson, it: g.lesson_it })
   const l = g.lichess
+  const gain = g.elo_vs_parent === null
+    ? null
+    : `${f.signed(g.elo_vs_parent)}${g.elo_vs_parent_error == null ? '' : ` ± ${f.num(Math.round(g.elo_vs_parent_error))}`}`
   return (
-    <div className="grid gap-1.5">
-      <p className="flex flex-wrap gap-x-3 gap-y-1 text-[13px]">
-        {facts.map((fact) => (
-          <span key={fact.text} className={cn('font-medium', fact.tone ?? 'text-muted-foreground')}>{fact.text}</span>
-        ))}
-      </p>
-      {l && l.games > 0 && (
-        <p className="text-[13px] text-muted-foreground">
-          <Rich
-            text={t('generations.lichess')}
-            values={{
-              performance: <span className="font-mono font-medium text-foreground tabular-nums">{f.num(l.performance)}</span>,
-              games: tn('count.games', l.games),
-              wdl: t('matches.wdl', { w: l.wins, d: l.draws, l: l.losses }),
-            }}
-          />
+    <>
+      {hypothesis && (
+        <p>
+          <b className="block font-semibold">{t('detail.hypothesis')}</b>
+          {hypothesis.fallback && <LangBadge lang={hypothesis.lang} className="mr-1.5" />}
+          <span lang={hypothesis.lang}>{plainText(hypothesis.text)}</span>
         </p>
       )}
-    </div>
+      <p className="flex flex-wrap gap-x-4 gap-y-1">
+        <Fact label={t('detail.stockfish')}>
+          {g.elo_absolute !== null
+            ? `${f.num(Math.round(g.elo_absolute))}${g.elo_absolute_error == null ? '' : ` ± ${f.num(Math.round(g.elo_absolute_error))}`}`
+            : g.below_ladder ? t('generations.belowLadder') : t('generations.notRated')}
+        </Fact>
+        {gain && (
+          <span className="inline-flex items-center gap-1.5">
+            <Fact label={g.id === 1 ? t('detail.vsRandom') : t('detail.vsParent')}>{gain}</Fact>
+            <Help text={t('detail.gainHelp')} />
+          </span>
+        )}
+        {g.diff_stat && (
+          <Fact label={t('detail.code')}>
+            {tn('count.files', g.diff_stat.files)} · +{f.num(g.diff_stat.insertions)} −{f.num(g.diff_stat.deletions)}
+          </Fact>
+        )}
+      </p>
+      {l && l.games > 0 && (
+        <p className="text-muted-foreground">
+          {l.games >= MIN_PERFORMANCE_GAMES
+            ? t('detail.lichess', {
+                performance: f.num(l.performance),
+                games: tn('count.games', l.games),
+                wdl: t('matches.wdl', { w: l.wins, d: l.draws, l: l.losses }),
+              })
+            : t('elo.lichessFew', { games: tn('count.games', l.games) })}
+        </p>
+      )}
+      {note && (
+        <p>
+          <b className="block font-semibold">{t('detail.note')}</b>
+          {note.fallback && <LangBadge lang={note.lang} className="mr-1.5" />}
+          <span lang={note.lang} className="text-muted-foreground">{plainText(note.text)}</span>
+        </p>
+      )}
+      <a href={href('codice', { diff: `gen-${g.id}` })} className="w-fit cursor-pointer font-medium text-live underline-offset-4 hover:underline">
+        {t('generations.whatChanged')}
+      </a>
+    </>
   )
 }

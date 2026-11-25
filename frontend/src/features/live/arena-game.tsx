@@ -9,8 +9,16 @@ type Ready = Extract<Overview, { ready: true }>
 export function ArenaGame({ data, game }: { data: Ready; game: LiveGame | null }) {
   const i18n = useI18n()
   const { t } = i18n
-  const name = (engine: string) => playerName(i18n, engine, data.current?.id, data.champion.id)
-  const points = (engine: string) => <Points value={game?.tally[engine]?.wins ?? 0} />
+  const name = (engine: string) => playerName(i18n, engine, (data.on_trial ?? data.current)?.id, data.champion.id)
+  // During a trial the whole match counts (finished batches, from the referee); otherwise
+  // the games of the match on the board.
+  const progress = data.on_trial?.progress ?? null
+  const won = (engine: string) => {
+    if (progress && engine === 'candidate') return progress.wins
+    if (progress && engine === 'champion') return progress.losses
+    return game?.tally[engine]?.wins ?? 0
+  }
+  const points = (engine: string) => <Points value={won(engine)} />
   return (
     <GameFrame
       top={

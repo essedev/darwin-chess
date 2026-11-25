@@ -1,11 +1,12 @@
 import { useI18n } from '@/i18n/context'
 import type { Lichess, LichessLive } from '@/lib/api'
 import { useNow } from '@/lib/use-now'
+import { panel } from '@/components/panel'
 import { cn } from '@/lib/utils'
 import { clock } from './format'
 import { GameFrame, Player } from './game-parts'
 
-const card = 'rounded-[18px] bg-card p-5 shadow-[inset_0_0_0_1px_var(--border)]'
+const card = `${panel} p-5`
 
 type Query = { isPending: boolean; data: Lichess | undefined }
 

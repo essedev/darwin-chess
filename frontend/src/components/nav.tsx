@@ -3,9 +3,8 @@ import { href, type Page, PAGES } from '@/lib/use-route'
 import { cn } from '@/lib/utils'
 
 /**
- * Top-level tabs and the language switch. On the live view the brand is already in its own
- * top bar, so here it shows only on the other pages. Narrow screens scroll the tabs sideways;
- * the switch stays put on the right.
+ * The brand, the top-level tabs and the language switch, on every page. Narrow screens scroll
+ * the tabs sideways; the brand and the switch stay put.
  */
 export function Nav({ current }: { current: Page }) {
   const { t } = useI18n()
@@ -14,11 +13,9 @@ export function Nav({ current }: { current: Page }) {
       aria-label={t('nav.label')}
       className="sticky top-0 z-20 flex items-center gap-4 border-b bg-background/90 px-4 backdrop-blur sm:px-8"
     >
-      {current !== 'diretta' && (
-        <a href={href('diretta')} className="hidden shrink-0 cursor-pointer text-[15px] font-bold tracking-tight sm:block">
-          darwin-chess
-        </a>
-      )}
+      <a href={href('diretta')} className="shrink-0 cursor-pointer text-[15px] font-bold tracking-tight">
+        darwin-chess
+      </a>
       <ul className="-mb-px flex min-w-0 gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {PAGES.map((page) => {
           const active = page === current

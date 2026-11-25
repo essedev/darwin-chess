@@ -1,26 +1,7 @@
-import type { Generation, Phase } from '@/lib/api'
-import type { I18n } from '@/i18n/context'
+import type { Commentary, Phase } from '@/lib/api'
+import { type I18n, type Lang, type Picked, pickText } from '@/i18n/context'
 
 export const PHASES: readonly (Phase | 'world')[] = ['genesis', 'first_steps', 'evolution', 'world']
-
-/**
- * Elo per champion. Absolute (against Stockfish anchors) once a champion has been rated;
- * before that, relative to the random player: the sum of every promotion's gain.
- */
-export function eloSeries(generations: Generation[]): { absolute: boolean; points: { id: number; elo: number }[] } {
-  const rated = generations.filter((g) => g.elo_absolute !== null)
-  if (rated.length > 0) {
-    return { absolute: true, points: rated.map((g) => ({ id: g.id, elo: Math.round(g.elo_absolute ?? 0) })) }
-  }
-  let total = 0
-  const points = generations
-    .filter((g) => g.id >= 1)
-    .map((g) => {
-      total += g.elo_vs_parent ?? 0
-      return { id: g.id, elo: Math.round(total) }
-    })
-  return { absolute: false, points }
-}
 
 /** Why a gate failed, in plain words, from its public detail ("problem" plus context). */
 export function failureText(i18n: I18n, detail: Record<string, unknown>, gate?: string): string {
@@ -97,8 +78,42 @@ export function plainText(markdown: string): string {
   return markdown
     .replace(/```[\s\S]*?```/g, ' ')
     .replace(/\*\*|__|`/g, '') // emphasis and code marks; single underscores are names
-    .replace(/^\s*(#+|>)\s*/gm, '')
+    .replace(/^\s*(#+\s+|>\s*)/gm, '') // a heading needs a space: "#14" is an experiment
     .replace(/^\s*[-+]\s+/gm, '')
     .replace(/\s+/g, ' ')
     .trim()
+}
+
+/**
+ * An experiment's short title in the visitor's language. Until the title is written (it comes
+ * a few seconds after a submission), the first sentence of the hypothesis stands in.
+ */
+export function titleText(
+  lang: Lang,
+  title: Commentary | null | undefined,
+  hypothesis: { en: string | null | undefined; it: string | null | undefined },
+): Picked | null {
+  const own = pickText(lang, { it: title?.it, en: title?.en })
+  if (own) return own
+  const long = pickText(lang, hypothesis)
+  if (!long) return null
+  const text = plainText(long.text)
+  return { ...long, text: /^(.+?[.;:])(\s|$)/.exec(text)?.[1]?.replace(/[.;:]$/, '') ?? text }
+}
+
+/** Lichess performance means little on a handful of games: below this it is not shown. */
+export const MIN_PERFORMANCE_GAMES = 5
+
+/** A generation's absolute Elo against Stockfish, with the 95% margin of the measure. */
+export type EloPoint = { id: number; elo: number; error: number }
+
+/**
+ * Where every measure's margin overlaps, or null when two of them do not. While the band
+ * exists the generations are not measurably different, whatever their central values say.
+ */
+export function overlap(points: EloPoint[]): [number, number] | null {
+  if (points.length < 2) return null
+  const low = Math.max(...points.map((p) => p.elo - p.error))
+  const high = Math.min(...points.map((p) => p.elo + p.error))
+  return low <= high ? [low, high] : null
 }

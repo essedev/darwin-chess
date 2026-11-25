@@ -1,55 +1,78 @@
 import { ExternalLink } from 'lucide-react'
-import { useState } from 'react'
 import { type I18n, useI18n } from '@/i18n/context'
 import type { AgentEvent, Lichess, LiveGame, Overview } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { ArenaGame } from './arena-game'
-import { matchLabel, plainText } from './format'
-import { JudgedMatches } from './judged-matches'
+import { matchLabel, plainText, titleText } from './format'
 import { LichessPanel } from './lichess-game'
-import { RecentGames } from './lichess-recent'
 
 type Ready = Extract<Overview, { ready: true }>
-type Tab = 'arena' | 'lichess'
+export type Tab = 'arena' | 'lichess'
 type LichessQuery = { isPending: boolean; isError: boolean; data: Lichess | undefined }
 
-/**
- * The board, the agent's last thought under it, then the list that belongs to the tab: the
- * judged matches or the Lichess games. The list sits below everything else, so when it grows
- * or shrinks the board above does not move.
- */
-export function Stage(props: { data: Ready; game: LiveGame | null; events: AgentEvent[]; lichess: LichessQuery }) {
-  const { data, game, lichess } = props
-  const i18n = useI18n()
-  const [tab, setTab] = useState<Tab>(() => (window.location.hash === '#lichess' ? 'lichess' : 'arena'))
-  const choose = (next: Tab) => {
-    setTab(next)
-    // The Lichess tab has its own address, so a link can open the dashboard on it.
-    window.history.replaceState(null, '', next === 'lichess' ? '#lichess' : window.location.pathname)
-  }
+/** The middle column: which game, what it is about, the board, the agent's last thought. */
+export function Stage(props: {
+  data: Ready
+  game: LiveGame | null
+  events: AgentEvent[]
+  lichess: LichessQuery
+  tab: Tab
+  onTab: (tab: Tab) => void
+}) {
+  const { data, game, lichess, tab } = props
+  const { t } = useI18n()
   const live = lichess.data?.live ?? null
-  const label = game ? matchLabel(i18n, game.white, game.black, data.current?.id, data.champion.id) : null
   return (
-    <div className="order-1 grid min-w-0 content-start justify-items-center gap-[18px] lg:order-none">
-      <div className="grid w-full min-w-0 max-w-[640px] gap-3 lg:max-w-[min(100%,calc(100vh-264px))]">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <Tabs tab={tab} onChange={choose} lichessLive={live !== null} />
-          {tab === 'arena' && label && <MatchLabel {...label} />}
-          {tab === 'lichess' && live && (
-            <a href={live.url} target="_blank" rel="noreferrer"
-               className="ml-auto inline-flex cursor-pointer items-center gap-1.5 text-[13px] font-medium text-live hover:underline">
-              {i18n.t('lichess.open')} <ExternalLink className="size-4" aria-hidden />
-            </a>
-          )}
-        </div>
-        <div id={`stage-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`} className="min-w-0">
-          {tab === 'arena' ? <ArenaGame data={data} game={game} /> : <LichessPanel query={lichess} />}
-        </div>
+    <div className="order-1 grid min-w-0 content-start gap-3.5 xl:order-none">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <Tabs tab={tab} onChange={props.onTab} lichessLive={live !== null} />
+        {tab === 'lichess' && live && (
+          <a href={live.url} target="_blank" rel="noreferrer"
+             className="inline-flex cursor-pointer items-center gap-1.5 text-[13px] font-medium text-live hover:underline">
+            {t('lichess.open')} <ExternalLink className="size-4" aria-hidden />
+          </a>
+        )}
+      </div>
+      {tab === 'arena' ? <ArenaHeading data={data} game={game} /> : live && (
+        <Heading tag="Lichess" title={t('lichess.heading', { opponent: live.opponent.name })}
+                 detail={`gen-${live.generation} · ${live.time_control}`} />
+      )}
+      <div id={`stage-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`} className="min-w-0">
+        {tab === 'arena' ? <ArenaGame data={data} game={game} /> : <LichessPanel query={lichess} />}
       </div>
       <Caption events={props.events} agent={data.agent} />
-      <div className="w-full min-w-0 max-w-[680px]">
-        {tab === 'arena' ? <JudgedMatches /> : <RecentGames query={lichess} />}
-      </div>
+    </div>
+  )
+}
+
+/** "#18 Penalità ai pedoni doppiati, contro il campione gen-5", or what else is on the board. */
+function ArenaHeading({ data, game }: { data: Ready; game: LiveGame | null }) {
+  const i18n = useI18n()
+  const { t, lang } = i18n
+  const current = data.on_trial ?? data.current
+  // Between two games of a trial the board is empty, but the trial is still what is on.
+  if (!game) {
+    if (!data.on_trial) return null
+    const title = titleText(lang, data.on_trial.title, { en: data.on_trial.hypothesis, it: data.on_trial.hypothesis_it })
+    return <Heading tag={`#${data.on_trial.id}`} title={title?.text ?? t('player.candidate', { id: data.on_trial.id })} lang={title?.lang} />
+  }
+  const label = matchLabel(i18n, game.white, game.black, current?.id, data.champion.id)
+  const engines = [game.white, game.black]
+  if (current && engines.includes('candidate')) {
+    const title = titleText(lang, current.title, { en: current.hypothesis, it: current.hypothesis_it })
+    const opponent = engines.includes('random') ? t('stage.vsRandom') : t('stage.vsChampion', { gen: data.champion.id })
+    return <Heading tag={`#${current.id}`} title={title?.text ?? t('player.candidate', { id: current.id })}
+                    lang={title?.lang} detail={opponent} />
+  }
+  return label ? <Heading tag={label.kind} title={label.players} /> : <Heading title={`${game.white} – ${game.black}`} />
+}
+
+function Heading({ tag, title, detail, lang }: { tag?: string; title: string; detail?: string; lang?: string }) {
+  return (
+    <div className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
+      {tag && <span className="font-mono text-[13px] font-medium text-live">{tag}</span>}
+      <h2 className="line-clamp-2 min-w-0 text-[21px] leading-tight font-semibold tracking-tight text-balance" lang={lang} title={title}>{title}</h2>
+      {detail && <p className="text-[13px] text-muted-foreground">{detail}</p>}
     </div>
   )
 }
@@ -80,42 +103,23 @@ function Tabs({ tab, onChange, lichessLive }: { tab: Tab; onChange: (tab: Tab) =
   )
 }
 
-/** "Giudizio · candidato #6 contro il campione gen-2": the kind of game, then who plays. */
-function MatchLabel({ kind, players }: { kind: string; players: string }) {
-  return (
-    <p className="min-w-0 text-[13px] text-muted-foreground">
-      <b className="font-semibold text-foreground">{kind}</b> · {players}
-    </p>
-  )
-}
-
-/** The agent's last thought, always in English: the language it works in. */
+/** The agent's last thought, in English (the language it works in), cut to two lines. */
 function Caption({ events, agent }: { events: AgentEvent[]; agent: Ready['agent'] }) {
   const i18n = useI18n()
-  const { t, label: labelOf, lang, f } = i18n
+  const { t, f, lang } = i18n
   const thought = [...events].reverse().find((e) => e.kind === 'thought')
-  const action = [...events].reverse().find((e) => e.kind === 'tool_call')
-  const label = captionLabel(i18n, agent)
-  const tool = action ? String(action.payload.tool) : ''
   const text = thought ? plainText(String(thought.payload.text)) : ''
   return (
-    <div className="w-full max-w-[680px] text-center">
-      <p className="mb-2 inline-flex items-center gap-1.5 font-mono text-[11px] font-medium tracking-wider text-muted-foreground uppercase">
-        <i className="size-1.5 rounded-full bg-live" /> {label}
+    <div className="mx-auto mt-1 w-full max-w-[620px] text-center">
+      <p className="font-mono text-[11px] font-medium tracking-wider text-muted-foreground uppercase">
+        {captionLabel(i18n, agent)}
+        {text && lang === 'it' && `, ${t('caption.inEnglish')}`}
+        {thought && ` · ${f.time(thought.at)}`}
       </p>
-      {text ? (
-        <p lang="en" className="line-clamp-3 text-[17px] leading-snug font-medium text-balance lg:text-xl" title={text}>
-          {text}
-        </p>
-      ) : (
-        <p className="text-[17px] leading-snug font-medium text-balance lg:text-xl">{t('caption.empty')}</p>
-      )}
-      {action && (
-        <p className="mt-2.5 font-mono text-xs text-muted-foreground">
-          {labelOf('tool', tool)} · {f.time(action.at)}
-        </p>
-      )}
-      {text && lang === 'it' && <p className="mt-1.5 text-[12px] text-muted-foreground">{t('caption.english')}</p>}
+      <p lang={text ? 'en' : undefined} title={text || undefined}
+         className="mt-1.5 line-clamp-2 text-[17px] leading-snug font-medium text-balance lg:text-lg">
+        {text || t('caption.empty')}
+      </p>
     </div>
   )
 }

@@ -1,124 +1,129 @@
-import { pickText, useI18n } from '@/i18n/context'
-import { LangBadge } from '@/i18n/parts'
-import type { Experiment, Overview } from '@/lib/api'
+import { Panel } from '@/components/panel'
+import { useI18n } from '@/i18n/context'
+import { type Experiment, type JudgedMatch, type Lichess, type MatchProgress, type Overview, useMatches } from '@/lib/api'
 import { cn } from '@/lib/utils'
-import { failureText } from './format'
+import { titleText } from './format'
 import { JobCard } from './job-card'
+import { JudgedMatches } from './judged-matches'
+import { RecentGames } from './lichess-recent'
+import type { Tab } from './stage'
 
 type Ready = Extract<Overview, { ready: true }>
 
-const card = 'rounded-[18px] bg-card p-5 shadow-[inset_0_0_0_1px_var(--border)]'
-const LLR_BOUND = 2.944
-
-export function SideCards({ data }: { data: Ready }) {
-  const shown = data.current?.status === 'running' || data.current?.status === 'judging'
-    ? data.previous
-    : data.current
+/** The right column: the question on trial, a long job if any, the spend, the last three results. */
+export function SideCards({ data, tab, lichess }: { data: Ready; tab: Tab; lichess: { isError: boolean; data: Lichess | undefined } }) {
+  const matches = useMatches()
+  const last = matches.data?.[0] ?? null
   return (
-    <aside className="order-2 grid min-w-0 content-start gap-3.5 lg:order-none">
-      <VerdictCard experiment={shown} judging={data.current?.status === 'judging' ? data.current : null} />
+    <aside className="order-2 grid min-w-0 content-start gap-3.5 xl:order-none">
+      <VerdictPanel trial={data.on_trial ?? null} last={last} />
       <JobCard jobs={data.jobs} />
-      <SpendCard spend={data.spend} />
+      <SpendPanel spend={data.spend} />
+      {tab === 'arena' ? <JudgedMatches query={matches} /> : <RecentGames query={lichess} />}
     </aside>
   )
 }
 
-function VerdictCard({ experiment, judging }: { experiment: Experiment | null; judging: Experiment | null }) {
-  const i18n = useI18n()
-  const { t, label, lang, f } = i18n
-  if (judging) {
-    const hypothesis = pickText(lang, { en: judging.hypothesis, it: judging.hypothesis_it })
+/**
+ * While the referee judges, the question it is answering and where the evidence leans; between
+ * trials, the last answer it gave.
+ */
+function VerdictPanel({ trial, last }: { trial: Experiment | null; last: JudgedMatch | null }) {
+  const { t } = useI18n()
+  if (!trial) {
     return (
-      <section className={card}>
-        <p className="mb-2.5 text-[13px] text-muted-foreground">{t('verdict.judging')}</p>
-        <p className="mb-3.5 text-[22px] font-semibold tracking-tight">{t('player.candidate', { id: judging.id })}</p>
-        {hypothesis && (
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            {hypothesis.fallback && <LangBadge lang={hypothesis.lang} className="mr-1.5" />}
-            <span lang={hypothesis.lang}>{hypothesis.text}</span>
-          </p>
-        )}
-      </section>
+      <Panel title={t('verdict.last')}>
+        {last ? <LastVerdict match={last} big /> : <p className="text-[22px] font-semibold tracking-tight">{t('verdict.none')}</p>}
+      </Panel>
     )
   }
-  if (!experiment) {
-    return (
-      <section className={card}>
-        <p className="mb-2.5 text-[13px] text-muted-foreground">{t('verdict.last')}</p>
-        <p className="text-[22px] font-semibold tracking-tight">{t('verdict.none')}</p>
-      </section>
-    )
-  }
-  const match = experiment.match
-  const accepted = experiment.status === 'accepted'
-  const question = match
-    ? match.opponent === 'random'
-      ? t('verdict.question.random')
-      : t('verdict.question.champion')
-    : t('verdict.question.rules')
-  const failed = experiment.gates.find((g) => !g.passed)
+  const progress = trial.progress
   return (
-    <section className={card}>
-      <p className="mb-2.5 text-[13px] text-muted-foreground">{question}</p>
-      <p className={cn('mb-3.5 text-[22px] font-semibold tracking-tight', accepted ? 'text-good' : 'text-bad')}>
-        {accepted ? t('verdict.yes') : failed ? t('verdict.stoppedAt', { gate: label('gate', failed.gate) }) : t('verdict.no')}
-      </p>
-      {match?.llr != null && <LlrBar llr={match.llr} />}
-      {match && (
-        <p className="mt-2.5 text-xs leading-relaxed text-muted-foreground">
-          <span className="text-foreground">{f.num(match.wins + match.draws + match.losses)}</span> {t('verdict.games')} ·{' '}
-          <span className="text-foreground">{f.num(Math.round(match.elo ?? 0))}</span> Elo ·{' '}
-          {t('verdict.wdl', { w: match.wins, d: match.draws, l: match.losses })}
-        </p>
+    <Panel title={t(`verdict.question.${trial.phase === 'evolution' ? 'champion' : trial.phase === 'first_steps' ? 'random' : 'rules'}`)}>
+      {progress?.bounds ? (
+        <Evidence progress={progress} bounds={progress.bounds} />
+      ) : (
+        <>
+          <p className="text-[22px] font-semibold tracking-tight">{t('verdict.preparing')}</p>
+          <p className="mt-1.5 text-[12px] leading-normal text-muted-foreground">{t('verdict.preparingText')}</p>
+        </>
       )}
-      {failed && !match && (
-        <p className="mt-2.5 text-xs leading-relaxed text-muted-foreground">{failureText(i18n, failed.detail)}</p>
+      {last && (
+        <div className="mt-3.5 border-t pt-3">
+          <LastVerdict match={last} />
+        </div>
       )}
-      <div className="mt-3 flex flex-wrap gap-3.5 text-xs text-muted-foreground">
-        {experiment.gates.map((g) => (
-          <span key={g.gate}>
-            <span className={g.passed ? 'text-good' : 'text-bad'}>{g.passed ? '✓' : '✗'}</span> {label('gate', g.gate)}
-          </span>
-        ))}
-      </div>
-    </section>
+    </Panel>
   )
 }
 
-function LlrBar({ llr }: { llr: number }) {
-  const { t, f } = useI18n()
-  const share = Math.max(-1, Math.min(1, llr / LLR_BOUND))
+/** The LLR as a bar from "reject" to "promote", and the games behind it. */
+function Evidence({ progress, bounds }: { progress: MatchProgress; bounds: [number, number] }) {
+  const { t, tn, f } = useI18n()
+  const [lower, upper] = bounds
+  const share = Math.max(-1, Math.min(1, progress.llr >= 0 ? progress.llr / upper : -progress.llr / lower))
+  const lean = progress.llr > 0 ? t('verdict.leanYes') : progress.llr < 0 ? t('verdict.leanNo') : t('verdict.leanNone')
   return (
-    <div className="mt-3">
-      <div className="relative h-2 rounded-full bg-muted">
-        <span className="absolute top-0 left-1/2 h-2 w-px bg-border" />
-        <span className={cn('absolute top-0 h-2 rounded-full', share >= 0 ? 'bg-good' : 'bg-bad')}
+    <>
+      <p className="text-[22px] font-semibold tracking-tight">{t('verdict.unknown')}</p>
+      <div className="relative mt-3.5 h-2 overflow-hidden rounded-full bg-muted" role="img"
+           aria-label={t('verdict.llrLabel', { llr: f.num(progress.llr), upper: f.num(upper) })}>
+        <span className={cn('absolute top-0 h-2', share >= 0 ? 'rounded-r-full bg-good' : 'rounded-l-full bg-bad')}
               style={{ left: `${share >= 0 ? 50 : 50 + share * 50}%`, width: `${Math.abs(share) * 50}%` }} />
+        <span className="absolute top-0 left-[calc(50%-1px)] h-2 w-0.5 bg-muted-foreground/50" />
       </div>
       <div className="mt-1.5 flex justify-between font-mono text-[11px] text-muted-foreground">
-        <span>{t('verdict.llrReject')}</span><span>LLR {f.num(llr)}</span><span>{t('verdict.llrAccept')}</span>
+        <span>{t('verdict.llrReject')}</span>
+        <span>{t('verdict.llrAccept')}</span>
       </div>
-    </div>
+      <p className="mt-2 text-[12px] leading-normal text-muted-foreground tabular-nums">
+        {tn('count.games', progress.games)} · {t('verdict.wdl', { w: f.num(progress.wins), d: f.num(progress.draws), l: f.num(progress.losses) })} · {lean}
+      </p>
+    </>
   )
 }
 
-function SpendCard({ spend }: { spend: Ready['spend'] }) {
+/** "#15 Pedoni che avanzano: promosso", small under a trial or as the headline between trials. */
+function LastVerdict({ match: m, big = false }: { match: JudgedMatch; big?: boolean }) {
+  const { t, lang } = useI18n()
+  const title = titleText(lang, m.title, { en: m.hypothesis_en, it: m.hypothesis_it })
+  const promoted = m.verdict === 'h1'
+  const word = promoted ? t('matches.verdict.h1') : m.verdict === 'h0' ? t('matches.verdict.h0') : t('matches.verdict.continue')
+  if (big) {
+    return (
+      <>
+        <p className={cn('text-[22px] font-semibold tracking-tight', promoted ? 'text-good' : 'text-bad')}>{word}</p>
+        <p className="mt-1 truncate text-[13px]" lang={title?.lang}>
+          <span className="font-mono text-muted-foreground">#{m.experiment_id}</span> {title?.text}
+        </p>
+      </>
+    )
+  }
+  return (
+    <p className="truncate text-[12px] text-muted-foreground">
+      {t('verdict.lastShort')}{' '}
+      <span className="text-foreground" lang={title?.lang}>#{m.experiment_id} {title?.text}</span>,{' '}
+      <span className={cn('font-medium', promoted ? 'text-good' : 'text-bad')}>{word}</span>
+    </p>
+  )
+}
+
+function SpendPanel({ spend }: { spend: Ready['spend'] }) {
   const { t, tn, f } = useI18n()
   const share = Math.min(1, spend.usd / spend.budget)
   const full = spend.usd >= spend.budget
   return (
-    <section className={card}>
-      <p className="mb-2.5 text-[13px] text-muted-foreground">{t('spend.title')}</p>
-      <p className="flex items-baseline gap-2.5">
-        <b className="text-[32px] leading-none font-semibold tracking-tight tabular-nums">{f.money(spend.usd)}</b>
+    <Panel title={t('spend.title')}>
+      <p className="flex items-baseline gap-2">
+        <b className="text-[30px] leading-none font-semibold tracking-[-0.03em] tabular-nums">{f.money(spend.usd)}</b>
         <span className="font-mono text-[13px] text-muted-foreground">{t('spend.of', { budget: f.money(spend.budget) })}</span>
       </p>
       <div className="mt-3 h-1.5 rounded-full bg-muted">
-        <i className={cn('block h-1.5 rounded-full', full ? 'bg-bad' : 'bg-live')} style={{ width: `${share * 100}%` }} />
+        <i className={cn('block h-1.5 rounded-full', full ? 'bg-bad' : 'bg-live')} style={{ width: `${Math.max(share * 100, 2)}%` }} />
       </div>
-      <p className="mt-2.5 text-xs text-muted-foreground">
+      <p className="mt-2.5 text-[12px] text-muted-foreground">
         {full ? t('spend.full') : t('spend.sessions', { sessions: tn('count.sessions', spend.sessions) })}
       </p>
-    </section>
+    </Panel>
   )
 }
