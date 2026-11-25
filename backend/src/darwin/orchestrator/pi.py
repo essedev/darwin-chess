@@ -55,7 +55,7 @@ class PiProcess:
             "PI_SKIP_VERSION_CHECK": "1",
             "PI_TELEMETRY": "0",
             "PI_CACHE_RETENTION": "long",
-            "OPENROUTER_API_KEY": settings.llm_api_key.get_secret_value(),
+            **settings.llm_key_env(),
             **extra_env,
         }
         self._process: asyncio.subprocess.Process | None = None

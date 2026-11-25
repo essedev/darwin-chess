@@ -2,7 +2,7 @@
 
 ## Cos'è
 
-Un agente LLM (Haiku 5.5 via OpenRouter) scrive da zero un motore di scacchi in Rust e lo evolve da solo; un arbitro fidato decide quali generazioni sopravvivono. Esecuzione 24/7 su server. Visione e confini in `docs/ARCHITECTURE.md`.
+Un agente LLM (Haiku 5.5, via Anthropic o OpenRouter) scrive da zero un motore di scacchi in Rust e lo evolve da solo; un arbitro fidato decide quali generazioni sopravvivono. Esecuzione 24/7 su server. Visione e confini in `docs/ARCHITECTURE.md`.
 
 ## Stack
 

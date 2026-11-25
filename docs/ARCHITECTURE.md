@@ -83,7 +83,7 @@ Sviluppo sul portatile, esecuzione 24/7 su server via a VPN. server è un MacBoo
 ```
 server (Docker Compose, restart automatico)
 ├─ core          orchestratore + arbitro, un solo processo Python, con pi (Node)
-│                rete: solo OpenRouter; unico servizio con accesso a Docker
+│                rete: solo il provider del modello; unico servizio con accesso a Docker
 ├─ api           FastAPI + dashboard compilata, legge il registro
 ├─ (M5) lichess-bot
 └─ container effimeri creati da core:

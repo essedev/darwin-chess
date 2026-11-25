@@ -6,7 +6,7 @@ Un agente LLM scrive da zero un motore di scacchi e lo fa evolvere da solo: ogni
 
 - **genome/**: il motore in Rust, di proprietà dell'agente. È un repo git a parte: ogni commit è una generazione che ha vinto.
 - **Arbitro**: codice fidato che verifica le regole (perft), fa giocare le partite, decide con un test statistico (SPRT) e misura l'Elo contro ancore fisse.
-- **Orchestratore**: il ciclo dell'agente (Claude Haiku 5.5 via OpenRouter) con un tetto di spesa giornaliero.
+- **Orchestratore**: il ciclo dell'agente (Claude Haiku 5.5, via Anthropic o OpenRouter) con un tetto di spesa giornaliero.
 - **Dashboard**: partita live, curva Elo, storia delle generazioni, ragionamento dell'agente, spesa.
 
 La divisione dei ruoli è dichiarata: l'LLM costruisce e ottimizza la macchina, la rete di valutazione impara gli scacchi dalle partite del motore contro se stesso.

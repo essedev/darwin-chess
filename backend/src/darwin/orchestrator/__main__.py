@@ -4,7 +4,7 @@ import argparse
 import asyncio
 import logging
 
-from darwin.config import get_settings
+from darwin.config import PROVIDERS, get_settings
 from darwin.ledger.migrate import migrate
 from darwin.ledger.store import Ledger
 from darwin.orchestrator.loop import Orchestrator
@@ -12,8 +12,8 @@ from darwin.orchestrator.loop import Orchestrator
 
 async def main(sessions: int | None) -> None:
     settings = get_settings()
-    if not settings.llm_api_key.get_secret_value():
-        raise SystemExit("DARWIN_LLM_API_KEY is not set")
+    if settings.llm_provider in PROVIDERS and not settings.llm_api_key.get_secret_value():
+        raise SystemExit(f"DARWIN_LLM_API_KEY is not set (provider {settings.llm_provider})")
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     await asyncio.to_thread(migrate, settings.ledger_url)
     ledger = Ledger(settings.ledger_url)
