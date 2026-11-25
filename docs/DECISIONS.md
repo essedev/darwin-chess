@@ -1,179 +1,178 @@
-# Decisioni
+# Decisions
 
-Voci numerate, citabili come `#N`. Ogni voce dice cosa vincola e perché, con le alternative scartate; il come sta in `ARCHITECTURE.md` e nel codice, la cronaca in `CYCLES.md`. Status: `proposta`, `attiva`, `in parte superata da #M` (la voce riporta già la regola in vigore), `superata da #M` (spostata in `decisions-archive.md`).
+Numbered entries, cited as `#N`. Each entry says what it constrains and why, with the alternatives rejected; the how lives in `ARCHITECTURE.md` and in the code, the chronicle in `CYCLES.md`. Status: `proposed`, `active`, `partly superseded by #M` (the entry already states the rule in force), `superseded by #M` (moved to `decisions-archive.md`).
 
-## #1 L'LLM costruisce la macchina, la rete impara gli scacchi
+## #1 The LLM builds the machine, the network learns chess
 
-Status: attiva. Data: 2026-11-24.
+Status: active. Date: 2026-11-24.
 
-Haiku conosce a memoria le tecniche dei motori (alfa-beta, transposition table, NNUE), quindi un motore scritto solo da lui misura la capacità di applicare conoscenza nota, non di scoprire. La valutazione la impara invece una rete dalle partite del motore contro se stesso, partendo da zero: quello che sa viene dai dati. Architettura libera per l'agente, con il vincolo di un budget di CPU per generazione: in pratica porta allo stile Stockfish (alfa-beta + NNUE in CPU).
+Haiku knows engine techniques by heart (alpha-beta, transposition tables, NNUE), so an engine written by it alone measures the ability to apply known knowledge, not to discover. The evaluation is instead learned by a network from the engine's self-play, starting from zero: what it knows comes from the data. The agent is free to choose the architecture, under a CPU budget per generation: in practice this leads to the Stockfish style (alpha-beta + NNUE on CPU).
 
-## #2 Arbitro immutabile, motori in container effimeri
+## #2 Immutable referee, engines in ephemeral containers
 
-Status: attiva. Data: 2026-11-24.
+Status: active. Date: 2026-11-24.
 
-L'agente ha pieno controllo sul genoma ma nessun accesso all'arbitro. Ogni processo motore gira in un container proprio (`--network none`, 1 CPU, binario in sola lettura): nello stesso container un candidato potrebbe terminare il processo avversario. Il perft si verifica su posizioni casuali perché i conteggi delle posizioni standard sono noti e si possono scrivere a mano.
+The agent has full control of the genome but no access to the referee. Every engine process runs in its own container (`--network none`, 1 CPU, read-only binary): in a shared container a candidate could kill its opponent's process. Perft is checked on random positions because the counts for the standard positions are known and can be hardcoded.
 
-## #3 SQLite invece di PostgreSQL
+## #3 SQLite instead of PostgreSQL
 
-Status: attiva. Data: 2026-11-24.
+Status: active. Date: 2026-11-24.
 
-Un solo scrittore su una sola macchina, nessun accesso concorrente da altri servizi: Postgres aggiungerebbe un servizio senza alcun vantaggio. SQLAlchemy e Alembic restano, quindi la migrazione sarebbe meccanica.
+A single writer on a single machine, no concurrent access from other services: Postgres would add a service with no benefit. SQLAlchemy and Alembic stay, so a migration would be mechanical.
 
-## #4 Registro append-only, niente soft delete
+## #4 Append-only ledger, no soft delete
 
-Status: attiva. Data: 2026-11-24.
+Status: active. Date: 2026-11-24.
 
-Il registro è la storia dell'esperimento: nessuna riga si cancella, quindi `deleted_at` non avrebbe un caso d'uso.
+The ledger is the history of the experiment: no row is ever deleted, so `deleted_at` would have no use.
 
-## #5 Haiku 5.5 via OpenRouter, provider intercambiabile
+## #5 Haiku 5.5 through OpenRouter, interchangeable provider
 
-Status: in parte superata da #11 e #17. Data: 2026-11-24.
+Status: partly superseded by #11 and #17. Date: 2026-11-24.
 
-Iterazione stimata fra 2 e 5 centesimi, da misurare (da #11), tetto 2 $/giorno. Provider e modello sono configurazione di pi, quindi un modello locale (llama-server, LM Studio) o un altro provider è una variabile d'ambiente (da #11). Il confronto fra modelli economici è rimandato: si fa se Haiku rende poco.
+An iteration estimated at 2 to 5 cents, to be measured (from #11), cap of 2 $/day. Provider and model are pi configuration, so a local model (llama-server, LM Studio) or another provider is an environment variable (from #11). Comparing cheap models is postponed: it happens if Haiku underperforms.
 
-## #6 Lichess come misura esterna, non come filtro
+## #6 Lichess as an external measure, not as a filter
 
-Status: attiva. Data: 2026-11-24.
+Status: active. Date: 2026-11-24.
 
-Le partite su Lichess sono troppo lente per decidere le generazioni (centinaia al giorno contro migliaia necessarie), ma danno un rating che l'agente non può falsificare. Chess.com è escluso: non ammette bot.
+Games on Lichess are too slow to decide generations (hundreds a day against the thousands needed), but they give a rating the agent cannot fake. Chess.com is ruled out: it does not allow bots.
 
-## #7 Dashboard in stile diretta essenziale (concept D)
+## #7 Dashboard in the minimal live style (concept D)
 
-Status: attiva. Data: 2026-11-24.
+Status: active. Date: 2026-11-24.
 
-Su quattro direzioni (laboratorio denso, genealogia editoriale, diretta da secondo schermo, diretta essenziale) la scelta è D: scacchiera al centro con i due giocatori e lo storico delle mosse, sottotitoli dell'agente, generazione corrente in evidenza in alto, storia delle generazioni a sinistra, a destra solo due carte (SPRT in parole semplici, spesa). Scartate A (troppi elementi per uno schermo da guardare), B (la storia da sola non dice cosa succede adesso: resta come spunto per una pagina secondaria) e C (stesso spirito di D, ma con più rumore). Il concept è in `docs/concepts/concept-a-dashboard.html`.
+Out of four directions (dense lab, editorial genealogy, second-screen live, minimal live) the choice is D: the board in the middle with both players and the move list, the agent's captions, the current generation highlighted at the top, the history of generations on the left, and on the right only two cards (SPRT in plain words, spend). Rejected: A (too many elements for a screen meant to be watched), B (history alone does not say what is happening now: it stays as an idea for a secondary page) and C (same spirit as D, but noisier). The concept is in `docs/concepts/concept-a-dashboard.html`.
 
-## #8 Pezzi cburnett e icone Lucide
+## #8 cburnett pieces and Lucide icons
 
-Status: attiva. Data: 2026-11-24.
+Status: active. Date: 2026-11-24.
 
-Pezzi cburnett, il set classico di Lichess e Wikipedia, scelto a vista fra sette set con licenza verificata nel COPYING.md di lila. È GPLv2+: va bene per un progetto personale, ma se il repo diventasse pubblico con un'altra licenza gli SVG restano GPL e vanno dichiarati a parte. Icone Lucide perché sono già il set dei componenti shadcn: un secondo set sarebbe incoerente.
+The cburnett pieces, the classic set of Lichess and Wikipedia, chosen by eye among seven sets whose license was checked in lila's COPYING.md. It is GPLv2+: fine for a personal project, but if the repository went public under another license the SVGs would stay GPL and have to be declared separately. The repository is now public under MIT, and LICENSE excludes them. Lucide icons because they are already the set of the shadcn components: a second set would be inconsistent.
 
-## #9 Le sconfitte su Lichess diventano lezioni per l'agente
+## #9 Lichess losses become lessons for the agent
 
-Status: attiva. Data: 2026-11-25.
+Status: active. Date: 2026-11-25.
 
-Il bot Lichess gioca sempre con il campione in carica e ogni sconfitta entra in una coda che l'agente legge, riassunta, prima di ogni iterazione: avversari veri trovano debolezze che il gioco contro se stesso non mostra. Le partite perse le analizza Stockfish lato arbitro, che indica la mossa in cui la valutazione crolla ma non la soluzione. È un aiuto esterno dichiarato: la rete continua a imparare solo dalle partite del motore. L'alternativa scartata, dare all'agente solo partita e risultato, renderebbe il feedback molto più povero. Il giudizio sui candidati resta all'arbitro in locale.
+The Lichess bot always plays the reigning champion and every loss joins a queue the agent reads, summarized, before every iteration: real opponents find weaknesses that self-play does not show. Stockfish analyses the lost games on the referee's side and points to the move where the evaluation collapses, but not to the fix. It is declared outside help: the network keeps learning only from the engine's own games. The rejected alternative, giving the agent only the game and the result, would make the feedback much poorer. Judging candidates stays with the local referee.
 
-## #10 fastchess gioca, l'arbitro giudica
+## #10 fastchess plays, the referee judges
 
-Status: attiva. Data: 2026-11-25.
+Status: active. Date: 2026-11-25.
 
-Le partite le gioca fastchess (versione fissata, compilata nell'immagine `arena`): controllo del tempo, concorrenza, crash e PGN sono problemi già risolti, riscriverli non darebbe niente. Il giudizio resta nostro: l'arbitro rilegge ogni PGN con python-chess e calcola l'SPRT pentanomiale a lotti, fermandosi quando il rapporto di verosimiglianza supera una soglia. L'SPRT interno di fastchess non si usa, così il verdetto ha una sola fonte. Il libro di aperture lo genera l'arbitro (mosse casuali a materiale pari) finché non lo sostituisce un libro filtrato da Stockfish.
+fastchess plays the games (pinned version, built into the `arena` image): time control, concurrency, crashes and PGN are solved problems, and rewriting them would give nothing. The judgement stays ours: the referee re-reads every PGN with python-chess and computes the pentanomial SPRT in batches, stopping when the likelihood ratio crosses a bound. fastchess's own SPRT is not used, so the verdict has a single source. The opening book is generated by the referee (random moves at equal material) until a book filtered by Stockfish replaces it.
 
-## #11 pi come harness dell'agente, in modalità RPC
+## #11 pi as the agent harness, in RPC mode
 
-Status: attiva. Data: 2026-11-25.
+Status: active. Date: 2026-11-25.
 
-L'agente gira dentro pi, comandato dall'orchestratore via JSON su stdin e stdout. Rispetto al ciclo scritto da noi porta tool di modifica dei file già rodati, che per un modello piccolo contano molto, e il supporto a OpenRouter. I comandi di pi vengono eseguiti nel sandbox, la chiave API resta fuori. Costi accettati: Node nello stack e un progetto giovane, quindi versione fissata. Scartato il Claude Agent SDK: prompt di sistema pesante pagato a ogni chiamata e legame con un solo fornitore. Sostituisce il client compatibile OpenAI previsto in #5; la stima di spesa sale a 2-5 centesimi per iterazione, da misurare.
+The agent runs inside pi, driven by the orchestrator with JSON over stdin and stdout. Compared with a loop of our own it brings well-tested file editing tools, which matter a lot for a small model, and OpenRouter support. pi's commands run in the sandbox, and the API key stays outside. Accepted costs: Node in the stack and a young project, hence a pinned version. Rejected: the Claude Agent SDK, with a heavy system prompt paid on every call and a tie to a single vendor. It replaces the OpenAI-compatible client planned in #5; the spend estimate rises to 2-5 cents per iteration, to be measured.
 
-## #12 Tool standard più quattro nostri
+## #12 Standard tools plus four of our own
 
-Status: attiva. Data: 2026-11-25.
+Status: active. Date: 2026-11-25.
 
-L'agente ha `read`, `write`, `edit`, `bash` nel sandbox e quattro tool nostri (`perft_check`, `submit`, `experiments`, `run_job`, poi `lichess_losses`) in un'estensione TypeScript che inoltra all'API locale dell'orchestratore. Diventa un tool solo ciò che il sandbox non può fare: interrogare l'arbitro, leggere il registro, agire fuori dal sandbox. Pochi tool perché le descrizioni viaggiano a ogni chiamata e un modello piccolo sceglie meglio fra poche opzioni chiare.
+The agent has `read`, `write`, `edit`, `bash` in the sandbox and four tools of our own (`perft_check`, `submit`, `experiments`, `run_job`, later `lichess_losses`) in a TypeScript extension that forwards to the orchestrator's local API. Only what the sandbox cannot do becomes a tool: querying the referee, reading the ledger, acting outside the sandbox. Few tools because their descriptions travel with every call and a small model chooses better among a few clear options.
 
-## #13 Ritmi a eventi e spesa distribuita sulle ore
+## #13 Event-driven rhythms and spend spread over the hours
 
-Status: attiva. Data: 2026-11-25.
+Status: active. Date: 2026-11-25.
 
-La CPU lavora sempre (partite, self-play), l'LLM si sveglia sugli eventi (verdetto, fine di un job, sconfitte Lichess) e una volta ogni tanto riscrive la propria strategia. Il budget di 2 $ al giorno si spende a quote orarie: un risveglio senza quota aspetta, la macchina no. Scartato il risveglio a orario fisso: o spreca chiamate quando non è cambiato niente, o lascia la CPU ferma.
+The CPU works all the time (games, self-play), the LLM wakes up on events (a verdict, the end of a job, Lichess losses) and every so often rewrites its own strategy. The budget of 2 $ a day is spent in hourly shares: a wake-up with no share left waits, the machine does not. Rejected: waking on a fixed schedule, which either wastes calls when nothing has changed or leaves the CPU idle.
 
-## #14 Deploy in Compose con container effimeri, dati allo stesso path
+## #14 Deploy in Compose with ephemeral containers, data at the same path
 
-Status: attiva. Data: 2026-11-25.
+Status: active. Date: 2026-11-25.
 
-Su server girano due servizi fissi, `core` (orchestratore e arbitro nello stesso processo, così il registro ha un solo scrittore) e `api`; sandbox, compilazioni, arena, motori e job sono container effimeri creati da `core`. Un solo container non basterebbe: ogni motore deve stare isolato dall'avversario. I dati sono montati allo stesso path dell'host, così i bind mount dei container figli funzionano uguali in sviluppo e in produzione. server è un MacBook Air M4 senza ventola, non un Mac mini: la concorrenza delle partite si tara con un test di carico prima di fidarsi delle stime.
+The server runs two fixed services, `core` (orchestrator and referee in the same process, so the ledger has a single writer) and `api`; sandbox, builds, arena, engines and jobs are ephemeral containers created by `core`. A single container would not do: every engine must be isolated from its opponent. The data is mounted at the same path as on the host, so the bind mounts of the child containers work the same way in development and production. The server is a fanless MacBook Air M4, not a Mac mini: game concurrency is tuned with a load test before trusting the estimates.
 
-## #15 Mirror fidato e memoria fuori dal genoma
+## #15 Trusted mirror and memory outside the genome
 
-Status: attiva. Data: 2026-11-25.
+Status: active. Date: 2026-11-25.
 
-Il repository del genoma è dell'agente: può riscrivere tag, cancellare oggetti, aggiungere hook o una `core.fsmonitor` che git eseguirebbe sull'host. Per questo git non gira mai sull'host sul genoma, e la storia che conta vive in un mirror bare che scrive solo l'orchestratore: l'arbitro compila da lì e ogni sessione riparte da lì. `NOTES.md` e `STRATEGY.md` escono dal genoma e vanno in `/memory`: dentro il genoma una lezione imparata da un esperimento bocciato sparirebbe con il reset.
+The genome repository belongs to the agent: it can rewrite tags, delete objects, add hooks or a `core.fsmonitor` that git would run on the host. That is why git never runs on the host against the genome, and the history that matters lives in a bare mirror written only by the orchestrator: the referee builds from there and every session restarts from there. `NOTES.md` and `STRATEGY.md` move out of the genome into `/memory`: inside the genome a lesson learned from a rejected experiment would vanish with the reset.
 
-## #16 Test della sessione completa con un modello finto
+## #16 Testing the full session with a fake model
 
-Status: attiva. Data: 2026-11-25.
+Status: active. Date: 2026-11-25.
 
-La catena pi, estensione, sandbox, tool, mirror, arbitro e registro si prova senza spendere: un endpoint locale compatibile OpenAI risponde con un copione di chiamate ai tool, configurato in pi come provider. Il costo per chiamata arriva da pi stesso, che lo calcola dai prezzi del modello: lo stesso campo usato con OpenRouter.
+The chain of pi, extension, sandbox, tools, mirror, referee and ledger is tested without spending: a local OpenAI-compatible endpoint answers with a script of tool calls, configured in pi as a provider. The cost per call comes from pi itself, which computes it from the model's prices: the same field used with OpenRouter.
 
-## #17 Provider Anthropic o OpenRouter, Anthropic di default
+## #17 Anthropic or OpenRouter provider, Anthropic by default
 
-Status: attiva. Data: 2026-11-25.
+Status: active. Date: 2026-11-25.
 
-La chiave disponibile è Anthropic, quindi il default diventa Anthropic diretto; OpenRouter resta selezionabile con `DARWIN_LLM_PROVIDER`. Il cambio non tocca altro codice: pi conosce entrambi i provider, ciascuno con il suo ID del modello (`claude-haiku-5-5`, `anthropic/claude-haiku-5.5`) e la sua variabile per la chiave, e calcola il costo dagli stessi prezzi (0,10 $ e 0,50 $ per milione di token, cache in lettura 0,01 $). Supera la scelta di OpenRouter di #5.
+The key available is an Anthropic one, so the default becomes Anthropic directly; OpenRouter stays selectable with `DARWIN_LLM_PROVIDER`. The switch touches no other code: pi knows both providers, each with its own model ID (`claude-haiku-5-5`, `anthropic/claude-haiku-5.5`) and its own key variable, and computes the cost from the same prices (0.10 $ and 0.50 $ per million tokens, cache reads 0.01 $). It supersedes the choice of OpenRouter in #5.
 
-## #18 Librerie per l'agente, niente GPU, quota disco sul disco interno
+## #18 Libraries for the agent, no GPU, disk quota on the internal disk
 
-Status: attiva. Data: 2026-11-25.
+Status: active. Date: 2026-11-25.
 
-L'agente riceve poche crate Rust già scaricate (rand, rayon, bytemuck) e Python con PyTorch CPU e numpy, tutto dentro l'immagine e quindi offline. Senza librerie l'addestramento di una rete andrebbe scritto da zero in Rust, il punto in cui un modello economico rischia di arenarsi; con PyTorch è il percorso standard, lo stesso di Stockfish che addestra in PyTorch e incorpora la rete nel motore. Quello che la rete sa viene comunque dalle partite. Il motore resta in Rust e i pesi vanno incorporati nel binario, perché l'arbitro lo esegue da solo.
+The agent gets a few vendored Rust crates (rand, rayon, bytemuck) and Python with PyTorch CPU and numpy, all inside the image and so offline. Without libraries, training a network would have to be written from scratch in Rust, the point where a cheap model risks getting stuck; with PyTorch it is the standard path, the same as Stockfish, which trains in PyTorch and embeds the network in the engine. What the network knows still comes from the games. The engine stays in Rust and the weights have to be embedded in the binary, because the referee runs it on its own.
 
-Niente GPU: Docker su Mac non vede la GPU Apple, e usarla vorrebbe dire eseguire codice dell'agente su macOS fuori dal sandbox. Scartato anche un addestratore nostro a cui l'agente passa solo dati: l'agente configurerebbe invece di costruire. Per reti piccole stile NNUE la CPU basta; si riapre se l'addestramento diventa il collo di bottiglia.
+No GPU: Docker on a Mac does not see the Apple GPU, and using it would mean running the agent's code on macOS outside the sandbox. Also rejected: a trainer of our own to which the agent only passes data, which would make the agent configure instead of build. For small NNUE-style networks the CPU is enough; this reopens if training becomes the bottleneck.
 
-I job scrivono sul disco interno di server (120 GB liberi) con una quota di 10 GB per job e 40 GB in tutto: un job oltre la quota viene fermato, uno nuovo viene rifiutato a quota piena, e l'agente cancella da sé gli output vecchi. Scartato il disco esterno: è condiviso con la libreria di other services, quasi pieno, e collegato via cavo, quindi può sparire sotto `core`.
+Jobs write to the server's internal disk (120 GB free) with a quota of 10 GB per job and 40 GB in all: a job over its quota is stopped, a new one is refused when the quota is full, and the agent deletes old outputs itself. The external disk was rejected: it is shared with a media library, nearly full and connected by cable, so it can disappear from under `core`.
 
 
-## #19 In Compose il registro sta in un volume Docker; ogni container porta l'istanza
+## #19 In Compose the ledger lives in a Docker volume; every container carries its instance
 
-Status: attiva. Data: 2026-11-25.
+Status: active. Date: 2026-11-25.
 
-Il primo avvio su server ha mostrato connessioni SQLite che non vedevano righe appena scritte da un'altra connessione dello stesso processo, con errori di chiave esterna e `core` riavviato. La causa è la cartella condivisa di Docker Desktop: la memoria condivisa del WAL non vi resta coerente, il caso dei filesystem di rete che SQLite sconsiglia. Il registro passa a un volume Docker, dentro la macchina virtuale; il resto di `data/` resta in cartella perché va montato nei container dei motori allo stesso path. Scartato il journal classico senza WAL: si appoggia ai lock dei file, che sulla stessa condivisione non danno più garanzie.
+The first start on the server showed SQLite connections that did not see rows just written by another connection of the same process, with foreign key errors and `core` restarting. The cause is Docker Desktop's shared folder: the WAL shared memory does not stay coherent there, the network filesystem case SQLite advises against. The ledger moves to a Docker volume, inside the virtual machine; the rest of `data/` stays in a folder because it has to be mounted into the engine containers at the same path. Rejected: the classic journal without WAL, which relies on file locks that give no more guarantees on the same share.
 
-Fermare `core` lasciava accesi arena, motori e sandbox. Ogni container porta ora l'etichetta dell'istanza (`prod` in Compose, `dev` in sviluppo, una propria per i test) e all'avvio `core` rimuove quelli della sua istanza, senza toccare gli altri.
+Stopping `core` left arena, engines and sandbox running. Every container now carries the instance label (`prod` in Compose, `dev` in development, one of their own for tests) and at startup `core` removes those of its instance without touching the others.
 
-## #20 Sito pubblico e bilingue, commenti per i visitatori separati dall'agente
+## #20 Public, bilingual site, commentary for visitors kept apart from the agent
 
-Status: in parte superata da #23. Data: 2026-11-25.
+Status: partly superseded by #23. Date: 2026-11-25.
 
-La dashboard diventa pubblica (Cloudflare Tunnel su `darwin.esse.dev`) e bilingue, italiano e inglese. Codice, prompt e testi dell'agente restano in inglese: ogni testo dell'agente si traduce in italiano e si conserva, ipotesi, lezioni, pensieri in diretta, strategia, appunti e istruzioni; solo il codice resta com'è (da #23).
+The dashboard goes public (Cloudflare Tunnel on `darwin.esse.dev`) and bilingual, Italian and English. Code, prompts and the agent's texts stay in English: every text of the agent is translated into Italian and kept, hypotheses, lessons, live thoughts, strategy, notes and instructions; only the code stays as it is (from #23).
 
-I commenti leggibili su partite e verdetti li scrive Haiku a partire da dati verificati (valutazioni di Stockfish, statistiche dei match), mai interpretando la partita a occhio. Hanno un budget loro, 0,20 $ al giorno, e l'agente non li legge: un secondo modello che gli spiega le partite cambierebbe la natura dell'esperimento. Il commento dell'arbitro arriva a match finito e non a intervalli di partite, perché a metà match i numeri ballano e il testo direbbe cose che il verdetto poi smentisce.
+The readable commentary on games and verdicts is written by Haiku from verified data (Stockfish evaluations, match statistics), never by reading the game by eye. It has a budget of its own, 0.20 $ a day, and the agent does not read it: a second model explaining the games to it would change the nature of the experiment. The referee's commentary comes when the match is over and not every few games, because halfway through a match the numbers swing and the text would say things the verdict later contradicts.
 
-## #21 Diretta a colonne bilanciate ed Elo con il suo margine
+## #21 Live page with balanced columns, and Elo with its margin
 
-Status: attiva. Data: 2026-11-25.
+Status: active. Date: 2026-11-25.
 
-La revisione di Diretta ed Evoluzione segue il concept B (`docs/concepts/concept-b-revisione.html`): per la Diretta la variante a1 (Rifinita), per l'Evoluzione la A. Scartate B (la Diretta come partita più un riquadro, la storia raggruppata per generazione) e C (una colonna sola come notiziario), che cambiavano la struttura per risolvere un problema di quantità e di scrittura; scartate le versioni estetiche a2 (senza riquadri) e a3 (griglia da strumento).
+The redesign of the Live and Evolution pages follows concept B (`docs/concepts/concept-b-revisione.html`): variant a1 ("Rifinita") for the Live page, A for Evolution. Rejected: B (the Live page as a game plus a panel, history grouped by generation) and C (a single column like a newsfeed), which changed the structure to solve a problem of quantity and writing; also rejected the aesthetic versions a2 (no panels) and a3 (instrument grid).
 
-La Diretta non contiene niente che cresce con la storia: tre colonne che finiscono alla stessa altezza, le ultime cinque generazioni, gli ultimi tre risultati fissi con il rinvio all'Evoluzione o al profilo del bot su Lichess. "Mostra altri" sul posto è stato provato e tolto: allungava una colonna e sbilanciava di nuovo la pagina.
+The Live page holds nothing that grows with the history: three columns ending at the same height, the last five generations, the last three results, fixed, with a link to Evolution or to the bot's Lichess profile. An in-place "Show more" was tried and removed: it lengthened one column and unbalanced the page again.
 
-Il numero principale della forza è l'Elo assoluto contro Stockfish con il suo margine al 95%, e il grafico mostra le barre d'errore e la fascia dove le generazioni si sovrappongono. I margini veri (± 120-140 Elo con le partite di oggi) mostravano che il calo da 1.193 a 1.129 era rumore, mentre il sito lo presentava come una discesa accanto a guadagni di +24 e +42. Il guadagno sul campione precedente resta, secondario e spiegato; la performance su Lichess si mostra da cinque partite in su.
+The headline strength number is the absolute Elo against Stockfish with its 95% margin, and the chart shows error bars and the band where generations overlap. The real margins (± 120-140 Elo with today's games) showed that the drop from 1,193 to 1,129 was noise, while the site presented it as a decline next to gains of +24 and +42. The gain over the previous champion stays, secondary and explained; the Lichess performance is shown from five games up.
 
-I titoli brevi degli esperimenti li scrive il worker dei commenti alla consegna, come la traduzione, non l'agente: il lavoro dell'agente non cambia e i titoli restano fuori da quello che legge.
+The short titles of the experiments are written by the commentary worker at submission, like the translation, not by the agent: the agent's work does not change and the titles stay out of what it reads.
 
-## #22 Aggiornare server svuotando core prima del riavvio
+## #22 Updating the server by draining core before the restart
 
-Status: attiva. Data: 2026-11-25.
+Status: active. Date: 2026-11-25.
 
-Riavviare `core` interrompeva tutto: la partita Lichess in corso persa a tempo (con punteggio), la sessione dell'agente segnata come errore, il giudizio rifatto da capo. `make deploy` chiede a `core` di svuotarsi con un file nella cartella dei dati, perché l'host la monta già e non serve aprire una porta: `core` non avvia sessioni né partite nuove, aspetta che finiscano quelle in corso (una sessione dura al massimo 40 minuti, una partita 3+2 una decina) e risponde con un altro file; solo allora `core` e `api` vengono ricreati.
+Restarting `core` interrupted everything: the Lichess game in progress lost on time (and rated), the agent's session marked as an error, the trial run again from the start. `make deploy` asks `core` to drain with a file in the data folder, because the host already mounts it and no port has to be opened: `core` starts no new sessions or games, waits for the ones in progress to finish (a session lasts at most 40 minutes, a 3+2 game about ten) and answers with another file; only then are `core` and `api` recreated.
 
-Il giudizio in corso non si aspetta e non si riprende: un match può durare un'ora, e riprenderlo dall'ultimo lotto vorrebbe dire salvare le partite giocate e ripartire dalle aperture giuste, per risparmiare solo tempo di calcolo. Si riapre se il riavvio diventa frequente. `core` gestisce anche SIGTERM: prima moriva subito senza chiudere niente.
+The trial in progress is neither waited for nor resumed: a match can last an hour, and resuming it from the last batch would mean saving the games played and restarting from the right openings, only to save compute time. This reopens if restarts become frequent. `core` also handles SIGTERM: before, it died at once without closing anything.
 
-## #23 Tutto tradotto in italiano tranne il codice
+## #23 Everything translated into Italian except the code
 
-Status: attiva. Data: 2026-11-25. Supera in parte #20.
+Status: active. Date: 2026-11-25. Partly supersedes #20.
 
-Su richiesta di Simone si traducono anche il pensiero in diretta, la strategia, gli appunti e le istruzioni dell'agente; resta in inglese solo il codice, perché due versioni del codice non avrebbero senso. Il costo misurato è basso: una traduzione costa circa 0,0001 $, i pensieri sono circa 200 al giorno, gli appunti cambiano a ogni sessione ma si traducono al massimo una volta l'ora, l'ultima versione. In tutto circa 3 centesimi al giorno, dentro il tetto dei commenti di 0,20 $ che non cambia.
+At the author's request the agent's live thought, strategy, notes and instructions are translated too; only the code stays in English, because two versions of the code would make no sense. The measured cost is low: a translation costs about 0.0001 $, there are about 200 thoughts a day, the notes change every session but are translated at most once an hour, the latest version. About 3 cents a day in all, within the unchanged commentary cap of 0.20 $.
 
-Il pensiero italiano arriva qualche secondo dopo l'originale: nel frattempo il sito mostra l'inglese con la sua etichetta. Ogni versione di un file di memoria ha la sua traduzione, legata al CRC32 del testo, così il sito non mostra mai la traduzione di una versione vecchia accanto all'originale nuovo. Oltre 16.000 caratteri un file resta in inglese: tradurlo a ogni cambio diventerebbe una chiamata lunga e cara.
+The Italian thought arrives a few seconds after the original: in the meantime the site shows the English with its label. Every version of a memory file has its own translation, tied to the CRC32 of the text, so the site never shows the translation of an old version next to a new original. Above 16,000 characters a file stays in English: translating it at every change would become a long and expensive call.
 
-## #24 Identità visiva: un colore per ogni cosa, stati animati in ASCII
+## #24 Visual identity: one colour for each thing, animated ASCII states
 
-Status: attiva. Data: 2026-11-25.
+Status: active. Date: 2026-11-25.
 
-Scelta la variante E del concept C (`docs/concepts/concept-c-identita.html`), tavolozza "e": fondo neutro, finiture minimal (fili da un pixel al posto delle ombre, etichette in maiuscoletto monospaziato, separatori tratteggiati), e un colore per ogni soggetto, uguale in tutto il sito: la forza del campione in blu, le generazioni in viola, il verdetto in verde, la spesa in ambra, quello che è in diretta in corallo. I riquadri sono appena tinti del colore del loro soggetto. Font invariati, Geist e Geist Mono.
+The choice is variant E of concept C (`docs/concepts/concept-c-identita.html`), palette "e": neutral background, minimal finishes (one-pixel rules instead of shadows, labels in monospaced small caps, dashed separators), and one colour per subject, the same across the site: the champion's strength in blue, generations in violet, the verdict in green, the spend in amber, whatever is live in coral. Panels are lightly tinted with the colour of their subject. Fonts unchanged, Geist and Geist Mono.
 
-Gli stati di caricamento, errore e vuoto sono animazioni ASCII a più colori: un cavallo che salta a L, il re che trema, i pezzi che scendono alla posizione iniziale. Con la riduzione del movimento attiva restano su un fotogramma fermo; sono nascoste agli screen reader, la frase accanto dice lo stato.
+Loading, error and empty states are multicolour ASCII animations: a knight jumping in an L, the king trembling, the pieces dropping into the starting position. With reduced motion on they stay on a still frame; they are hidden from screen readers, and the sentence next to them states the state.
 
-Scartate dopo cinque giri: A Terminale, B Taccuino, C Arcade (troppo colorate ed esagerate), D e le sue versioni (troppo monocromatiche: ogni versione era un colore solo in tante sfumature), e2 Pop ed e3 Terra.
+Rejected after five rounds: A "Terminale", B "Taccuino", C "Arcade" (too colourful and overdone), D and its versions (too monochrome: every version was a single colour in many shades), e2 "Pop" and e3 "Terra".
 
-## #25 L'agente ragiona a sforzo alto; niente subagenti per ora
+## #25 The agent reasons at high effort; no subagents for now
 
-Status: attiva. Data: 2026-11-25.
+Status: active. Date: 2026-11-25.
 
-L'agente girava con sforzo `low` (sotto il `medium` predefinito di Haiku 5.5) e da quattro generazioni faceva solo ritocchi piccoli alla valutazione; i cambi che valgono centinaia di Elo (quiescenza, gestione del tempo) li aveva tentati una volta e abbandonati. Passa a `high`. Il costo resta minimo: a `low` una sessione costava circa 0,003 $ e il limite al numero di sessioni è l'arbitro, non il budget, che usavamo per meno del 4%. Misura dopo le prime sessioni; si torna a `medium` se il costo sale molto senza vantaggi visibili.
+The agent ran at effort `low` (below Haiku 5.5's default `medium`) and for four generations had made only small evaluation tweaks; the changes worth hundreds of Elo (quiescence, time management) it had tried once and abandoned. It moves to `high`. The cost stays minimal: at `low` a session cost about 0.003 $, and the limit on the number of sessions is the referee, not the budget, of which we used less than 4%. To be measured after the first sessions; back to `medium` if the cost rises a lot with no visible benefit.
 
-Scartati i subagenti a sforzo più basso per il lavoro meccanico: oggi le sessioni sono corte (6-7 chiamate al modello, un file di 500 righe), quindi non c'è contesto da proteggere né costo da risparmiare, e avrebbero aggiunto processi concorrenti sullo stesso genoma, conti di spesa e limiti per sessione. Si riapre quando le sessioni diventano lunghe (addestramento di reti, rifacimenti grossi) o arrivano ai limiti di 40 minuti, 80 azioni o 0,25 $.
-
+Rejected: lower-effort subagents for the mechanical work. Today sessions are short (6-7 model calls, one 500-line file), so there is no context to protect and no cost to save, and they would have added concurrent processes on the same genome, spend accounting and per-session limits. This reopens when sessions get long (network training, large rewrites) or hit the limits of 40 minutes, 80 actions or 0.25 $.

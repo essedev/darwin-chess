@@ -1,62 +1,62 @@
-# Cicli
+# Cycles
 
-Un ciclo per unità di lavoro chiusa, dal più recente. Tiene gli ultimi ~15 cicli; i più vecchi vanno in `docs/archive/`.
+One cycle per closed unit of work, most recent first. It keeps the last ~15 cycles; older ones move to `docs/archive/`.
 
-## Ciclo 4: identità visiva, aggiornamenti senza interruzioni, un agente che pensa di più (2026-11-25)
+## Cycle 4: visual identity, updates without interruptions, an agent that thinks harder (2026-11-25)
 
-**Obiettivo**: rendere il sito leggibile e riconoscibile, poter aggiornare server senza perdere lavoro, e far uscire l'agente dai ritocchi piccoli in cui era fermo da quattro generazioni.
+**Goal**: make the site readable and recognizable, update the server without losing work, and get the agent out of the small tweaks it had been stuck on for four generations.
 
-**Fatto**:
-- Aggiornamenti: `make deploy` svuota `core` prima di ricrearlo (niente sessioni né partite Lichess nuove, quelle in corso finiscono), `core` gestisce SIGTERM; `make deploy only=api` riavvia solo il sito e lascia lavorare `core`.
-- Traduzioni: anche pensiero in diretta, strategia, appunti e istruzioni dell'agente in italiano, con le traduzioni rifiutate evitate e ritentate. Commenti che distinguono avversari umani dai bot, ordinali delle mosse in italiano.
-- Diretta: segue una partita fino alla fine invece di saltare fra le tre in parallelo, il nostro motore sempre in basso, le vittorie del match accanto ai nomi.
-- Identità visiva: concept C in cinque giri, scelta la variante E (un colore per soggetto, stati di caricamento, errore e vuoto animati in ASCII); caricamento centrato nella pagina. Changelog del sito 0.3.0 e 0.4.0.
-- Agente: sa dove trovare i tentativi passati; ragiona a sforzo `high` invece di `low`. La riflessione si conta dal registro: il contatore in memoria si azzerava a ogni riavvio di `core`, quindi l'agente non aveva mai riflettuto; ora rilegge tutta la storia (esperimenti, codice dei tentativi, sconfitte Lichess).
-- Esito: la prima riflessione vera (esperimento 25) è seguita dall'approfondimento iterativo con ordinamento MVV-LVA (esperimento 26), diventato gen-8 con +416 ± 149 Elo sul campione e 1.488 ± 115 di Elo assoluto, da 1.259 di gen-7. A sforzo alto una sessione costa 0,007-0,018 $, contro circa 0,002 $ a `low`; dall'avvio dell'esperimento 29 sessioni per 0,14 $ in tutto.
-- Lichess: dopo un 429 il bot rispetta l'attesa chiesta da Lichess (corpo della risposta o `Retry-After`), senza indicazione raddoppia la pausa fino a 4 ore, e la risposta va nel log. In produzione: alle 22:44 Lichess rifiuta ancora le sfide senza dire quanto aspettare, pausa salita a 16 minuti; ultima partita giocata alle 19:59.
+**Done**:
+- Updates: `make deploy` drains `core` before recreating it (no new sessions or Lichess games, the ones in progress finish), and `core` handles SIGTERM; `make deploy only=api` restarts only the site and leaves `core` working.
+- Translations: the agent's live thought, strategy, notes and instructions in Italian too, with refused translations avoided and retried. Commentary that tells human opponents from bots, move ordinals in Italian.
+- Live page: follows one game to its end instead of jumping among the three running in parallel, our engine always at the bottom, the match wins next to the names.
+- Visual identity: concept C in five rounds, variant E chosen (one colour per subject, loading, error and empty states animated in ASCII); loading centred on the page. Site changelog 0.3.0 and 0.4.0.
+- Agent: knows where to find past attempts; reasons at effort `high` instead of `low`. Reflection is counted from the ledger: the in-memory counter reset at every restart of `core`, so the agent had never reflected; now it rereads the whole history (experiments, code of past attempts, Lichess losses).
+- Outcome: the first real reflection (experiment 25) was followed by iterative deepening with MVV-LVA ordering (experiment 26), which became gen-8 with +416 ± 149 Elo over the champion and 1,488 ± 115 absolute Elo, up from gen-7's 1,259. At high effort a session costs 0.007-0.018 $, against about 0.002 $ at `low`; since the start of the experiment, 29 sessions for 0.14 $ in all.
+- Lichess: after a 429 the bot waits as long as Lichess asks (response body or `Retry-After`), doubles the pause up to 4 hours when Lichess does not say, and logs the response. In production: at 22:44 Lichess still refuses challenges without saying how long to wait, pause up to 16 minutes; last game played at 19:59.
 
-**Decisioni**: #22-#25 (svuotare `core` prima del riavvio, tutto tradotto tranne il codice, identità visiva, sforzo alto senza subagenti); #20 in parte superata da #23.
+**Decisions**: #22-#25 (drain `core` before restarting, everything translated except the code, visual identity, high effort without subagents); #20 partly superseded by #23.
 
-**Prossimo passo**: verificare che le sfide Lichess riprendano e, se il limite resta, capire quale limite è; misurare su una giornata costo e resa dello sforzo alto (#25). In coda all'arbitro la quiescenza (esperimento 29), dietro gli scacchi matti per distanza (28).
+**Next step**: check that Lichess challenges resume and, if the limit holds, find out which limit it is; measure the cost and yield of high effort over a day (#25). Queued for the referee: quiescence (experiment 29), behind mate scores by distance (28).
 
-## Ciclo 3: in esercizio su server, Lichess e sito pubblico (2026-11-25)
+## Cycle 3: running on the server, Lichess and the public site (2026-11-25)
 
-**Obiettivo**: le prime sessioni a pagamento, poi l'esperimento acceso 24/7 su server con il bot Lichess e una dashboard che si può guardare da fuori.
+**Goal**: the first paid sessions, then the experiment running 24/7 on the server with the Lichess bot and a dashboard that can be watched from outside.
 
-**Fatto**:
-- Prime sessioni pagate: `submit` accetta il lavoro già committato dall'agente, in genesi e nei primi passi la sessione successiva aspetta il verdetto (il lavoro sulla base vecchia finiva `stale`), il prompt spiega ogni verdetto.
-- Bot Lichess scritto da noi, sempre sul campione in carica: sconfitte analizzate da Stockfish e passate all'agente come lezioni, avversari deboli finché il rating è provvisorio, un'altra sfida subito quando una viene rifiutata, prove limitate a N partite.
-- Laboratorio dell'agente: crate Rust già scaricate, PyTorch CPU per l'addestramento, quote disco per i job.
-- server: registro in un volume Docker dopo righe non viste fra connessioni SQLite, container etichettati per istanza e ripuliti all'avvio, correzioni delle prime ore (generatore di aperture, consegne identiche alla base, rating interrotti da un riavvio). Un solo `data/` e un solo `.env` alla radice.
-- Sito: pagine Evoluzione, Codice, Mente e Laboratorio, sito bilingue con commenti su partite e verdetti scritti da Haiku, pubblico su darwin.esse.dev via Cloudflare Tunnel. Revisione di Diretta ed Evoluzione col concept B (colonne bilanciate, Elo con il margine al 95%, titoli brevi degli esperimenti, avanzamento dello SPRT in diretta), changelog 0.1.0 e 0.2.0.
-- Esito: cinque generazioni nel pomeriggio; da gen-3 il campione ha un Elo assoluto contro Stockfish, fra 1.130 e 1.190 con margini di ± 120-140.
+**Done**:
+- First paid sessions: `submit` accepts work the agent has already committed, in genesis and first steps the next session waits for the verdict (work on the old base ended up `stale`), the prompt explains every verdict.
+- Lichess bot written by us, always on the reigning champion: losses analysed by Stockfish and handed to the agent as lessons, weak opponents while the rating is provisional, another challenge right away when one is declined, trials limited to N games.
+- The agent's lab: vendored Rust crates, PyTorch CPU for training, disk quotas for jobs.
+- The server: ledger in a Docker volume after rows went unseen between SQLite connections, containers labelled per instance and cleaned up at startup, fixes from the first hours (opening generator, submissions identical to the base, ratings interrupted by a restart). A single `data/` and a single `.env` at the root.
+- Site: Evolution, Code, Mind and Lab pages, a bilingual site with commentary on games and verdicts written by Haiku, public on darwin.esse.dev through a Cloudflare Tunnel. Redesign of the Live and Evolution pages with concept B (balanced columns, Elo with its 95% margin, short experiment titles, live SPRT progress), changelog 0.1.0 and 0.2.0.
+- Outcome: five generations in the afternoon; from gen-3 on the champion has an absolute Elo against Stockfish, between 1,130 and 1,190 with margins of ± 120-140.
 
-**Decisioni**: #17-#21 (provider Anthropic di default, librerie e niente GPU, registro in volume e istanze, sito pubblico bilingue con commenti separati dall'agente, Diretta a colonne bilanciate con Elo e margine).
+**Decisions**: #17-#21 (Anthropic provider by default, libraries and no GPU, ledger in a volume and instances, public bilingual site with commentary kept apart from the agent, Live page with balanced columns and Elo with its margin).
 
-**Prossimo passo**: aggiornare server senza interrompere sessione e partita, tradurre anche il resto, l'identità visiva del sito.
+**Next step**: update the server without interrupting the session and the game, translate the rest too, the site's visual identity.
 
-## Ciclo 2: la pipeline completa in locale (2026-11-25)
+## Cycle 2: the complete pipeline, locally (2026-11-25)
 
-**Obiettivo**: costruire tutti i pezzi dell'esperimento (M1-M4) e avviare deploy e ancore (M5, M6), così che manchino solo le prove a pagamento e la messa in esercizio.
+**Goal**: build every piece of the experiment (M1-M4) and start on deploy and anchors (M5, M6), so that only the paid trials and going live remain.
 
-**Fatto**:
-- M1 Arbitro: compilazione pulita da un commit, perft su posizioni casuali con dettaglio per mossa, smoke, partite giocate da fastchess nel container `arena` con un container per motore, rilettura dei PGN con python-chess, SPRT pentanomiale a lotti calcolato da noi, giocatore casuale come prima ancora, cancelli per fase. Testato con motori UCI veri, anche difettosi apposta; uno shim elimina i container dei motori che ignorano `quit`.
-- M2 Registro: tabelle, migrazione iniziale e store; SQLite in WAL, `core` scrive e l'API legge.
-- M3 Orchestratore: pi in modalità RPC da una cartella vuota con il caricamento automatico spento, estensione che porta `read`/`write`/`edit`/`bash` nel sandbox e inoltra `perft_check`, `submit`, `experiments`, `run_job` all'API locale dei tool; mirror fidato da cui l'arbitro compila, memoria dell'agente fuori dal genoma, risveglio a eventi, riflessione periodica, spesa a quote orarie. Sessione completa provata da capo a fondo con un modello finto.
-- M4 Dashboard: API in sola lettura (overview, partita in corso dagli eventi di fastchess, SSE) e la direzione D del concept, con i pezzi cburnett e la loro licenza.
-- M5, parte: immagine unica `darwin-backend` per i servizi `core` e `api` in Compose (`make up`), dati montati allo stesso path dell'host. Provato in locale.
-- M6, parte: scala di ancore Stockfish 17 a forza limitata (`UCI_Elo` da 1320 a 2800); ogni nuovo campione viene misurato dopo la promozione e la dashboard mostra l'Elo assoluto, o quello relativo al giocatore casuale sotto la scala.
+**Done**:
+- M1 Referee: clean build from a commit, perft on random positions with a per-move breakdown, smoke, games played by fastchess in the `arena` container with one container per engine, PGNs re-read with python-chess, pentanomial SPRT in batches computed by us, the random player as the first anchor, gates per phase. Tested with real UCI engines, including deliberately faulty ones; a shim removes the containers of engines that ignore `quit`.
+- M2 Ledger: tables, initial migration and store; SQLite in WAL mode, `core` writes and the API reads.
+- M3 Orchestrator: pi in RPC mode from an empty folder with automatic loading off, an extension that brings `read`/`write`/`edit`/`bash` into the sandbox and forwards `perft_check`, `submit`, `experiments`, `run_job` to the local tools API; trusted mirror the referee builds from, agent memory outside the genome, event-driven wake-ups, periodic reflection, spend in hourly shares. A complete session tested end to end with a fake model.
+- M4 Dashboard: read-only API (overview, game in progress from fastchess's events, SSE) and direction D of the concept, with the cburnett pieces and their license.
+- M5, partly: a single `darwin-backend` image for the `core` and `api` services in Compose (`make up`), data mounted at the same path as on the host. Tested locally.
+- M6, partly: a ladder of Stockfish 17 anchors at limited strength (`UCI_Elo` from 1320 to 2800); every new champion is measured after its promotion and the dashboard shows the absolute Elo, or the Elo relative to the random player below the ladder.
 
-**Decisioni**: #9-#16 (lezioni da Lichess, fastchess gioca e l'arbitro giudica, pi come harness, tool, ritmi, deploy in Compose, mirror fidato, test con modello finto); #5 in parte superata da #11.
+**Decisions**: #9-#16 (lessons from Lichess, fastchess plays and the referee judges, pi as the harness, tools, rhythms, deploy in Compose, trusted mirror, tests with a fake model); #5 partly superseded by #11.
 
-**Prossimo passo**: le 3 iterazioni di prova a pagamento con costo misurato, che sono anche la prima accettazione di un genoma Rust vero. Poi deploy su server, bot Lichess, libro filtrato da Stockfish (vedi `ROADMAP.md`).
+**Next step**: the 3 paid trial iterations with measured cost, which are also the first acceptance of a real Rust genome. Then deploy on the server, the Lichess bot, a book filtered by Stockfish (see `ROADMAP.md`).
 
-## Ciclo 1: scaffold e progetto (2026-11-24)
+## Cycle 1: scaffold and design (2026-11-24)
 
-**Obiettivo**: fissare visione, confini di fiducia e stack, e scegliere la direzione della dashboard prima di scrivere codice.
+**Goal**: settle the vision, the trust boundaries and the stack, and choose the dashboard's direction before writing code.
 
-**Fatto**: scaffold di backend, dashboard e sandbox Docker, genoma `gen-0` creato e compilato offline nel sandbox. Concept della dashboard con quattro direzioni, scelta la D con storico delle mosse e set di pezzi.
+**Done**: scaffold of backend, dashboard and Docker sandbox, genome `gen-0` created and built offline in the sandbox. Dashboard concept with four directions, D chosen, with the move list and the piece set.
 
-**Decisioni**: #1-#8 (divisione LLM e rete, arbitro immutabile, SQLite, registro append-only, Haiku via OpenRouter, Lichess come misura esterna, dashboard D, pezzi cburnett e icone Lucide).
+**Decisions**: #1-#8 (division between LLM and network, immutable referee, SQLite, append-only ledger, Haiku through OpenRouter, Lichess as an external measure, dashboard D, cburnett pieces and Lucide icons).
 
-**Prossimo passo**: arbitro, registro, orchestratore.
+**Next step**: referee, ledger, orchestrator.
