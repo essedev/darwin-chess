@@ -35,3 +35,23 @@ Pezzi cburnett, il set classico di Lichess e Wikipedia, scelto a vista fra sette
 ## 2026-11-25: le sconfitte su Lichess diventano lezioni per l'agente
 
 Il bot Lichess gioca sempre con il campione in carica e ogni sconfitta entra in una coda che l'agente legge, riassunta, prima di ogni iterazione: avversari veri trovano debolezze che il gioco contro se stesso non mostra. Le partite perse le analizza Stockfish lato arbitro, che indica la mossa in cui la valutazione crolla ma non la soluzione. È un aiuto esterno dichiarato: la rete continua a imparare solo dalle partite del motore. L'alternativa scartata, dare all'agente solo partita e risultato, renderebbe il feedback molto più povero. Il giudizio sui candidati resta all'arbitro in locale.
+
+## 2026-11-25: fastchess gioca, l'arbitro giudica
+
+Le partite le gioca fastchess (versione fissata, compilata nell'immagine `arena`): controllo del tempo, concorrenza, crash e PGN sono problemi già risolti, riscriverli non darebbe niente. Il giudizio resta nostro: l'arbitro rilegge ogni PGN con python-chess e calcola l'SPRT pentanomiale a lotti, fermandosi quando il rapporto di verosimiglianza supera una soglia. L'SPRT interno di fastchess non si usa, così il verdetto ha una sola fonte. Il libro di aperture lo genera l'arbitro (mosse casuali a materiale pari) finché non c'è Stockfish per filtrarlo.
+
+## 2026-11-25: pi come harness dell'agente, in modalità RPC
+
+L'agente gira dentro pi, comandato dall'orchestratore via JSON su stdin e stdout. Rispetto al ciclo scritto da noi porta tool di modifica dei file già rodati, che per un modello piccolo contano molto, e il supporto a OpenRouter. I comandi di pi vengono eseguiti nel sandbox, la chiave API resta fuori. Costi accettati: Node nello stack e un progetto giovane, quindi versione fissata. Scartato il Claude Agent SDK: prompt di sistema pesante pagato a ogni chiamata e legame con un solo fornitore. Sostituisce il client compatibile OpenAI previsto il 24/11; la stima di spesa sale a 2-5 centesimi per iterazione, da misurare.
+
+## 2026-11-25: tool standard più quattro nostri
+
+L'agente ha `read`, `write`, `edit`, `bash` nel sandbox e quattro tool nostri (`perft_check`, `submit`, `experiments`, `run_job`, poi `lichess_losses`) in un'estensione TypeScript che inoltra all'API locale dell'orchestratore. Diventa un tool solo ciò che il sandbox non può fare: interrogare l'arbitro, leggere il registro, agire fuori dal sandbox. Pochi tool perché le descrizioni viaggiano a ogni chiamata e un modello piccolo sceglie meglio fra poche opzioni chiare.
+
+## 2026-11-25: ritmi a eventi e spesa distribuita sulle ore
+
+La CPU lavora sempre (partite, self-play), l'LLM si sveglia sugli eventi (verdetto, fine di un job, sconfitte Lichess) e una volta ogni tanto riscrive la propria strategia. Il budget di 2 $ al giorno si spende a quote orarie: un risveglio senza quota aspetta, la macchina no. Scartato il risveglio a orario fisso: o spreca chiamate quando non è cambiato niente, o lascia la CPU ferma.
+
+## 2026-11-25: deploy in Compose con container effimeri, dati allo stesso path
+
+Su server girano due servizi fissi, `core` (orchestratore e arbitro nello stesso processo, così il registro ha un solo scrittore) e `api`; sandbox, compilazioni, arena, motori e job sono container effimeri creati da `core`. Un solo container non basterebbe: ogni motore deve stare isolato dall'avversario. I dati sono montati allo stesso path dell'host, così i bind mount dei container figli funzionano uguali in sviluppo e in produzione. server è un MacBook Air M4 senza ventola, non un Mac mini: la concorrenza delle partite si tara con un test di carico prima di fidarsi delle stime.
