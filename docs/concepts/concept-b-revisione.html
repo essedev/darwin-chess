@@ -68,10 +68,26 @@
 			nelle varianti. La posizione sulla scacchiera è legale (validata con python-chess); i
 			pezzi cburnett vengono dal CDN di Lichess solo per il mock, come nel concept A.
 			Verifica: Chromium via preview, 1440 px e 390 px, entrambi i temi.
+
+			Giro 2: Simone: "Dieta è già meglio, ma vorrei anche un miglioramento estetico". A resta
+			   com'era, come riferimento; tre sottovarianti (tasti 1 2 3 con A attiva) tengono il
+			   contenuto e la struttura di A e cambiano solo il trattamento visivo. Tutte e tre
+			   aggiungono: numeri in Geist Mono (nel prodotto si installa @fontsource/geist-mono,
+			   oggi font-mono è quello di sistema), coordinate sulla scacchiera, fasi scritte per
+			   esteso invece delle quattro lineette, intestazioni dei riquadri con l'azione a destra,
+			   la colonna delle mosse con il suo titolo.
+			   a1 Rifinita: le carte di oggi, curate: ombra morbida su tutte le superfici, scacchiera
+			      in un vassoio con raggi concentrici (8 + 8 = 16), gerarchia dei numeri più netta.
+			   a2 Tavolo: niente scatole. La partita sta su un piano unico leggermente più scuro della
+			      carta, la scacchiera ha un'ombra vera; colonne laterali come testo fra filetti, con
+			      etichette in maiuscoletto mono.
+			   a3 Strumento: tutta la pagina è una griglia a filo di un pixel, come il pannello di uno
+			      strumento; angoli vivi dentro, raggio solo fuori, numeri e etichette in mono.
+			   Nessuna delle tre riprende il serif editoriale di B Genealogia (concept A), non scelto.
 		-->
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-		<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet" />
+		<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
 		<style>
 			/* Tokens copied from frontend/src/index.css (light, then .dark). */
 			:root {
@@ -343,8 +359,134 @@
 			.tbl .ra { text-align: right; white-space: nowrap; }
 			.evo-c { max-width: 960px; margin: 0 auto; display: grid; gap: 28px; }
 
+
+			/* Giro 2: A rivista. One markup, three skins set by variables. */
+			.ar, .ar-evo { --mono2: 'Geist Mono', var(--mono); --num-font: var(--sans); --col-gap: 14px; --h2-font: 500 13px var(--sans); --h2-ls: 0; --h2-tt: none; --h2-c: var(--fg); --tb-bg: transparent; --tb-pad: 0; --tb-r: 0; --tb-sh: none; --tray-pad: 0; --tray-r: 6px; --tray-bg: transparent; --tray-sh: none; --board-r: 6px; }
+			.ar { display: grid; grid-template-columns: 280px minmax(0, 1fr) 320px; gap: 28px 32px; max-width: 1440px; margin: 0 auto; }
+			.ar-top { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+			.ar-gen { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; }
+			.ar-gen h1 { font-size: 24px; font-weight: 600; letter-spacing: -0.02em; }
+			.ar-gen p { font-size: 14px; color: var(--muted-fg); }
+			.steps { margin-left: auto; display: flex; align-items: center; font-size: 12px; color: var(--muted-fg); }
+			.steps li { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+			.steps li + li::before { content: ''; width: 14px; height: 1px; margin: 0 8px; background: var(--border); }
+			.steps i { width: 6px; height: 6px; border-radius: 50%; background: var(--border); }
+			.steps .done i { background: var(--muted-fg); }
+			.steps .now { color: var(--fg); font-weight: 500; }
+			.steps .now i { background: var(--live); }
+			.ar-col { display: grid; align-content: start; gap: var(--col-gap); min-width: 0; }
+			.pn { min-width: 0; padding: var(--pn-pad); border-radius: var(--pn-r); background: var(--pn-bg); box-shadow: var(--pn-sh); }
+			.pn-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+			.pn-h h2 { display: flex; align-items: center; gap: 6px; font: var(--h2-font); letter-spacing: var(--h2-ls); text-transform: var(--h2-tt); color: var(--h2-c); }
+			.pn-h .link { font-size: 12px; }
+			.big { display: flex; align-items: baseline; gap: 8px; }
+			.big b { font: 600 46px/1 var(--num-font); letter-spacing: -0.035em; font-variant-numeric: tabular-nums; }
+			.big .pm { font: 500 16px var(--mono2); color: var(--muted-fg); }
+			.big .u { font: 500 12px var(--mono2); color: var(--muted-fg); }
+			.cap { margin-top: 6px; font-size: 12px; line-height: 1.5; color: var(--muted-fg); }
+			.pn-f { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted-fg); }
+			.ch { margin-top: 12px; }
+			.glist li { display: grid; grid-template-columns: 50px minmax(0, 1fr) auto; align-items: center; gap: 10px; margin: 0 -10px; padding: 9px 10px; border-radius: 10px; }
+			.glist li.now { background: color-mix(in oklab, var(--live) 10%, transparent); }
+			.gid { font: 500 12px var(--mono2); color: var(--muted-fg); }
+			.glist .now .gid { color: var(--live); }
+			.gt { min-width: 0; }
+			.gt b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; font-weight: 500; }
+			.gt span { display: block; font-size: 11.5px; color: var(--muted-fg); }
+			.ge { text-align: right; font: 500 13px var(--mono2); font-variant-numeric: tabular-nums; }
+			.ge b { display: block; font-weight: 500; }
+			.ge small { display: block; font-size: 10.5px; color: var(--muted-fg); }
+			.table { display: grid; gap: 14px; min-width: 0; padding: var(--tb-pad); border-radius: var(--tb-r); background: var(--tb-bg); box-shadow: var(--tb-sh); }
+			.tb-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+			.mt { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; }
+			.mt-id { font: 500 13px var(--mono2); color: var(--live); }
+			.mt h1 { font-size: 21px; font-weight: 600; letter-spacing: -0.015em; }
+			.mt p { font-size: 13px; color: var(--muted-fg); }
+			.g2 { display: grid; grid-template-columns: minmax(0, 1fr) 132px; gap: 16px; }
+			.g2-main { display: grid; gap: 10px; min-width: 0; }
+			.g2-moves { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 8px; min-height: 0; padding: 52px 0; }
+			.g2-moves .moves > div { font-family: var(--mono2); }
+			.tray { padding: var(--tray-pad); border-radius: var(--tray-r); background: var(--tray-bg); box-shadow: var(--tray-sh); }
+			.tray .board { border-radius: var(--board-r); }
+			.board em { position: absolute; z-index: 2; font: 600 10px/1 var(--sans); font-style: normal; pointer-events: none; }
+			.board .l em { color: var(--sq-dark); }
+			.board .d em { color: var(--sq-light); }
+			.board .rk { top: 4px; left: 4px; }
+			.board .fl { right: 4px; bottom: 3px; }
+			.pl { display: flex; align-items: center; gap: 12px; min-height: 42px; }
+			.pl .stone { width: 14px; height: 14px; }
+			.pl-n { min-width: 0; }
+			.pl-n b { display: block; font-size: 15px; font-weight: 600; }
+			.pl-n span { font-size: 12px; color: var(--muted-fg); }
+			.pl-s { margin-left: auto; display: flex; align-items: baseline; gap: 6px; }
+			.pl-s b { font: 500 22px var(--mono2); font-variant-numeric: tabular-nums; }
+			.pl-s span { font-size: 12px; color: var(--muted-fg); }
+			.cap2 { max-width: 620px; margin: 4px auto 0; text-align: center; }
+			.cap2 .t { margin-top: 6px; font-size: 18px; line-height: 1.4; font-weight: 500; text-wrap: balance; }
+			.vlist > li + li { border-top: 1px solid var(--border); }
+			.vr { display: grid; gap: 4px; padding: 14px 0; }
+			.vlist > li:first-child .vr { padding-top: 0; }
+			.vlist > li:last-child .vr { padding-bottom: 0; }
+			.vr-head { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+			.vr-head b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 600; }
+			.vr-head > :last-child { margin-left: auto; flex: none; }
+			.vid { font: 500 12px var(--mono2); color: var(--muted-fg); }
+			.vr-meta { font-size: 12px; color: var(--muted-fg); font-variant-numeric: tabular-nums; }
+			.vr-text { font-size: 13px; line-height: 1.5; color: var(--muted-fg); }
+			.res { flex: none; width: 44px; font-size: 13px; font-weight: 600; }
+			.ans { font-size: 24px; font-weight: 600; letter-spacing: -0.02em; }
+			.llr { position: relative; height: 8px; margin-top: 14px; border-radius: 4px; background: var(--muted); overflow: hidden; }
+			.llr i { position: absolute; top: 0; bottom: 0; left: 50%; border-radius: 0 4px 4px 0; background: var(--good); }
+			.llr b { position: absolute; top: 0; bottom: 0; left: calc(50% - 1px); width: 2px; background: var(--muted-fg); opacity: 0.5; }
+			.llr-l { display: flex; justify-content: space-between; margin-top: 6px; font: 11px var(--mono2); color: var(--muted-fg); }
+			.money { display: flex; align-items: baseline; gap: 8px; }
+			.money b { font: 600 30px/1 var(--num-font); letter-spacing: -0.03em; }
+			.money span { font: 500 13px var(--mono2); color: var(--muted-fg); }
+			.ar-evo { max-width: 1440px; margin: 0 auto; }
+			.ar-evo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }
+			.ar-evo .grow .elo, .ar-evo .erow .id, .ar-evo .grow .id { font-family: var(--mono2); }
+
+			/* a1 Rifinita: the cards of today, with care. */
+			body[data-v='a1'] .ar, body[data-v='a1'] .ar-evo { --pn-bg: var(--card); --pn-r: 20px; --pn-pad: 20px; --pn-sh: inset 0 0 0 1px var(--border), 0 1px 2px rgb(0 0 0 / 0.04), 0 14px 32px -18px rgb(30 20 0 / 0.18); --tray-pad: 8px; --tray-r: 16px; --board-r: 8px; --tray-bg: var(--card); --tray-sh: var(--pn-sh); }
+			:root[data-theme='dark'] body[data-v='a1'] .ar, :root[data-theme='dark'] body[data-v='a1'] .ar-evo { --pn-sh: inset 0 0 0 1px var(--border), 0 14px 32px -18px rgb(0 0 0 / 0.7); }
+			body[data-v='a1'] .pn-h { padding-bottom: 12px; margin-bottom: 14px; border-bottom: 1px solid var(--border); }
+			body[data-v='a1'] .ar-evo .xrow > button { padding: 11px 12px; }
+
+			/* a2 Tavolo: no boxes; the game on one plane, the rest is text between rules. */
+			body[data-v='a2'] .ar, body[data-v='a2'] .ar-evo { --pn-bg: transparent; --pn-r: 0; --pn-pad: 20px 0; --pn-sh: none; --col-gap: 0; --h2-font: 500 11px var(--mono2); --h2-ls: 0.08em; --h2-tt: uppercase; --h2-c: var(--muted-fg); --tb-bg: #ebe8df; --tb-pad: 28px; --tb-r: 28px; --tb-sh: inset 0 0 0 1px var(--border); --tray-r: 6px; --board-r: 6px; --tray-sh: 0 2px 6px rgb(0 0 0 / 0.12), 0 28px 48px -28px rgb(40 28 8 / 0.55); }
+			:root[data-theme='dark'] body[data-v='a2'] .ar, :root[data-theme='dark'] body[data-v='a2'] .ar-evo { --tb-bg: #17171a; --tray-sh: 0 2px 6px rgb(0 0 0 / 0.5), 0 28px 48px -24px rgb(0 0 0 / 0.9); }
+			body[data-v='a2'] .ar { gap: 28px 44px; }
+			body[data-v='a2'] .ar-col > .pn + .pn { border-top: 1px solid var(--border); }
+			body[data-v='a2'] .ar-col > .pn:first-child { padding-top: 0; }
+			body[data-v='a2'] .big b { font-size: 54px; }
+			body[data-v='a2'] .ar-stage > .pn { padding: 4px 8px 0; }
+			body[data-v='a2'] .ar-evo-grid { gap: 56px; }
+			body[data-v='a2'] .ar-evo .xrow > button { border-radius: 0; padding: 12px 0; border-top: 1px solid var(--border); }
+			body[data-v='a2'] .ar-evo .xrow.open > button, body[data-v='a2'] .ar-evo .xrow > button:hover { background: none; }
+			body[data-v='a2'] .ar-evo .xrow .detail { border-radius: 12px; margin-bottom: 10px; }
+			body[data-v='a2'] .ar-evo .chart-pn { padding: 22px 24px; border-radius: 22px; background: var(--tb-bg); box-shadow: var(--tb-sh); margin-bottom: 8px; }
+
+			/* a3 Strumento: one hairline grid, square inside, rounded only outside. */
+			body[data-v='a3'] .ar, body[data-v='a3'] .ar-evo { --pn-bg: var(--card); --pn-r: 0; --pn-pad: 18px; --pn-sh: none; --col-gap: 1px; --h2-font: 500 10.5px var(--mono2); --h2-ls: 0.1em; --h2-tt: uppercase; --h2-c: var(--muted-fg); --num-font: var(--mono2); --tb-bg: var(--card); --tb-pad: 18px; --tray-r: 2px; --board-r: 2px; }
+			body[data-v='a3'] .ar { gap: 1px; border-radius: 16px; overflow: hidden; background: var(--border); box-shadow: 0 0 0 1px var(--border); }
+			body[data-v='a3'] .ar-top { padding: 14px 18px; background: var(--card); }
+			body[data-v='a3'] .ar-col { background: var(--border); }
+			body[data-v='a3'] .ar-col::after { content: ''; background: var(--card); min-height: 0; }
+			body[data-v='a3'] .ar > .ar-col { align-content: stretch; grid-template-rows: auto auto 1fr; }
+			body[data-v='a3'] .big b { font-size: 40px; letter-spacing: -0.04em; font-weight: 500; }
+			body[data-v='a3'] .money b { font-weight: 500; }
+			body[data-v='a3'] .pill { border-radius: 4px; }
+			body[data-v='a3'] .seg, body[data-v='a3'] .seg button { border-radius: 6px; }
+			body[data-v='a3'] .glist li { border-radius: 4px; }
+			body[data-v='a3'] .ar-evo-grid { align-items: stretch; gap: 1px; border-radius: 16px; overflow: hidden; background: var(--border); box-shadow: 0 0 0 1px var(--border); }
+			body[data-v='a3'] .ar-evo .xrow, body[data-v='a3'] .ar-evo .xrow > button, body[data-v='a3'] .ar-evo .xrow .detail { border-radius: 0; }
+			body[data-v='a3'] .ar-evo .xrow > button { border-top: 1px solid var(--border); }
+
 			/* Narrow screens. */
 			@media (max-width: 1100px) {
+				.ar { grid-template-columns: minmax(0, 1fr) 300px; }
+				.ar > .ar-left { grid-column: 1 / -1; order: 3; }
+				.ar-evo-grid { grid-template-columns: 1fr; }
 				.live3 { grid-template-columns: minmax(0, 1fr) 300px; }
 				.live3 > .left { grid-column: 1 / -1; order: 3; }
 				.evo2 { grid-template-columns: 1fr; }
@@ -352,7 +494,19 @@
 			@media (max-width: 860px) {
 				.nav { padding: 0 16px; gap: 10px; }
 				main { padding: 16px 16px 40px; }
-				.live3, .live2 { grid-template-columns: minmax(0, 1fr); }
+				.live3, .live2, .ar { grid-template-columns: minmax(0, 1fr); }
+				.ar > .ar-stage { order: 1; }
+				.ar > .ar-right { order: 2; }
+				.ar > .ar-left { order: 3; }
+				.g2 { grid-template-columns: minmax(0, 1fr); }
+				.g2-moves { padding: 0; display: block; }
+				.g2-moves .eyebrow { display: none; }
+				.steps { margin-left: 0; }
+				.steps li:not(.now) { display: none; }
+				.steps li::before { display: none; }
+				.ar-gen { flex-direction: column; }
+				body[data-v='a2'] .ar, body[data-v='a2'] .ar-evo { --tb-pad: 16px; --tb-r: 22px; }
+				body[data-v='a2'] .ar-stage { margin: 0 -8px; }
 				.live3 > * { order: 0; }
 				.live3 > .stage { order: 1; }
 				.live3 > .right { order: 2; }
@@ -392,7 +546,10 @@
 				x: 'oggi: la replica del sito vero, il termine di paragone',
 				a: 'Dieta: stessa struttura di oggi, ogni blocco ridotto e riscritto',
 				b: 'Palco: la Diretta è la partita più un riquadro; la storia vive in Evoluzione, raggruppata per generazione',
-				c: 'Cronaca: una colonna, una frase di stato, un filo unico di quello che succede; Evoluzione come quaderno'
+				c: 'Cronaca: una colonna, una frase di stato, un filo unico di quello che succede; Evoluzione come quaderno',
+				a1: 'Rifinita: A con le stesse carte, curate in tipografia, numeri, ombre e scacchiera',
+				a2: 'Tavolo: A senza scatole; la partita su un piano unico, il resto testo fra filetti',
+				a3: 'Strumento: A come pannello di uno strumento, una griglia a filo con numeri in mono'
 			};
 
 			// Data: real (public API and ledger, 25/11/2026), except the short titles, the progress
@@ -506,24 +663,25 @@
 			const why = (text) => `<button class="why" type="button" aria-label="${T('Spiegazione', 'Explanation')}">?<span class="tip" role="tooltip">${text}</span></button>`;
 
 			// Board and game.
-			function board() {
+			function board(coords) {
 				const rows = FEN.split('/');
 				let html = '';
 				rows.forEach((row, r) => {
 					let c = 0;
 					for (const ch of row) {
-						if (/\d/.test(ch)) { for (let k = 0; k < +ch; k++) html += sq(r, c++, null); }
-						else html += sq(r, c++, ch);
+						if (/\d/.test(ch)) { for (let k = 0; k < +ch; k++) html += sq(r, c++, null, coords); }
+						else html += sq(r, c++, ch, coords);
 					}
 				});
 				return `<div class="board" role="img" aria-label="${T('Scacchiera', 'Board')}">${html}</div>`;
 			}
-			function sq(r, c, p) {
+			function sq(r, c, p, coords) {
 				const name = 'abcdefgh'[c] + (8 - r);
 				const cls = (r + c) % 2 === 0 ? 'l' : 'd';
 				const hl = LAST.includes(name) ? ' hl' : '';
 				const img = p ? `<img alt="" src="https://lichess1.org/assets/piece/cburnett/${p === p.toUpperCase() ? 'w' : 'b'}${p.toUpperCase()}.svg">` : '';
-				return `<i class="${cls}${hl}">${img}</i>`;
+				const co = coords ? `${c === 0 ? `<em class="rk">${8 - r}</em>` : ''}${r === 7 ? `<em class="fl">${'abcdefgh'[c]}</em>` : ''}` : '';
+				return `<i class="${cls}${hl}">${img}${co}</i>`;
 			}
 			function moves() {
 				let rows = '';
@@ -548,7 +706,7 @@
 			const RATED = GENS.filter((g) => g.abs !== null && !g.seed).slice().reverse();
 			function eloChart(opts = {}) {
 				const narrow = innerWidth < 600 && opts.axis;
-				const W = narrow ? 360 : opts.w || 300, H = narrow ? 170 : opts.h || 120, padL = opts.axis ? 34 : 6, padR = 8, padT = 8, padB = opts.axis ? 22 : 8;
+				const W = narrow ? 360 : opts.w || 300, H = narrow ? 170 : opts.h || 120, padL = opts.axis ? 34 : 6, padR = 8, padT = 8, padB = opts.axis || opts.xl ? 22 : 8;
 				const lo = 950, hi = 1350;
 				const pts = RATED;
 				const x = (i) => padL + ((W - padL - padR) * (i + 0.5)) / pts.length;
@@ -563,7 +721,7 @@
 					s += `<line class="err" x1="${x(i)}" x2="${x(i)}" y1="${y(p.abs + p.absErr)}" y2="${y(p.abs - p.absErr)}"/>`;
 					s += `<line class="err" x1="${x(i) - 5}" x2="${x(i) + 5}" y1="${y(p.abs + p.absErr)}" y2="${y(p.abs + p.absErr)}"/><line class="err" x1="${x(i) - 5}" x2="${x(i) + 5}" y1="${y(p.abs - p.absErr)}" y2="${y(p.abs - p.absErr)}"/>`;
 					s += `<circle class="pt" cx="${x(i)}" cy="${y(p.abs)}" r="4"/>`;
-					if (opts.axis) s += `<text x="${x(i)}" y="${H - 6}" text-anchor="middle">gen-${p.id}</text>`;
+					if (opts.axis || opts.xl) s += `<text x="${x(i)}" y="${H - 6}" text-anchor="middle">gen-${p.id}</text>`;
 				});
 				return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${T('Elo contro Stockfish per generazione, con margine', 'Elo against Stockfish per generation, with margin')}">${s}</svg>`;
 			}
@@ -907,12 +1065,93 @@
 					<div class="pager"><span>${T(`${page * per + 1}-${Math.min(list.length, page * per + per)} di ${list.length}`, `${page * per + 1}-${Math.min(list.length, page * per + per)} of ${list.length}`)}</span><div><button data-page="-1" ${page === 0 ? 'disabled' : ''}>${T('Più recenti', 'Newer')}</button><button data-page="1" ${page >= pages - 1 ? 'disabled' : ''}>${T('Più vecchi', 'Older')}</button></div></div></section></div>`;
 			}
 
+
+			// Giro 2: A rivista, the content of A in a markup the three skins can dress.
+			const panel = (title, body, opts = {}) => `<section class="pn ${opts.cls || ''}"><header class="pn-h"><h2>${title}${opts.why ? ` ${why(opts.why)}` : ''}</h2>${opts.action || ''}</header>${body}</section>`;
+			function steps() {
+				const ph = [['Genesi', 'Genesis'], ['Primi passi', 'First steps'], ['Evoluzione', 'Evolution'], ['Mondo', 'World']];
+				return `<ol class="steps" aria-label="${T('Fasi', 'Phases')}">${ph.map((p, i) => `<li class="${i < 2 ? 'done' : i === 2 ? 'now' : ''}"><i></i>${tx(p)}</li>`).join('')}</ol>`;
+			}
+			function gameAR(lichess) {
+				const pl = (c, name, sub, score) => `<div class="pl"><span class="stone ${c}"></span><span class="pl-n"><b>${name}</b><span>${sub}</span></span>${score !== null ? `<span class="pl-s"><b>${score}</b><span>${T('vinte', 'won')}</span></span>` : ''}</div>`;
+				const top = lichess ? pl('b', 'maia5', `1445 · ${T('nero', 'black')}`, null) : pl('b', T('Campione gen-5', 'Champion gen-5'), T('nero', 'black'), RUN.l);
+				const bottom = lichess ? pl('w', 'darwin-chess-bot', `gen-5 · ${T('bianco', 'white')}`, null) : pl('w', T('Candidato #18', 'Candidate #18'), T('bianco', 'white'), RUN.w);
+				return `<div class="g2"><div class="g2-main">${top}<div class="tray">${board(true)}</div>${bottom}</div><div class="g2-moves"><p class="eyebrow">${T('Mosse', 'Moves')}</p>${moves()}</div></div>`;
+			}
+			function liveAR() {
+				const last5 = GENS.filter((g) => !g.seed).slice(0, 5);
+				const shown = S.liveMore ? 7 : 3;
+				const share = RUN.llr / RUN.bound;
+				const gens = [
+					`<li class="now"><span class="gid">#18</span><span class="gt"><b>${tx(EXPS[0].title)}</b><span>${T('in gara contro gen-5', 'racing gen-5')}</span></span><span class="ge"></span></li>`,
+					...last5.map((g) => `<li><span class="gid">gen-${g.id}</span><span class="gt"><b>${tx(g.title)}</b><span>${g.tried === 1 ? T('al primo tentativo', 'first try') : T(`dopo ${g.tried} tentativi`, `after ${g.tried} tries`)}</span></span><span class="ge">${g.abs ? `<b>${n(g.abs)}</b><small>± ${g.absErr}</small>` : `<small title="${g.vsRandom ? T('batte il casuale', 'beats random') : T('non misurata', 'not rated')}">–</small>`}</span></li>`)
+				].join('');
+				const verdicts = MATCHES.slice(0, shown).map((m) => {
+					const e = EXPS.find((x) => x.id === m.exp);
+					return `<li><div class="vr"><div class="vr-head"><span class="vid">#${m.exp}</span><b>${tx(e.title)}</b><span class="pill ${m.v === 'h1' ? 'good' : 'bad'}">${m.v === 'h1' ? (e.gen ? `gen-${e.gen}` : T('promosso', 'promoted')) : T('scartato', 'rejected')}</span></div><p class="vr-meta">${n(m.w + m.d + m.l)} ${T('partite', 'games')} · ${sgn(m.elo)} ± ${n(m.err)} ${T('sul campione', 'vs champion')} · ${m.at}</p><p class="vr-text clamp2">${esc(tx(m.c))}</p></div></li>`;
+				}).join('');
+				const games = LICHESS.slice(0, shown).map((g) => `<li><div class="vr"><div class="vr-head"><span class="res ${RES[g.r][1]}">${tx(RES[g.r][0])}</span><b>${g.opp}</b><span class="mono mut" style="font-size:12px">${g.elo}</span><a class="mut" href="#" aria-label="${T('Apri su Lichess', 'Open on Lichess')}">${ext}</a></div><p class="vr-meta">gen-${g.gen} ${T(g.col === 'w' ? 'col bianco' : 'col nero', g.col === 'w' ? 'with white' : 'with black')} · 3+2 · ${g.at}</p>${g.c ? `<p class="vr-text clamp2">${esc(tx(g.c))}</p>` : ''}</div></li>`).join('');
+				const more = S.liveMore ? '' : `<div class="more"><button data-more>${S.tab === 'arena' ? T('Mostra altri 4', 'Show 4 more') : T('Mostra altre 7', 'Show 7 more')}</button></div>`;
+				const list = S.tab === 'arena'
+					? panel(T('Ultimi verdetti dell’arbitro', 'The referee’s latest verdicts'), `<ol class="vlist">${verdicts}</ol>${more}`, { action: `<a class="link" data-go="evoluzione">${T('Tutti', 'All')}</a>` })
+					: panel(T('Ultime partite su Lichess', 'Latest games on Lichess'), `<ol class="vlist">${games}</ol>${more}`);
+				const elo = panel(T('Forza del campione', 'Champion strength'), `<div class="big"><b>${n(1129)}</b><span class="pm">± 136</span><span class="u">Elo</span></div>
+					<p class="cap">${T('contro Stockfish · gen-5', 'against Stockfish · gen-5')}</p><div class="ch">${eloChart({ w: 300, h: 104, band: true, xl: true })}</div>
+					<p class="cap">${T('Gen-3, 4 e 5 stanno nello stesso margine: ancora nessuna differenza misurabile.', 'Gen-3, 4 and 5 sit inside the same margin: no measurable difference yet.')}</p>
+					<p class="pn-f">${lichessPerf(GENS[0])}</p>`, { why: ELO_TIP() });
+				const hist = panel(T('Generazioni', 'Generations'), `<ol class="glist">${gens}</ol>`, { action: `<a class="link" data-go="evoluzione">${T('Tutte e 18 le prove', 'All 18 attempts')}</a>` });
+				const verdict = panel(T('Il candidato è più forte?', 'Is the candidate stronger?'), `<p class="ans">${T('Ancora non si sa', 'Not known yet')}</p>
+					<div class="llr"><i style="width:${share * 50}%"></i><b></b></div><div class="llr-l"><span>${T('scarta', 'reject')}</span><span>${T('promuove', 'promote')}</span></div>
+					<p class="cap">${n(RUN.games)} ${T('partite', 'games')} · ${T(`V ${RUN.w} P ${RUN.d} S ${RUN.l}`, `W ${RUN.w} D ${RUN.d} L ${RUN.l}`)} · ${T('per ora pende verso il sì', 'leaning toward yes')}</p>
+					<p class="pn-f">${T('Ultimo verdetto: <b style="color:var(--fg);font-weight:500">#15 promosso</b>, è diventato gen-5.', 'Last verdict: <b style="color:var(--fg);font-weight:500">#15 promoted</b>, it became gen-5.')}</p>`);
+				const spend = panel(T('Speso oggi', 'Spent today'), `<p class="money"><b>${money(0.06)}</b><span>${T('di', 'of')} ${money(2)}</span></p><div class="llr" style="margin-top:12px;height:6px"><i style="left:0;width:3%;background:var(--live);border-radius:3px"></i></div><p class="cap">${T('18 sessioni, meno di un centesimo l’una', '18 sessions, under a cent each')}</p>`);
+				const head = S.tab === 'arena'
+					? `<div class="mt"><span class="mt-id">#18</span><h1>${tx(EXPS[0].title)}</h1><p>${T('contro il campione gen-5, dalle 14:27', 'against champion gen-5, since 14:27')}</p></div>`
+					: `<div class="mt"><span class="mt-id">Lichess</span><h1>${T('darwin-chess-bot contro maia5', 'darwin-chess-bot vs maia5')}</h1><p>3+2</p></div>`;
+				return `<div class="ar">
+					<header class="ar-top"><div class="ar-gen"><h1>${T('Generazione 5', 'Generation 5')}</h1><p>${T('il candidato #18 prova a diventare la 6', 'candidate #18 is trying to become 6')}</p></div><span class="pill bad"><i class="dot pulse"></i>${T('In diretta', 'Live')}</span>${steps()}</header>
+					<aside class="ar-col ar-left">${elo}${hist}</aside>
+					<div class="ar-col ar-stage"><div class="table"><div class="tb-head">${tabs()}${S.tab === 'lichess' ? `<a class="link" href="#" style="display:inline-flex;gap:6px;align-items:center">${T('Apri su Lichess', 'Open on Lichess')} ${ext}</a>` : ''}</div>${head}${gameAR(S.tab === 'lichess')}
+						<div class="cap2"><p class="eyebrow">${T('Ultimo pensiero dell’agente', 'The agent’s last thought')} · 14:27</p><p class="t clamp2" lang="en">${esc(plain(THOUGHT))}</p></div></div>${list}</div>
+					<aside class="ar-col ar-right">${verdict}${spend}</aside>
+				</div>`;
+			}
+			function evoAR() {
+				const list = EXPS.filter(matchFilter);
+				const per = 10, pages = Math.max(1, Math.ceil(list.length / per));
+				const page = Math.min(S.evoPage, pages - 1);
+				const slice = list.slice(page * per, page * per + per);
+				const gens = GENS.map((g, i) => {
+					const key = `g${g.id}`;
+					const open = S.open[key];
+					if (g.seed) return `<li class="xrow"><button class="grow" style="cursor:default"><span class="id mut">gen-0</span><span><b>${tx(g.title)}</b><span class="sub">25 nov, ${g.at}</span></span><span></span><span></span></button></li>`;
+					return `<li class="xrow ${open ? 'open' : ''}"><button class="grow" data-open="${key}" aria-expanded="${!!open}"><span class="id ${i === 0 ? 'live' : ''}">gen-${g.id}</span><span style="min-width:0"><b class="trunc">${tx(g.title)}</b><span class="sub">${i === 0 ? `<span class="live" style="font-weight:500">${T('campione', 'champion')}</span> · ` : ''}${g.tried === 1 ? T('al primo tentativo', 'first try') : T(`dopo ${g.tried} tentativi`, `after ${g.tried} attempts`)} · ${g.at}</span></span><span class="elo">${g.abs ? `${n(g.abs)}<small>± ${g.absErr}</small>` : `<span class="mut" style="font-size:12px;font-family:var(--sans)">${g.vsRandom ? T('batte il casuale', 'beats random') : T('non misurata', 'not rated')}</span>`}</span>${chev}</button><div class="detail">${genDetail(g)}</div></li>`;
+				}).join('');
+				const exps = slice.map((e) => {
+					const key = `e${e.id}`;
+					const open = S.open[key];
+					const sub = e.gen ? T(`è diventato gen-${e.gen}`, `became gen-${e.gen}`) : e.gate ? `${T('fermato a', 'stopped at')} «${tx(GATE[e.gate])}»${e.m ? ` · ${sgn(e.m[3])} ± ${e.m[4]}` : ''}` : `25 nov, ${e.at}`;
+					return `<li class="xrow ${open ? 'open' : ''}"><button class="erow" data-open="${key}" aria-expanded="${!!open}"><span class="id">#${e.id}</span><span style="min-width:0"><b class="trunc" style="${e.title ? '' : 'color:var(--muted-fg)'}">${titleOf(e)}</b><span class="sub trunc">${sub}</span></span>${pill(e.st)}${chev}</button><div class="detail">${expDetail(e)}</div></li>`;
+				}).join('');
+				const count = (k) => EXPS.filter((e) => { const f = S.evoFilter; S.evoFilter = k; const r = matchFilter(e); S.evoFilter = f; return r; }).length;
+				const chart = `<div class="chart-pn"><p class="label" style="display:flex;align-items:center;gap:6px;margin-bottom:8px;font-size:12px">${T('Elo contro Stockfish, margine al 95%', 'Elo against Stockfish, 95% margin')} ${why(ELO_TIP())}</p>${eloChart({ w: 560, h: 170, axis: true, band: true })}</div>`;
+				return `<div class="ar-evo"><header class="page-head"><h1>${T('Evoluzione', 'Evolution')}</h1><p>${T('Ogni generazione è una modifica dell’agente che ha battuto il campione in carica. Apri una riga per i dettagli.', 'Each generation is a change by the agent that beat the reigning champion. Open a row for the details.')}</p></header>
+				<div class="ar-evo-grid">
+					${panel(T('Le generazioni', 'The generations'), `${chart}<ol style="display:grid;gap:2px">${gens}</ol>`)}
+					${panel(`${T('Tutti gli esperimenti', 'All experiments')} <span class="mut" style="font-weight:400">${EXPS.length}</span>`, `<div class="filters"><div class="seg small">${FILTERS.map(([k, it, en]) => `<button data-filter="${k}" aria-pressed="${S.evoFilter === k}">${T(it, en)} <span class="mono mut">${count(k)}</span></button>`).join('')}</div></div>
+						<ol style="display:grid;gap:2px">${exps}</ol>
+						<div class="pager"><span>${T(`${page * per + 1}-${Math.min(list.length, page * per + per)} di ${list.length}`, `${page * per + 1}-${Math.min(list.length, page * per + per)} of ${list.length}`)}</span><div><button data-page="-1" ${page === 0 ? 'disabled' : ''}>${T('Più recenti', 'Newer')}</button><button data-page="1" ${page >= pages - 1 ? 'disabled' : ''}>${T('Più vecchi', 'Older')}</button></div></div>`)}
+				</div></div>`;
+			}
+
 			function render() {
 				const v = S.v;
 				document.querySelector('[data-nav]').innerHTML = nav();
 				document.documentElement.lang = S.lang;
-				const live = { x: liveX, a: liveA, b: liveB, c: liveC }[v];
-				const evo = { x: evoX, a: evoA, b: evoB, c: evoC }[v];
+				const b = v.replace(/\d+$/, '');
+				const sub = b !== v;
+				const live = sub ? liveAR : { x: liveX, a: liveA, b: liveB, c: liveC }[b];
+				const evo = sub ? evoAR : { x: evoX, a: evoA, b: evoB, c: evoC }[b];
 				document.querySelector('[data-main]').innerHTML = S.page === 'diretta' ? live() : evo();
 				document.querySelectorAll('[data-scroll]').forEach((el) => (el.scrollTop = el.scrollHeight, el.scrollLeft = el.scrollWidth));
 			}
@@ -942,7 +1181,7 @@
 			const load = () => { try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { return {}; } };
 			const save = (state) => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {} };
 			const name = (v) => DESC[v].split(':')[0];
-			document.querySelector('[data-buttons]').innerHTML = Object.keys(DESC).map((v) => `<button data-v="${v}">${v.toUpperCase()} ${name(v)}</button>`).join(' ');
+			document.querySelector('[data-buttons]').innerHTML = Object.keys(DESC).map((v) => `<button data-v="${v}">${/\d$/.test(v) ? `${v.slice(-1)} ${v[0].toUpperCase()}` : v.toUpperCase()} ${name(v)}</button>`).join(' ');
 			const pick = (v) => {
 				if (!DESC[v]) return;
 				S.v = v;
@@ -960,6 +1199,7 @@
 				const k = e.key.toLowerCase();
 				if (k === 't') setTheme(root.dataset.theme === 'dark' ? 'light' : 'dark');
 				else if (k === 'p') body.dataset.chrome = body.dataset.chrome === 'off' ? 'on' : 'off';
+				else if (/^\d$/.test(k)) pick(`${S.v.replace(/\d+$/, '')}${k}`);
 				else pick(k);
 			});
 			root.dataset.theme = load().theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
