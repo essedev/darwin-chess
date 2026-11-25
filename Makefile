@@ -34,7 +34,8 @@ test: ## Backend tests, including those with real containers (needs make images)
 test-unit: ## Backend tests without Docker
 	cd backend && uv run pytest -m "not docker and not llm"
 
-lint: ## Lint backend + frontend
+lint: ## Lint backend + frontend, and the language of the prose
+	python3 scripts/check-prose.py
 	cd backend && uv run ruff check .
 	cd frontend && pnpm lint
 

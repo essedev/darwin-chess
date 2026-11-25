@@ -10,3 +10,6 @@ docs/concepts/**
 
 # The Italian UI dictionary.
 frontend/src/i18n/it.ts
+
+# The prose checker itself: its word lists are Italian.
+scripts/check-prose.py

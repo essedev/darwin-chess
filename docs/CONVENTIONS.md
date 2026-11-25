@@ -16,7 +16,7 @@ Rules specific to this project.
 | `CHANGELOG.md` | Italian, shown on the site; `CHANGELOG.en.md` is its English twin |
 | `docs/concepts/` | Italian, the language of the UI they mock |
 
-The exceptions are declared in `.prose-allow`.
+The exceptions are declared in `.prose-allow`. `make lint` runs `scripts/check-prose.py`, which fails on Italian prose outside them and on a README pair out of step, and ruff's `D100`, which requires a module docstring in `backend/src/darwin`.
 
 ## Glossary
 
