@@ -15,11 +15,23 @@ class Settings(BaseSettings):
     # Binaries, matches and artifacts. Containers spawned by the referee mount it at the same
     # path it has on the host, so it must be absolute (relative values are resolved here).
     data_dir: Path = Path("data")
+    # Trusted bare copy of every commit that matters; the agent never writes it.
+    mirror_dir: Path = Path("data/mirror.git")
 
-    llm_base_url: str = "https://openrouter.ai/api/v1"
-    llm_api_key: SecretStr = SecretStr("")
+    llm_api_key: SecretStr = SecretStr("")  # OpenRouter key, handed to pi
+    llm_provider: str = "openrouter"
     llm_model: str = "anthropic/claude-haiku-5.5"
+    llm_thinking: str = "low"
     daily_budget_usd: float = 2.0
+    # Per agent session: the orchestrator aborts pi past any of these.
+    session_max_usd: float = 0.25
+    session_max_tool_calls: int = 80
+    session_max_minutes: float = 40.0
+    reflection_every: int = 10  # iterations between two reflections
+
+    # pi, pinned, and the extension (repo folder `agent/`).
+    agent_dir: Path = Path("../agent")
+    tools_port: int = 4732
 
     docker_bin: str = "docker"
     docker_socket: str = "/var/run/docker.sock"
@@ -35,7 +47,7 @@ class Settings(BaseSettings):
 
     api_port: int = 4730
 
-    @field_validator("genome_dir", "data_dir")
+    @field_validator("genome_dir", "data_dir", "mirror_dir", "agent_dir")
     @classmethod
     def _absolute(cls, value: Path) -> Path:
         return value.expanduser().resolve()

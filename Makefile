@@ -7,6 +7,14 @@ help: ## Mostra questo help
 install: ## Installa dipendenze
 	cd backend && uv sync
 	cd frontend && pnpm install
+	cd agent && pnpm install
+
+run-core: ## Avvia l'esperimento: orchestratore + arbitro (serve DARWIN_LLM_API_KEY)
+	cd backend && uv run python -m darwin.orchestrator
+
+run-sessions: ## Solo N sessioni di prova e poi si ferma (n=)
+	@test -n "$(n)" || (echo "Uso: make run-sessions n=3" && exit 1)
+	cd backend && uv run python -m darwin.orchestrator --sessions $(n)
 
 dev: ## Avvia API + dashboard in parallelo
 	@trap 'kill 0' EXIT; \
@@ -33,9 +41,10 @@ lint: ## Lint backend + frontend
 format: ## Format backend
 	cd backend && uv run ruff format .
 
-typecheck: ## Typecheck backend + frontend
+typecheck: ## Typecheck backend + frontend + estensione di pi
 	cd backend && uv run mypy
 	cd frontend && pnpm exec tsc -b
+	cd agent && pnpm exec tsc -p .
 
 check: ## Giro completo qualità
 	$(MAKE) format
@@ -71,5 +80,5 @@ genome-init: lab-build ## Crea il genoma vuoto (gen-0) da seed/
 	docker compose run --rm --no-deps lab sh -c '\
 		cargo init --name genome --vcs git . && \
 		git config user.name darwin-agent && git config user.email agent@darwin.local'
-	cp seed/*.md genome/
+	cp seed/CONTRACT.md genome/
 	cd genome && git add -A && git commit -qm "gen-0: empty seed" && git tag gen-0

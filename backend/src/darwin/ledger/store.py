@@ -102,6 +102,20 @@ class Ledger:
             row = await s.get_one(m.Experiment, experiment_id)
             row.status, row.error, row.finished_at = status, error, m.utcnow()
 
+    async def experiment(self, experiment_id: int) -> m.Experiment:
+        async with self.session() as s:
+            return await s.get_one(m.Experiment, experiment_id)
+
+    async def unfinished_experiments(self) -> Sequence[m.Experiment]:
+        async with self.session() as s:
+            query = select(m.Experiment).where(m.Experiment.status.in_(("running", "judging")))
+            return (await s.scalars(query.order_by(m.Experiment.id))).all()
+
+    async def rebased(self, experiment_id: int, commit: str) -> None:
+        """The candidate was replayed on a newer base: judge (and record) that commit."""
+        async with self.session() as s:
+            (await s.get_one(m.Experiment, experiment_id)).candidate_commit = commit
+
     async def set_lesson(self, experiment_id: int, lesson: str) -> None:
         async with self.session() as s:
             (await s.get_one(m.Experiment, experiment_id)).lesson = lesson

@@ -1,0 +1,4 @@
+# Install scripts of pi's provider SDKs are not needed: pi runs from its published dist.
+allowBuilds:
+  '@google/genai': false
+  protobufjs: false

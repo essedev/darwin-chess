@@ -1,0 +1,14 @@
+{
+  "name": "darwin-agent",
+  "private": true,
+  "description": "pi, the agent harness, pinned, plus the darwin extension that routes its tools into the sandbox.",
+  "type": "module",
+  "dependencies": {
+    "@earendil-works/pi-coding-agent": "1.5.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "typebox": "1.3.27",
+    "typescript": "~5.9.3"
+  }
+}

@@ -55,3 +55,12 @@ La CPU lavora sempre (partite, self-play), l'LLM si sveglia sugli eventi (verdet
 ## 2026-11-25: deploy in Compose con container effimeri, dati allo stesso path
 
 Su server girano due servizi fissi, `core` (orchestratore e arbitro nello stesso processo, così il registro ha un solo scrittore) e `api`; sandbox, compilazioni, arena, motori e job sono container effimeri creati da `core`. Un solo container non basterebbe: ogni motore deve stare isolato dall'avversario. I dati sono montati allo stesso path dell'host, così i bind mount dei container figli funzionano uguali in sviluppo e in produzione. server è un MacBook Air M4 senza ventola, non un Mac mini: la concorrenza delle partite si tara con un test di carico prima di fidarsi delle stime.
+
+## 2026-11-25: mirror fidato e memoria fuori dal genoma
+
+Il repository del genoma è dell'agente: può riscrivere tag, cancellare oggetti, aggiungere hook o una `core.fsmonitor` che git eseguirebbe sull'host. Per questo git non gira mai sull'host sul genoma, e la storia che conta vive in un mirror bare che scrive solo l'orchestratore: l'arbitro compila da lì e ogni sessione riparte da lì. `NOTES.md` e `STRATEGY.md` escono dal genoma e vanno in `/memory`: dentro il genoma una lezione imparata da un esperimento bocciato sparirebbe con il reset.
+
+## 2026-11-25: test della sessione completa con un modello finto
+
+La catena pi, estensione, sandbox, tool, mirror, arbitro e registro si prova senza spendere: un endpoint locale compatibile OpenAI risponde con un copione di chiamate ai tool, configurato in pi come provider. Il costo per chiamata arriva da pi stesso, che lo calcola dai prezzi del modello: lo stesso campo usato con OpenRouter.
+

@@ -1,7 +1,8 @@
 """Build gate: a clean release build of one genome commit, offline, in a fresh container.
 
-The build starts from a clone of the commit, never from the agent's working tree, so what
-is judged is exactly what was committed. The binary is kept under the data dir by commit.
+The build starts from the trusted mirror (`refs/darwin/*`), never from the agent's working
+tree or repository, so what is judged is exactly what was archived. The binary is kept
+under the data dir by commit.
 """
 
 import re
@@ -17,9 +18,10 @@ LOG_TAIL_LINES = 40
 
 SCRIPT = """
 set -e
-git -c safe.directory='*' clone -q /src /tmp/build
+git init -q /tmp/build
 cd /tmp/build
-git -c advice.detachedHead=false checkout -q "$1"
+git -c safe.directory='*' fetch -q /src '+refs/darwin/*:refs/darwin/*'
+git -c advice.detachedHead=false checkout -q --detach "$1"
 cargo build --release --offline --quiet
 cp /tmp/target/release/genome /out/genome
 """
@@ -39,7 +41,7 @@ def build_argv(settings: Settings, commit: str, out: Binary, run_id: str) -> lis
         "--user", "1000:1000",
         "--label", f"{docker.RUN_LABEL}={run_id}",
         "-e", "CARGO_HOME=/tmp/cargo", "-e", "CARGO_TARGET_DIR=/tmp/target",
-        "-v", f"{settings.genome_dir}:/src:ro",
+        "-v", f"{settings.mirror_dir}:/src:ro",
         "-v", f"{out.dir}:/out",
         settings.lab_image, "sh", "-c", SCRIPT, "build", commit,
     ]  # fmt: skip

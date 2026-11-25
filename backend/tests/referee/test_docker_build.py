@@ -25,18 +25,22 @@ def git(repo: Path, *args: str) -> str:
 
 
 def commit(repo: Path, main_rs: str) -> str:
+    """Commits in the genome and archives it in the mirror, as the orchestrator does."""
     (repo / "src").mkdir(parents=True, exist_ok=True)
     (repo / "Cargo.toml").write_text(CARGO_TOML)
     (repo / "src" / "main.rs").write_text(main_rs)
     git(repo, "add", "-A")
     git(repo, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "step")
-    return git(repo, "rev-parse", "HEAD")
+    sha = git(repo, "rev-parse", "HEAD")
+    git(repo, "push", "-q", str(repo.parent / "mirror.git"), f"HEAD:refs/darwin/exp-{sha[:8]}")
+    return sha
 
 
 @pytest.fixture
 def genome(settings: Settings) -> Path:
     settings.genome_dir.mkdir(parents=True)
     git(settings.genome_dir, "init", "-q")
+    subprocess.run(["git", "init", "-q", "--bare", str(settings.mirror_dir)], check=True)
     return settings.genome_dir
 
 

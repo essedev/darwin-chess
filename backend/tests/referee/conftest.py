@@ -1,4 +1,3 @@
-import subprocess
 from pathlib import Path
 
 import pytest
@@ -9,23 +8,10 @@ from darwin.referee.models import EngineSpec
 TEST_ENGINES_IMAGE = "darwin-testengines"
 
 
-@pytest.fixture(scope="session")
-def images() -> None:
-    """Docker tests run against the real images; build them with `make images`."""
-    settings = Settings()
-    for image in (settings.lab_image, settings.arena_image, settings.anchors_image,
-                  TEST_ENGINES_IMAGE):  # fmt: skip
-        found = subprocess.run(
-            ["docker", "image", "inspect", image], capture_output=True, check=False
-        )
-        if found.returncode != 0:
-            pytest.fail(f"image {image} missing: run `make images`")
-
-
 @pytest.fixture
 def settings(tmp_path: Path, images: None) -> Settings:
     return Settings(data_dir=tmp_path / "data", genome_dir=tmp_path / "genome",
-                    match_concurrency=3)  # fmt: skip
+                    mirror_dir=tmp_path / "mirror.git", match_concurrency=3)  # fmt: skip
 
 
 def faulty(mode: str, name: str | None = None) -> EngineSpec:

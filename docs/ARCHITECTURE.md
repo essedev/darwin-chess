@@ -16,7 +16,9 @@ Il confine di fiducia è il punto centrale del progetto. Un LLM a cui si chiede 
 
 ## Componenti
 
-- **Sandbox** (`lab/`): immagine Docker con la toolchain Rust. I comandi dell'agente girano qui, senza rete, con solo `genome/` montato in scrittura e il filesystem di sistema in sola lettura. Un container nuovo per ogni iterazione.
+- **Sandbox** (`lab/`): immagine Docker con la toolchain Rust. I comandi dell'agente girano qui, senza rete, con `genome/` e `/memory` in scrittura, il mirror e `/jobs` in sola lettura, il filesystem di sistema in sola lettura. Un container nuovo per ogni sessione.
+- **Mirror** (`data/mirror.git`): repository bare fidato con ogni commit che conta (`refs/darwin/gen-N`, `refs/darwin/exp-N`). Lo scrive solo l'orchestratore; la compilazione dell'arbitro e il reset del genoma partono da qui, così l'agente non può alterare o cancellare la storia dei campioni.
+- **Memoria** (`data/agent/memory`): `NOTES.md` e `STRATEGY.md` dell'agente, fuori dal genoma, così sopravvivono agli esperimenti bocciati.
 - **Arbitro** (`darwin.referee`): oracolo perft su posizioni casuali (python-chess), compilazione pulita del candidato, partite e SPRT. Le partite le gioca fastchess nel container `arena`; l'arbitro prepara le aperture, rilegge ogni PGN con python-chess per verificare legalità ed esito, e calcola lui l'SPRT a lotti. Ogni processo motore gira nel proprio container effimero (`--network none`, binario in sola lettura, 1 CPU): un candidato non vede e non può toccare l'avversario. Le ancore sono il giocatore casuale (da M1) e Stockfish a forza limitata (M6).
 - **Orchestratore** (`darwin.orchestrator`): il ciclo delle generazioni, i ritmi descritti sotto, il tetto di spesa. L'agente gira dentro pi, comandato in modalità RPC.
 - **Registro** (`darwin.ledger`): SQLite append-only con esperimenti, verdetti, partite, generazioni, chiamate LLM ed eventi dell'agente. Schema in `DATABASE_SCHEMA.md`.
@@ -26,7 +28,7 @@ Il confine di fiducia è il punto centrale del progetto. Un LLM a cui si chiede 
 
 ## L'agente: pi e i suoi tool
 
-L'orchestratore avvia pi come processo figlio e lo comanda via JSON su stdin e stdout (modalità RPC). Ogni evento di pi (testo dell'agente, chiamate ai tool, uso dei token) passa dall'orchestratore, che lo scrive in `agent_events` e `llm_calls`: da lì nascono i sottotitoli della dashboard e il conteggio della spesa. pi non entra nel sandbox: ci entrano solo i suoi comandi, mentre la chiave API resta all'orchestratore. Versione di pi fissata, il progetto è giovane.
+L'orchestratore avvia pi (`agent/`, versione fissata) come processo figlio e lo comanda via JSON su stdin e stdout (modalità RPC). pi gira in una cartella vuota con ogni caricamento automatico spento (configurazione di progetto, estensioni, skill, template, file di contesto, MCP): niente di ciò che l'agente scrive può essere caricato da pi, solo la nostra estensione. Ogni evento di pi (testo dell'agente, chiamate ai tool, uso dei token) passa dall'orchestratore, che lo scrive in `agent_events` e `llm_calls`: da lì nascono i sottotitoli della dashboard e il conteggio della spesa. pi non entra nel sandbox: ci entrano solo i suoi comandi, mentre la chiave API resta all'orchestratore. Versione di pi fissata, il progetto è giovane.
 
 Tool standard, eseguiti nel sandbox: `read`, `write`, `edit`, `bash`. Con la bash l'agente compila, testa, usa il git del genoma e fa giocare il suo motore contro il campione ricompilato dal tag.
 
@@ -44,10 +46,10 @@ Regola: diventa un tool solo ciò che il sandbox non può fare da solo. L'agente
 
 ## Il ciclo di una generazione
 
-1. **Osserva**: l'orchestratore costruisce il contesto: fase corrente, campione, ultimi N esperimenti con ipotesi ed esito, `NOTES.md` e `STRATEGY.md` del genoma, una riga sulle sconfitte Lichess nuove.
+1. **Osserva**: l'orchestratore riporta il genoma alla base (l'ultimo commit accettato) e costruisce il contesto: fase, campione, ultimo verdetto con i dettagli dei cancelli, ultimi esperimenti, job, `STRATEGY.md` e la coda di `NOTES.md` (letti attraverso il sandbox: sono file dell'agente).
 2. **Implementa**: l'agente lavora con i suoi tool entro un tetto di chiamate e token per iterazione; l'orchestratore conta i token dagli eventi di pi e lo ferma se lo supera.
-3. **Consegna**: con `submit` il candidato attraversa i cancelli dell'arbitro in ordine di costo, fermandosi al primo fallito: build, perft, smoke (partite lampo senza mosse illegali, crash o timeout), match della fase.
-4. **Impara**: l'esito va nel registro. Se vince, il candidato diventa un commit con tag `gen-N` nel genoma; l'agente aggiunge una lezione a `NOTES.md`.
+3. **Consegna**: `submit` committa il working tree nel sandbox, copia il commit nel mirror e lo mette in coda all'arbitro, che lo fa passare per i cancelli in ordine di costo: build, perft, smoke (partite lampo senza mosse illegali, crash o timeout), match della fase. Se nel frattempo è nato un nuovo campione, il candidato viene prima riapplicato sopra; se va in conflitto l'esperimento è `stale`.
+4. **Impara**: l'esito va nel registro. Se vince diventa `refs/darwin/gen-N` nel mirror. La sessione successiva riceve il verdetto e consegna la lezione con `lesson_for_previous`.
 
 Ogni iterazione parte con un contesto nuovo: lo stato vive nel git del genoma e nel registro, non in una conversazione che cresce.
 
@@ -101,5 +103,7 @@ server (Docker Compose, restart automatico)
 - L'arbitro non importa nulla dall'orchestratore: riceve un commit o un binario e restituisce un verdetto.
 - L'agente non riceve mai codice o output interno dell'arbitro, solo il verdetto e i dettagli pubblici (per esempio la mossa con perft sbagliato).
 - Comandano Docker solo `core` e `arena`, che esegue fastchess (codice fidato, non dell'agente). Sandbox, motori, job e il bot Lichess non vedono mai il socket.
+- Nessun comando git gira sull'host dentro il genoma: hook e configurazione del repository sono dell'agente. Ogni operazione git passa da un container.
+- I file dell'agente si leggono dall'host solo attraverso il sandbox o dopo aver verificato che il percorso risolto resti nel genoma: un link simbolico potrebbe puntare ovunque.
 - Stockfish lo usa solo l'arbitro; non è mai raggiungibile dal sandbox.
 - L'API legge il registro, non scrive.
