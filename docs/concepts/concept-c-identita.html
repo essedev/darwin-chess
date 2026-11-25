@@ -33,6 +33,11 @@
 			   angoli netti. Caricamento: un cavallo che salta a L lasciando la scia; errore: il re
 			   che trema sotto scacco; vuoto: i pezzi che scendono alla posizione iniziale.
 
+			D  Sintesi (giro 2): minimal con dettagli fini. Quasi bianco e nero, un solo accento
+			   arancio spento usato in tre punti (in diretta, mossa corrente, barra), Geist per il
+			   testo e Geist Mono per etichette e numeri, fili da un pixel invece delle ombre,
+			   scacchiera in grigi caldi. Le animazioni ASCII sono quelle di C, in inchiostro.
+
 			Uguale in tutte: la struttura di a1 (concept B) e i contenuti. Cambiano solo pelle e
 			stati.
 
@@ -42,6 +47,9 @@
 			un componente AsciiArt (un <pre> aggiornato da un intervallo) li sostituisce. Con
 			prefers-reduced-motion l'animazione si ferma su un fotogramma; l'arte è aria-hidden e
 			una frase per gli screen reader dice lo stato.
+
+			Giro 2: Simone vuole meno colore e meno esagerazione, "una via di mezzo minimal ma con
+			   bei dettagli"; gli piacciono le ASCII di Arcade. Aggiunta D, le altre restano.
 
 			Dati: veri dal sito (25/11/2026, 17:40): gen-6 a 1.183 ± 142 contro Stockfish, #22 in
 			giudizio con 936 partite e LLR 1,05, spesa 0,07 $ su 2 $, ultimo pensiero tradotto.
@@ -97,6 +105,43 @@
 				--radius: 4px; --shadow: 0 0 0 2px var(--line), 5px 5px 0 0 var(--line); --h2: 700 12px var(--sans); --h2-tt: uppercase; --h2-ls: 0.1em; --h2-c: var(--fg);
 				--h1: 700 30px/1 var(--display); --big: 700 52px/1 var(--num); --big-ls: -0.05em; --sq-l: #e9e6ff; --sq-d: #8b7bf0; --art: var(--accent); --lime: #c6f135; }
 			:root[data-theme='dark'] body[data-v='c'] { --bg: #0b0b10; --fg: #f4f3ff; --card: #15151d; --muted: #20202b; --muted-fg: #9a98b0; --line: #f4f3ff; --accent: #a594ff; --good: #c6f135; --bad: #ff4d7d; --sq-l: #c9c2ff; --sq-d: #5a49d6; --shadow: 0 0 0 2px #3a3a4c, 5px 5px 0 0 #c6f135; }
+
+			body[data-v='d'] { --bg: #f7f6f3; --fg: #161615; --card: #fdfcfa; --muted: #efede8; --muted-fg: #8b8984; --line: #e3e0da; --accent: #c2531f; --good: #2f6b45; --bad: #b2382b;
+				--sans: 'Geist', system-ui, sans-serif; --mono: 'Geist Mono', ui-monospace, monospace; --display: var(--sans); --num: var(--mono);
+				--radius: 12px; --shadow: inset 0 0 0 1px var(--line); --h2: 500 10.5px var(--mono); --h2-tt: uppercase; --h2-ls: 0.12em; --h2-c: var(--muted-fg);
+				--h1: 600 26px var(--sans); --big: 500 44px/1 var(--mono); --big-ls: -0.06em; --sq-l: #ece9e2; --sq-d: #b7b1a4; --art: var(--fg); }
+			:root[data-theme='dark'] body[data-v='d'] { --bg: #0e0e0f; --fg: #ececea; --card: #141415; --muted: #1d1d1f; --muted-fg: #8a8a86; --line: #262628; --accent: #e07a45; --good: #7fbf95; --bad: #ef7a6a; --sq-l: #cfcac0; --sq-d: #8e877a; --art: var(--fg); }
+			body[data-v='d'] .brand::before { content: '♞'; margin-right: 8px; color: var(--muted-fg); font-weight: 400; }
+			body[data-v='d'] .tabs a { font-size: 13.5px; }
+			body[data-v='d'] .tabs a.on { border-color: var(--fg); border-bottom-width: 1px; }
+			body[data-v='d'] .live { background: none; padding: 0; color: var(--fg); font-weight: 500; }
+			body[data-v='d'] .live i { background: var(--accent); width: 6px; height: 6px; }
+			body[data-v='d'] .live.off i { display: none; }
+			body[data-v='d'] .live.off { color: var(--muted-fg); }
+			body[data-v='d'] .top h1 { letter-spacing: -0.03em; }
+			body[data-v='d'] .phases { font: 11px var(--mono); letter-spacing: 0.04em; }
+			body[data-v='d'] .phases .on::before { color: var(--accent); }
+			body[data-v='d'] .pn-h { border-bottom: 1px dashed var(--line); }
+			body[data-v='d'] .heading .tag { color: var(--muted-fg); }
+			body[data-v='d'] .heading h2 { font-weight: 600; letter-spacing: -0.02em; }
+			body[data-v='d'] .tray { padding: 6px; border-radius: 12px; }
+			body[data-v='d'] .board { border-radius: 6px; }
+			body[data-v='d'] .board i.hl::after { background: color-mix(in oklab, var(--accent) 26%, transparent); }
+			body[data-v='d'] .moves .cur { background: none; padding: 0; color: var(--accent); text-decoration: underline; text-underline-offset: 4px; }
+			body[data-v='d'] .bar { height: 4px; border-radius: 2px; }
+			body[data-v='d'] .bar i { background: var(--fg); }
+			body[data-v='d'] .bar b { opacity: 0.35; }
+			body[data-v='d'] .big span { font-size: 13px; }
+			body[data-v='d'] .rows .now .id { color: var(--accent); }
+			body[data-v='d'] .rows li { border-top-style: dashed; }
+			body[data-v='d'] .caption p:last-child { font-weight: 450; font-size: 17px; }
+			body[data-v='d'] .state .t { font: 500 13px var(--mono); letter-spacing: 0.02em; }
+			body[data-v='d'] .art { color: var(--fg); }
+			body[data-v='d'] .tray .art[data-art='error'] { font-size: 56px; line-height: 1; color: var(--fg); }
+			body[data-v='d'] .state.bad .t { color: var(--bad); }
+			body[data-v='d'] .retry { background: none; color: var(--fg); box-shadow: inset 0 0 0 1px var(--line); border-radius: 999px; font: 500 12px var(--mono); padding: 6px 14px; }
+			body[data-v='d'] .retry:hover { box-shadow: inset 0 0 0 1px var(--fg); }
+			body[data-v='d'] .shake { animation-duration: 1.2s; }
 
 			/* Layout. */
 			.nav { display: flex; align-items: center; gap: 16px; padding: 0 32px; height: 52px; border-bottom: 1px solid var(--line); }
@@ -267,7 +312,8 @@
 				x: 'oggi: Geist su carta calda, un arancione, stati come frasi centrate',
 				a: 'Terminale: il sito è la console del laboratorio; mono, verde fosforo, DNA che gira',
 				b: 'Taccuino: il quaderno da naturalista; serif da titolo, seppia, albero che cresce',
-				c: 'Arcade: un tabellone di gioco; grotesk in grassetto, viola e lime, cavallo che salta'
+				c: 'Arcade: un tabellone di gioco; grotesk in grassetto, viola e lime, cavallo che salta',
+				d: 'Sintesi: minimal quasi in bianco e nero, dettagli fini, le ASCII di Arcade in inchiostro'
 			};
 			const STATES = { ready: '1 pronto', loading: '2 caricamento', error: '3 errore', empty: '4 vuoto' };
 			const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -312,6 +358,7 @@
 					empty: (t) => setup(t)
 				}
 			};
+			ART.d = ART.c;
 			const TEXT = {
 				loading: ['Leggo il registro…', 'Arrivano partite, verdetti e pensieri dell\'agente.'],
 				error: ['Il laboratorio non risponde', 'Il servizio potrebbe essere in aggiornamento: riprovo da solo tra pochi secondi.'],
@@ -320,7 +367,8 @@
 			const TEXT_V = {
 				a: { loading: ['caricamento in corso', TEXT.loading[1]], error: ['errore: laboratorio irraggiungibile', TEXT.error[1]], empty: ['nessuna generazione', TEXT.empty[1]] },
 				b: { loading: ['Si ricostruisce l\'albero…', TEXT.loading[1]], error: ['Il ramo si è spezzato', TEXT.error[1]], empty: ['Il seme è piantato', TEXT.empty[1]] },
-				c: { loading: ['Caricamento', TEXT.loading[1]], error: ['Scacco al server', TEXT.error[1]], empty: ['La partita non è iniziata', TEXT.empty[1]] }
+				c: { loading: ['Caricamento', TEXT.loading[1]], error: ['Scacco al server', TEXT.error[1]], empty: ['La partita non è iniziata', TEXT.empty[1]] },
+				d: { loading: ['Carico la diretta', TEXT.loading[1]], error: ['Il laboratorio non risponde', TEXT.error[1]], empty: ['La partita non è ancora cominciata', TEXT.empty[1]] }
 			};
 
 			function helix(t) {
@@ -391,6 +439,7 @@
 				b: (t) => ['·', '· ·', '· · ·', '· ·'][Math.floor(t / 3) % 4],
 				c: (t) => Array.from({ length: 6 }, (_, i) => (i === t % 6 ? '♞' : '·')).join(' ')
 			};
+			SMALL.d = SMALL.c;
 			const stateBlock = (state, v, big) => {
 				if (!big) {
 					if (state === 'error') return `<p class="mini">${v === 'b' ? '<i>non disponibile</i>' : 'non disponibile'}</p>`;
@@ -402,7 +451,7 @@
 					return `<div class="state ${state === 'error' ? 'bad' : ''}"><p class="x-note">${state === 'loading' ? 'Carico la diretta…' : t}</p>${state !== 'loading' ? `<p class="s">${s}</p>` : ''}</div>`;
 				}
 				const [t, s] = TEXT_V[v][state];
-				const art = `<pre class="art${state === 'error' && v === 'c' ? ' shake' : ''}" aria-hidden="true" data-art="${state}"></pre>`;
+				const art = `<pre class="art${state === 'error' && (v === 'c' || v === 'd') ? ' shake' : ''}" aria-hidden="true" data-art="${state}"></pre>`;
 				return `<div class="state ${state === 'error' ? 'bad' : ''}" role="${state === 'error' ? 'alert' : 'status'}">${art}<p class="t">${t}</p>${big || state !== 'loading' ? `<p class="s">${s}</p>` : ''}${state === 'error' ? '<button class="retry">Riprova ora</button>' : ''}</div>`;
 			};
 
