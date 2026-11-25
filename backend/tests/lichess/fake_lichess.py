@@ -56,6 +56,8 @@ class FakeLichess:
         self.declined: list[tuple[str, str]] = []
         self.challenged: list[tuple[str, dict[str, str]]] = []
         self.refusing: set[str] = set()  # bots whose challenge Lichess rejects at once
+        # The next challenges answered 429, each with its wait in seconds (None: not said).
+        self.rate_limits: list[float | None] = []
         self.challenged_at: list[float] = []
         self.refused_moves: list[str] = []
 
@@ -131,6 +133,12 @@ class FakeLichess:
             form = {k: v[0] for k, v in parse_qs((await request.body()).decode()).items()}
             self.challenged.append((username, form))
             self.challenged_at.append(time.monotonic())
+            if self.rate_limits:
+                seconds = self.rate_limits.pop(0)
+                body: dict[str, Any] = {"error": "Too many requests. Try again later."}
+                if seconds is not None:
+                    body["ratelimit"] = {"seconds": seconds}
+                return JSONResponse(body, 429)
             if username in self.refusing:
                 return JSONResponse({"error": f"{username} played 100 games today"}, 400)
             return {"id": "out1", "status": "created"}

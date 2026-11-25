@@ -2,6 +2,7 @@
 No game is played here, so no container runs."""
 
 import asyncio
+import itertools
 from pathlib import Path
 from typing import Any
 
@@ -146,3 +147,33 @@ async def test_a_draining_bot_neither_challenges_nor_accepts(
         await asyncio.sleep(0.5)  # a few matchmaking rounds
     assert fake.declined == [("late", "later")]
     assert fake.accepted == [] and fake.challenged == []
+
+
+async def test_a_rate_limited_challenge_waits_as_long_as_lichess_asks(
+    tmp_path: Path, fake: FakeLichess, lichess_url: str, ledger: Ledger
+) -> None:
+    fake.bots.append(blitz_user("Near", 1600))
+    fake.rate_limits = [3.0]
+    settings = bot_settings(tmp_path, lichess_url, challenge_every_s=0.5)
+    async with running_bot(settings, ledger, champion):
+        await until(lambda: len(fake.challenged) >= 2, 15)
+    # 3 s asked, plus a second of margin; the round every 0.5 s did not retry earlier.
+    assert fake.challenged_at[1] - fake.challenged_at[0] >= 4.0
+
+
+async def test_rate_limits_without_a_wait_back_off_more_each_time(
+    tmp_path: Path,
+    fake: FakeLichess,
+    lichess_url: str,
+    ledger: Ledger,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(bot_module, "RATE_LIMIT_S", 0.5)
+    fake.bots.append(blitz_user("Near", 1600))
+    fake.rate_limits = [None, None]
+    settings = bot_settings(tmp_path, lichess_url, challenge_every_s=0.2)
+    async with running_bot(settings, ledger, champion):
+        await until(lambda: len(fake.challenged) >= 3, 15)
+    first, second = (b - a for a, b in itertools.pairwise(fake.challenged_at[:3]))
+    assert first >= 0.5
+    assert second >= 1.0  # doubled

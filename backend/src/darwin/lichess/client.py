@@ -16,7 +16,33 @@ class LichessError(Exception):
 
 
 class RateLimited(LichessError):
-    """HTTP 429: Lichess asks to wait at least a minute."""
+    """HTTP 429. `wait_s` is how long Lichess asked to wait, when the answer says it;
+    `detail` is the answer itself, for the log."""
+
+    def __init__(self, path: str, wait_s: float | None = None, detail: str = "") -> None:
+        super().__init__(f"{path}: 429 {detail}".rstrip())
+        self.wait_s = wait_s
+        self.detail = detail
+
+
+async def rate_limited(path: str, response: httpx.Response) -> RateLimited:
+    """Reads the wait from the body (`{"ratelimit": {"seconds": n}}`, as Lichess answers a
+    challenge) or from Retry-After."""
+    await response.aread()
+    detail = response.text[:300]
+    wait: float | None = None
+    try:
+        body = response.json()
+    except ValueError:
+        body = None
+    if isinstance(body, dict) and isinstance(body.get("ratelimit"), dict):
+        seconds = body["ratelimit"].get("seconds")
+        if isinstance(seconds, int | float) and seconds > 0:
+            wait = float(seconds)
+    header = response.headers.get("Retry-After", "")
+    if wait is None and header.isdigit() and int(header) > 0:
+        wait = float(header)
+    return RateLimited(path, wait, detail)
 
 
 class LichessClient:
@@ -33,7 +59,7 @@ class LichessClient:
     async def _post(self, path: str, data: dict[str, Any] | None = None) -> dict[str, Any]:
         response = await self._http.post(path, data=data)
         if response.status_code == 429:
-            raise RateLimited(path)
+            raise await rate_limited(path, response)
         if response.status_code >= 400:
             raise LichessError(f"POST {path}: {response.status_code} {response.text[:200]}")
         return response.json() if response.content else {}
@@ -41,7 +67,7 @@ class LichessClient:
     async def _stream(self, path: str) -> AsyncIterator[dict[str, Any]]:
         async with self._http.stream("GET", path) as response:
             if response.status_code == 429:
-                raise RateLimited(path)
+                raise await rate_limited(path, response)
             if response.status_code >= 400:
                 raise LichessError(f"GET {path}: {response.status_code}")
             async for line in response.aiter_lines():

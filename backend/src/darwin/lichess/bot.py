@@ -26,6 +26,9 @@ EngineFor = Callable[[], Awaitable[tuple[int, EngineSpec] | None]]
 
 MAX_BACKOFF_S = 60.0
 RATE_LIMIT_S = 61.0  # Lichess asks for at least a minute after a 429
+# When a refused challenge does not say how long to wait: 1, 2, 4... minutes, up to 4 hours.
+# Trying again too early can keep the limit on.
+MAX_CHALLENGE_BACKOFF_S = 4 * 3600.0
 PENDING_TTL_S = 60.0
 
 
@@ -58,6 +61,7 @@ class LichessBot:
         self.game_id: str | None = None
         # A challenge we sent or accepted whose game has not started yet.
         self.pending_id: str | None = None
+        self.challenge_backoff_s = RATE_LIMIT_S  # grows while challenges are rate limited
         self.pending_since: float | None = None
         # Trial runs stop after a number of games; the service plays forever.
         self.max_games = max_games
@@ -115,9 +119,10 @@ class LichessBot:
                     backoff = 1.0
                     await self._on_event(event)
                 log.info("lichess: event stream closed, reconnecting")
-            except RateLimited:
-                log.warning("lichess: rate limited, waiting %.0f s", RATE_LIMIT_S)
-                await asyncio.sleep(RATE_LIMIT_S)
+            except RateLimited as limited:
+                wait = max(limited.wait_s or 0.0, RATE_LIMIT_S)
+                log.warning("lichess: rate limited, waiting %.0f s: %s", wait, limited.detail)
+                await asyncio.sleep(wait)
                 continue
             except Exception:
                 log.exception("lichess: event stream failed")
@@ -190,9 +195,8 @@ class LichessBot:
             self.retry.clear()
             try:
                 await self._challenge_someone()
-            except RateLimited:
-                log.warning("lichess: rate limited while matchmaking")
-                await asyncio.sleep(RATE_LIMIT_S)
+            except RateLimited as limited:
+                await asyncio.sleep(self._challenge_pause(limited))
             except Exception:
                 log.exception("lichess: matchmaking failed")
 
@@ -230,7 +234,19 @@ class LichessBot:
                 bots = [b for b in bots if str(b.get("username") or b.get("id") or "") != name]
                 continue
             log.info("lichess: challenged %s", name)
+            self.challenge_backoff_s = RATE_LIMIT_S
             return
+
+    def _challenge_pause(self, limited: RateLimited) -> float:
+        """How long to stop challenging: what Lichess asked for when it says, otherwise a
+        pause that doubles at every refusal in a row."""
+        if limited.wait_s is not None:
+            wait = limited.wait_s + 1.0
+        else:
+            wait = self.challenge_backoff_s
+            self.challenge_backoff_s = min(wait * 2, MAX_CHALLENGE_BACKOFF_S)
+        log.warning("lichess: challenges rate limited, next in %.0f s: %s", wait, limited.detail)
+        return wait
 
     # One game
 
