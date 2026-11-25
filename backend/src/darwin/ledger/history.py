@@ -45,6 +45,12 @@ async def generations_detail(ledger: Ledger) -> list[dict[str, Any]]:
         hypotheses_it = await commentary.of(s, commentary.HYPOTHESIS, winners)
         lessons_it = await commentary.of(s, commentary.LESSON, winners)
         titles = await commentary.of(s, commentary.TITLE, winners)
+        winning = (
+            await s.scalars(
+                select(m.Match).where(m.Match.experiment_id.in_(winners)).order_by(m.Match.id)
+            )
+        ).all()
+    match_error = {x.experiment_id: x.elo_error for x in winning}  # ascending: the latest wins
     lichess = performance(games)
     anchors: dict[int, m.RatingSnapshot] = {}
     below: set[int] = set()
@@ -71,6 +77,9 @@ async def generations_detail(ledger: Ledger) -> list[dict[str, Any]]:
                 "parent_commit": parent,
                 "created_at": gen.created_at.isoformat(),
                 "elo_vs_parent": gen.elo_vs_parent,
+                "elo_vs_parent_error": match_error.get(gen.experiment_id)
+                if gen.experiment_id is not None
+                else None,
                 "elo_absolute": anchors[gen.id].elo if gen.id in anchors else None,
                 "elo_absolute_error": anchors[gen.id].elo_error if gen.id in anchors else None,
                 "below_ladder": gen.id in below and gen.id not in anchors,
@@ -133,6 +142,15 @@ async def experiments_page(
         hypotheses_it = await commentary.of(s, commentary.HYPOTHESIS, ids)
         lessons_it = await commentary.of(s, commentary.LESSON, ids)
         titles = await commentary.of(s, commentary.TITLE, ids)
+        # A comprehension, not dict(): a Result has keys() and would be read as a mapping.
+        promoted = {
+            exp_id: gen_id
+            for exp_id, gen_id in await s.execute(
+                select(m.Generation.experiment_id, m.Generation.id).where(
+                    m.Generation.experiment_id.in_(ids)
+                )
+            )
+        }
     gates_of: dict[int, list[dict[str, Any]]] = {}
     for gate in gates:
         gates_of.setdefault(gate.experiment_id, []).append(gate_view(gate))
@@ -143,6 +161,7 @@ async def experiments_page(
             "kind": e.kind,
             "phase": e.phase,
             "status": e.status,
+            "generation_id": promoted.get(e.id),
             "trigger": e.trigger,
             "title": commentary.view(titles.get(e.id)),
             "hypothesis": e.hypothesis,

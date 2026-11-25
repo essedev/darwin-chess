@@ -262,7 +262,7 @@ def test_generations_detail_newest_first(client: TestClient, lab: Lab) -> None:
     gen1, gen0 = client.get("/api/generations/detail").json()
     assert gen1["id"] == 1 and gen1["parent_commit"] == lab.gen0
     assert (gen1["elo_absolute"], gen1["below_ladder"], gen1["tried"]) == (1500.0, False, 1)
-    assert gen1["elo_absolute_error"] == 40.0
+    assert (gen1["elo_absolute_error"], gen1["elo_vs_parent_error"]) == (40.0, 80.0)
     assert gen1["title"] == {"it": "Una ricerca", "en": "A search"}
     assert (gen1["hypothesis"], gen1["lesson"], gen1["experiment_id"]) == (
         "Add a search", "Search pays.", 1)  # fmt: skip
@@ -290,6 +290,7 @@ def test_experiments_page_through_every_kind(client: TestClient) -> None:
     assert exp["gates"] == [{"gate": "match", "passed": True, "detail": {"games": 1}}]
     assert (exp["match"]["verdict"], exp["match"]["wins"]) == ("h1", 1)
     assert exp["title"] == {"it": "Una ricerca", "en": "A search"}
+    assert (exp["generation_id"], first["items"][0]["generation_id"]) == (1, None)
     assert first["items"][0]["title"] is None  # not written yet
     assert first["counts"] == {"total": 3, "accepted": 1, "rejected": 1, "done": 1}
     for bad in ({"limit": 0}, {"limit": 101}, {"before_id": "x"}, {"status": "Rejected;"}):
