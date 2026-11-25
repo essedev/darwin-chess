@@ -6,6 +6,8 @@
   champion is replayed on top of it first; if that conflicts it is stale.
 - Every few iterations, the session is a reflection instead.
 - When enabled, the Lichess bot plays the champion of the time alongside all of this.
+- A commentary worker writes texts for the public site from finished games, verdicts and
+  submissions, in its own task and budget: it never holds any of the above up.
 """
 
 import asyncio
@@ -16,7 +18,9 @@ from pathlib import Path
 
 import uvicorn
 
+from darwin.commentary.worker import CommentaryWorker
 from darwin.config import Settings
+from darwin.ledger.commentary import LICHESS_GAME
 from darwin.ledger.store import Ledger
 from darwin.lichess.bot import LichessBot
 from darwin.lichess.client import LichessClient
@@ -44,7 +48,8 @@ class Orchestrator:
     def __init__(self, settings: Settings, ledger: Ledger) -> None:
         self.settings = settings
         self.ledger = ledger
-        self.router = ToolRouter()
+        self.commentary = CommentaryWorker.from_settings(settings, ledger)
+        self.router = ToolRouter(notify=self.commentary.enqueue)
         self.jobs = Jobs(settings, ledger, self._job_done)
         self.sessions = SessionRunner(settings, ledger, self.router, self.jobs)
         self.queue: asyncio.Queue[int] = asyncio.Queue()
@@ -130,21 +135,29 @@ class Orchestrator:
         serving = asyncio.create_task(tools.serve())
         judging = asyncio.create_task(self.judge_loop())
         catching_up = asyncio.create_task(self._catch_up_rating())
+        commenting = asyncio.create_task(self.commentary.run())
         lichess = self.lichess_client()
         playing = None
         if lichess is not None:
-            bot = LichessBot(self.settings, self.ledger, lichess, self.champion_engine)
+            bot = LichessBot(
+                self.settings,
+                self.ledger,
+                lichess,
+                self.champion_engine,
+                on_game_finished=lambda game_id: self.commentary.enqueue(LICHESS_GAME, game_id),
+            )
             playing = asyncio.create_task(bot.run())
         try:
             await self.agent_loop(max_sessions)
             if max_sessions is not None:  # test runs: wait for the last verdict
                 await self.queue.join()
         finally:
-            for task in (judging, playing, catching_up):
+            for task in (judging, playing, catching_up, commenting):
                 if task is not None:
                     task.cancel()
                     with contextlib.suppress(asyncio.CancelledError):
                         await task
+            await self.commentary.close()
             if lichess is not None:
                 await lichess.close()
             tools.should_exit = True  # orderly stop: cancelling it logs a bogus traceback
@@ -241,6 +254,7 @@ class Orchestrator:
         )
         verdict = await judge(s, commit, state.phase, champion=champion, seed=experiment_id)
         promoted = await self.ledger.record_verdict(experiment_id, verdict)
+        await self.commentary.after_verdict(experiment_id)  # never raises
         if promoted is not None:
             done = await sandbox.helper(
                 s, sandbox.update_ref_script(f"gen-{promoted.id}", promoted.commit_sha)

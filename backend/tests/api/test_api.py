@@ -165,6 +165,7 @@ def test_lichess_shows_the_live_game_and_the_finished_ones(
             "generation_id": 0,
             "time_control": "180+2",
             "finished_at": body["recent"][0]["finished_at"],
+            "commentary": None,
         }
     ]
     assert body["performance"] == {

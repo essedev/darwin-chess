@@ -6,6 +6,7 @@ from typing import Any
 
 from sqlalchemy import func, select
 
+from darwin.ledger import commentary
 from darwin.ledger import models as m
 from darwin.ledger.lichess import performance
 from darwin.ledger.queries import gate_view, match_view
@@ -40,6 +41,8 @@ async def generations_detail(ledger: Ledger) -> list[dict[str, Any]]:
         games = (
             await s.scalars(select(m.LichessGame).where(m.LichessGame.finished_at.is_not(None)))
         ).all()
+        hypotheses_it = await commentary.of(s, commentary.HYPOTHESIS, winners)
+        lessons_it = await commentary.of(s, commentary.LESSON, winners)
     lichess = performance(games)
     anchors: dict[int, float] = {}
     below: set[int] = set()
@@ -70,7 +73,11 @@ async def generations_detail(ledger: Ledger) -> list[dict[str, Any]]:
                 "below_ladder": gen.id in below and gen.id not in anchors,
                 "experiment_id": gen.experiment_id,
                 "hypothesis": winner.hypothesis if winner else None,
+                "hypothesis_it": commentary.italian(hypotheses_it.get(winner.id))
+                if winner
+                else None,
                 "lesson": winner.lesson if winner else None,
+                "lesson_it": commentary.italian(lessons_it.get(winner.id)) if winner else None,
                 "tried": tried,
                 "diff_stat": winner.diff_stat if winner else None,
                 "lichess": lichess.get(gen.id),
@@ -108,6 +115,8 @@ async def experiments_page(ledger: Ledger, limit: int, before_id: int | None) ->
             .group_by(m.LlmCall.experiment_id)
         )
         cost_of = {exp_id: float(usd or 0.0) for exp_id, usd in costs}
+        hypotheses_it = await commentary.of(s, commentary.HYPOTHESIS, ids)
+        lessons_it = await commentary.of(s, commentary.LESSON, ids)
     gates_of: dict[int, list[dict[str, Any]]] = {}
     for gate in gates:
         gates_of.setdefault(gate.experiment_id, []).append(gate_view(gate))
@@ -120,7 +129,9 @@ async def experiments_page(ledger: Ledger, limit: int, before_id: int | None) ->
             "status": e.status,
             "trigger": e.trigger,
             "hypothesis": e.hypothesis,
+            "hypothesis_it": commentary.italian(hypotheses_it.get(e.id)),
             "lesson": e.lesson,
+            "lesson_it": commentary.italian(lessons_it.get(e.id)),
             "rejected_at_gate": e.rejected_at_gate,
             "created_at": e.created_at.isoformat(),
             "finished_at": e.finished_at.isoformat() if e.finished_at else None,
@@ -133,6 +144,46 @@ async def experiments_page(ledger: Ledger, limit: int, before_id: int | None) ->
         for e in rows
     ]
     return {"items": items, "next_before_id": rows[-1].id if more else None}
+
+
+async def recent_matches(ledger: Ledger, limit: int) -> list[dict[str, Any]]:
+    """The last matches the referee recorded, newest first, with the hypothesis they judged
+    (and its Italian) and their commentary."""
+    async with ledger.session() as s:
+        rows = (await s.scalars(select(m.Match).order_by(m.Match.id.desc()).limit(limit))).all()
+        exp_ids = [r.experiment_id for r in rows if r.experiment_id is not None]
+        experiments = {
+            e.id: e
+            for e in (
+                await s.scalars(select(m.Experiment).where(m.Experiment.id.in_(exp_ids)))
+            ).all()
+        }
+        hypotheses_it = await commentary.of(s, commentary.HYPOTHESIS, exp_ids)
+        texts = await commentary.of(s, commentary.MATCH, [r.id for r in rows])
+    items = []
+    for row in rows:
+        exp = experiments.get(row.experiment_id) if row.experiment_id is not None else None
+        items.append(
+            {
+                "id": row.id,
+                "experiment_id": row.experiment_id,
+                "kind": row.kind,
+                "opponent": row.engine_b,
+                "wins": row.wins,
+                "draws": row.draws,
+                "losses": row.losses,
+                "pentanomial": row.pentanomial,
+                "elo": row.elo_diff,
+                "elo_error": row.elo_error,
+                "verdict": row.verdict,
+                "time_control": row.time_control,
+                "finished_at": row.finished_at.isoformat() if row.finished_at else None,
+                "hypothesis_en": exp.hypothesis if exp else None,
+                "hypothesis_it": commentary.italian(hypotheses_it.get(exp.id)) if exp else None,
+                "commentary": commentary.view(texts.get(row.id)),
+            }
+        )
+    return items
 
 
 async def lab_summary(ledger: Ledger) -> dict[str, Any]:

@@ -62,6 +62,11 @@ async def set_analysis(ledger: Ledger, game_id: int, analysis: dict[str, Any]) -
         (await s.get_one(m.LichessGame, game_id)).analysis = analysis
 
 
+async def set_evals(ledger: Ledger, game_id: int, evals: list[int]) -> None:
+    async with ledger.session() as s:
+        (await s.get_one(m.LichessGame, game_id)).evals = evals
+
+
 async def losses(
     ledger: Ledger, *, since: datetime | None = None, limit: int = 10
 ) -> Sequence[m.LichessGame]:

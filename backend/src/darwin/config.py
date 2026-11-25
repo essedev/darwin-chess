@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     mirror_dir: Path = Path("../data/mirror.git")
     # The platform's own changelog, shown on the dashboard (the image copies it to /app).
     changelog_path: Path = Path("../CHANGELOG.md")
+    changelog_en_path: Path = Path("../CHANGELOG.en.md")
 
     # "anthropic" or "openrouter" (any other provider must be configured in pi's models.json,
     # as the tests do). The key goes to pi in the variable that provider expects.
@@ -44,6 +45,16 @@ class Settings(BaseSettings):
     session_max_tool_calls: int = 80
     session_max_minutes: float = 40.0
     reflection_every: int = 10  # iterations between two reflections
+
+    # Commentary for the public site (Italian and English), written by the model directly
+    # through the Anthropic SDK, never through pi: only with the anthropic provider and a key.
+    # Its own daily budget, separate from the agent's. Prices in $ per million tokens.
+    commentary_model: str = "claude-haiku-5-5"
+    commentary_daily_usd: float = 0.20
+    commentary_price_input: float = 0.10
+    commentary_price_output: float = 0.50
+    commentary_price_cache_read: float = 0.01
+    commentary_price_cache_write: float = 0.125
 
     # pi, pinned, and the extension (repo folder `agent/`).
     agent_dir: Path = Path("../agent")
@@ -96,7 +107,9 @@ class Settings(BaseSettings):
             return {}
         return {PROVIDERS[self.llm_provider][0]: self.llm_api_key.get_secret_value()}
 
-    @field_validator("genome_dir", "data_dir", "mirror_dir", "agent_dir", "changelog_path")
+    @field_validator(
+        "genome_dir", "data_dir", "mirror_dir", "agent_dir", "changelog_path", "changelog_en_path"
+    )
     @classmethod
     def _absolute(cls, value: Path) -> Path:
         return value.expanduser().resolve()

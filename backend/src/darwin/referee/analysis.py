@@ -1,7 +1,9 @@
-"""Where a lost game went wrong, according to Stockfish at full strength.
+"""Stockfish at full strength over a finished game: the evaluation of every position, and
+for a lost game where it went wrong.
 
 The agent gets the move where the evaluation dropped the most and by how much, never the
-better move: a teacher pointing at the mistake, not giving the answer.
+better move: a teacher pointing at the mistake, not giving the answer. The whole list of
+evaluations only grounds the commentary for the public site.
 """
 
 import re
@@ -37,11 +39,13 @@ def _score(lines: list[str]) -> int:
     return value
 
 
-async def worst_move(settings: Settings, moves: list[str], our_color: str) -> dict[str, Any]:
-    """The move of ours after which our evaluation fell the most."""
+async def evaluate(settings: Settings, moves: list[str], our_color: str) -> list[int]:
+    """Stockfish's evaluation of every position of a game played from the standard start,
+    in centipawns from our side: one value per position, so `len(moves) + 1` of them. A
+    forced mate is +-MATE; a finished game scores its outcome."""
     board = chess.Board()
-    ours = chess.WHITE if our_color == "white" else chess.BLACK
-    evals: list[int] = []  # from our point of view, one per position
+    ours = side(our_color)
+    evals: list[int] = []
     async with uci.session(settings, stockfish_full(settings)) as engine:
         for ply in range(len(moves) + 1):
             if board.is_game_over():
@@ -55,7 +59,17 @@ async def worst_move(settings: Settings, moves: list[str], our_color: str) -> di
                 evals.append(score if board.turn == ours else -score)
             if ply < len(moves):
                 board.push_uci(moves[ply])
-    return worst_drop(moves, evals, ours)
+    return evals
+
+
+def side(color: str) -> chess.Color:
+    return chess.WHITE if color == "white" else chess.BLACK
+
+
+async def worst_move(settings: Settings, moves: list[str], our_color: str) -> dict[str, Any]:
+    """The move of ours after which our evaluation fell the most."""
+    evals = await evaluate(settings, moves, our_color)
+    return worst_drop(moves, evals, side(our_color))
 
 
 def worst_drop(moves: list[str], evals: list[int], ours: chess.Color) -> dict[str, Any]:

@@ -134,6 +134,9 @@ def lab(ledger_url: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Lab
     monkeypatch.setenv("DARWIN_MIRROR_DIR", str(mirror))
     monkeypatch.setenv("DARWIN_DATA_DIR", str(data_dir))
     monkeypatch.setenv("DARWIN_CHANGELOG_PATH", str(changelog))
+    changelog_en = tmp_path / "CHANGELOG.en.md"
+    changelog_en.write_text("# Changelog (en)\n")
+    monkeypatch.setenv("DARWIN_CHANGELOG_EN_PATH", str(changelog_en))
     return Lab(gen0, gen1, data_dir, outside)
 
 
@@ -301,3 +304,4 @@ def test_lab_totals(client: TestClient) -> None:
     }
     assert body["cost_per_generation"] == [{"generation": 1, "usd": pytest.approx(0.3)}]
     assert body["changelog"] == "# Changelog\n"
+    assert body["changelog_en"] == "# Changelog (en)\n"

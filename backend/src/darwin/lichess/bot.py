@@ -43,8 +43,10 @@ class LichessBot:
         *,
         rng: random.Random | None = None,
         max_games: int | None = None,
+        on_game_finished: Callable[[int], None] | None = None,
     ) -> None:
         self.settings = settings
+        self.on_game_finished = on_game_finished  # the ledger id of every recorded game
         self.ledger = ledger
         self.client = client
         self.engine_for = engine_for
@@ -237,7 +239,13 @@ class LichessBot:
             log.warning("lichess: game %s started without a champion, not playing", game_id)
             return
         game = Game(
-            self.settings, self.ledger, self.client, game_id=game_id, color=color, me=self.me
+            self.settings,
+            self.ledger,
+            self.client,
+            game_id=game_id,
+            color=color,
+            me=self.me,
+            on_finished=self.on_game_finished,
         )
         try:
             await game.play(*choice)

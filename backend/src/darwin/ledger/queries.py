@@ -6,6 +6,7 @@ from typing import Any
 
 from sqlalchemy import func, select
 
+from darwin.ledger import commentary
 from darwin.ledger import models as m
 from darwin.ledger.lichess import performance
 from darwin.ledger.store import Ledger
@@ -79,11 +80,13 @@ async def experiment_view(ledger: Ledger, row: m.Experiment) -> dict[str, Any]:
         match = await s.scalar(
             select(m.Match).where(m.Match.experiment_id == row.id).order_by(m.Match.id.desc())
         )
+        italian = await commentary.of(s, commentary.HYPOTHESIS, [row.id])
     return {
         "id": row.id,
         "phase": row.phase,
         "status": row.status,
         "hypothesis": row.hypothesis,
+        "hypothesis_it": commentary.italian(italian.get(row.id)),
         "rejected_at_gate": row.rejected_at_gate,
         "lesson": row.lesson,
         "diff_stat": row.diff_stat,
@@ -156,14 +159,16 @@ async def recent_events(ledger: Ledger, limit: int) -> list[dict[str, Any]]:
     return await events_after(ledger, start, limit)
 
 
-async def lichess_summary(ledger: Ledger, site: str, recent: int = 10) -> dict[str, Any]:
-    """The last finished Lichess games and the performance of every generation that played.
+async def lichess_summary(ledger: Ledger, site: str, recent: int = 20) -> dict[str, Any]:
+    """The last finished Lichess games, with their commentary, and the performance of every
+    generation that played.
 
     Performance counts every finished game, not only the recent ones.
     """
     async with ledger.session() as s:
         query = select(m.LichessGame).where(m.LichessGame.finished_at.is_not(None))
         rows = (await s.scalars(query.order_by(m.LichessGame.id.desc()))).all()
+        texts = await commentary.of(s, commentary.LICHESS_GAME, [g.id for g in rows[:recent]])
     return {
         "recent": [
             {
@@ -178,6 +183,7 @@ async def lichess_summary(ledger: Ledger, site: str, recent: int = 10) -> dict[s
                 "generation_id": g.generation_id,
                 "time_control": g.time_control,
                 "finished_at": g.finished_at.isoformat() if g.finished_at else None,
+                "commentary": commentary.view(texts.get(g.id)),
             }
             for g in rows[:recent]
         ],

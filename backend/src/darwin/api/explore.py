@@ -1,4 +1,5 @@
-"""Read-only routes to explore the lab's history: generations, experiments, code, memory.
+"""Read-only routes to explore the lab's history: generations, experiments, matches, code,
+memory.
 
 Errors from the mirror (`code.BadRequest`, `code.NotFound`, `code.GitError`) become HTTP
 responses through the handlers registered in `app.py`.
@@ -41,6 +42,13 @@ async def experiments(
     before_id: Annotated[int | None, Query(ge=1)] = None,
 ) -> dict[str, Any]:
     return await history.experiments_page(_ledger(request), limit, before_id)
+
+
+@router.get("/matches")
+async def matches(
+    request: Request, limit: Annotated[int, Query(ge=1, le=50)] = 10
+) -> list[dict[str, Any]]:
+    return await history.recent_matches(_ledger(request), limit)
 
 
 async def _ref_or_champion(request: Request, ref: str | None) -> str:
@@ -119,5 +127,7 @@ async def mind() -> dict[str, Any]:
 @router.get("/lab")
 async def lab(request: Request) -> dict[str, Any]:
     summary = await history.lab_summary(_ledger(request))
-    changelog = await asyncio.to_thread(read_changelog, get_settings().changelog_path)
-    return {**summary, "changelog": changelog}
+    settings = get_settings()
+    changelog = await asyncio.to_thread(read_changelog, settings.changelog_path)
+    changelog_en = await asyncio.to_thread(read_changelog, settings.changelog_en_path)
+    return {**summary, "changelog": changelog, "changelog_en": changelog_en}

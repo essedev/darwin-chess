@@ -30,9 +30,10 @@ COPY backend/ ./
 RUN uv sync --frozen --no-dev
 COPY seed/ /app/seed/
 COPY CHANGELOG.md /app/CHANGELOG.md
+COPY CHANGELOG.en.md /app/CHANGELOG.en.md
 COPY agent/darwin-extension.ts /app/agent/
 COPY --from=node /build/agent/node_modules /app/agent/node_modules
 COPY --from=node /build/frontend/dist /app/frontend/dist
 ENV PATH=/app/backend/.venv/bin:$PATH DARWIN_AGENT_DIR=/app/agent DARWIN_FRONTEND_DIST=/app/frontend/dist \
-    DARWIN_CHANGELOG_PATH=/app/CHANGELOG.md
+    DARWIN_CHANGELOG_PATH=/app/CHANGELOG.md DARWIN_CHANGELOG_EN_PATH=/app/CHANGELOG.en.md
 CMD ["python", "-m", "darwin.orchestrator"]

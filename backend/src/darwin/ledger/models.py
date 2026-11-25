@@ -4,7 +4,7 @@ deleted; a row changes only to close an open state (`status`, `finished_at`)."""
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import JSON, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from darwin.ledger.base import Base, UtcDateTime
@@ -154,4 +154,25 @@ class LichessGame(Timestamped, Base):
     moves: Mapped[str] = mapped_column(Text, default="")  # UCI, space separated
     rating_after: Mapped[int | None]  # the bot's own rating once the game is over
     analysis: Mapped[dict[str, Any] | None] = mapped_column(JSON)  # losses only
+    # Stockfish's evaluation of every position, in centipawns from our side (games of at
+    # least 10 plies from the standard position).
+    evals: Mapped[list[int] | None] = mapped_column(JSON)
     finished_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
+
+
+class Commentary(Timestamped, Base):
+    """A short text for the visitors of the public site, in Italian and English. Never shown
+    to the agent. For `hypothesis` and `lesson` the English is the agent's own text."""
+
+    __tablename__ = "commentaries"
+    __table_args__ = (UniqueConstraint("kind", "subject_id"),)
+
+    kind: Mapped[str] = mapped_column(String(16))  # lichess_game, match, hypothesis, lesson
+    # lichess_games.id, matches.id or experiments.id, depending on the kind.
+    subject_id: Mapped[int] = mapped_column(Integer)
+    text_it: Mapped[str] = mapped_column(Text)
+    text_en: Mapped[str] = mapped_column(Text)
+    model: Mapped[str] = mapped_column(String(64))
+    input_tokens: Mapped[int] = mapped_column(default=0)
+    output_tokens: Mapped[int] = mapped_column(default=0)
+    cost_usd: Mapped[float] = mapped_column(Float, default=0.0)

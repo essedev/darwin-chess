@@ -5,9 +5,11 @@ mirror, jobs) happens here, in the orchestrator's process.
 """
 
 import asyncio
+import logging
 import random
 import secrets
 import shutil
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -23,6 +25,11 @@ from darwin.orchestrator.jobs import JobError, Jobs
 from darwin.orchestrator.sandbox import Sandbox
 from darwin.referee import engines, perft, uci
 from darwin.referee.models import Binary
+
+log = logging.getLogger(__name__)
+
+# Told of texts written for the record: (kind, experiment id), "hypothesis" or "lesson".
+Notify = Callable[[str, int], None]
 
 
 class ToolError(Exception):
@@ -40,6 +47,15 @@ class SessionTools:
     previous_experiment_id: int | None
     submitted: str | None = None
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    notify: Notify | None = None  # set by the router
+
+    def _notify(self, kind: str, experiment_id: int) -> None:
+        if self.notify is None:
+            return
+        try:
+            self.notify(kind, experiment_id)
+        except Exception:  # a listener must never break the agent's tool
+            log.exception("tools: notifying %s of %d failed", kind, experiment_id)
 
     async def call(self, tool: str, params: dict[str, Any]) -> str:
         if self.submitted is not None:
@@ -101,9 +117,11 @@ class SessionTools:
             raise ToolError("Your tree is identical to the base: change the engine first.")
         await sandbox.archive(self.settings, sha, f"exp-{self.experiment_id}")
         await self.ledger.set_submission(self.experiment_id, hypothesis, sha, stat)
+        self._notify("hypothesis", self.experiment_id)
         lesson = str(params.get("lesson_for_previous") or "").strip()
         if lesson and self.previous_experiment_id is not None:
             await self.ledger.set_lesson(self.previous_experiment_id, lesson[:500])
+            self._notify("lesson", self.previous_experiment_id)
         self.submitted = sha
         return (
             f"Submitted {sha[:12]} ({stat}). The referee is judging it; you will see the "
@@ -232,10 +250,13 @@ def _describe(row: m.Experiment, gates: list[m.GateResult] | Any) -> str:
 class ToolRouter:
     """Maps the bearer token of the running sessions to their tools."""
 
-    def __init__(self) -> None:
+    def __init__(self, notify: Notify | None = None) -> None:
         self._sessions: dict[str, SessionTools] = {}
+        self.notify = notify
 
     def register(self, tools: SessionTools) -> str:
+        if tools.notify is None:
+            tools.notify = self.notify
         token = secrets.token_urlsafe(24)
         self._sessions[token] = tools
         return token

@@ -1,11 +1,13 @@
 """One Lichess game, start to end: the champion's engine moves on our turns, the game goes
-to the ledger, a loss is analysed by Stockfish, and `<data>/lichess/current.json` mirrors
-every state for the dashboard (the last game stays there once it is over)."""
+to the ledger, Stockfish evaluates it (and finds the worst move of a loss), and
+`<data>/lichess/current.json` mirrors every state for the dashboard (the last game stays
+there once it is over). An optional callback hears of every recorded game."""
 
 import asyncio
 import json
 import logging
 import os
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -87,8 +89,10 @@ class Game:
         game_id: str,
         color: str | None,
         me: str,
+        on_finished: Callable[[int], None] | None = None,
     ) -> None:
         self.settings = settings
+        self.on_finished = on_finished  # gets the ledger id of the recorded game
         self.ledger = ledger
         self.client = client
         self.game_id = game_id
@@ -254,14 +258,24 @@ class Game:
             rating_after=rating_after,
         )
         if (
-            live.result != "loss"
-            or len(live.moves) < MIN_PLIES_FOR_ANALYSIS
-            or live.initial_fen != rules.STARTPOS  # the analysis replays from the start
+            live.result in {"win", "loss", "draw"}
+            and len(live.moves) >= MIN_PLIES_FOR_ANALYSIS
+            and live.initial_fen == rules.STARTPOS  # the analysis replays from the start
         ):
-            return
+            await self._analyse(live, row_id)
+        if self.on_finished is not None:
+            try:
+                self.on_finished(row_id)
+            except Exception:
+                log.exception("lichess: the end-of-game callback failed for %s", live.game_id)
+
+    async def _analyse(self, live: LiveGame, row_id: int) -> None:
         try:
-            worst = await analysis.worst_move(self.settings, live.moves, live.color)
-            await records.set_analysis(self.ledger, row_id, worst)
+            evals = await analysis.evaluate(self.settings, live.moves, live.color)
+            await records.set_evals(self.ledger, row_id, evals)
+            if live.result == "loss":
+                worst = analysis.worst_drop(live.moves, evals, analysis.side(live.color))
+                await records.set_analysis(self.ledger, row_id, worst)
         except Exception:
             log.exception("lichess: analysis of %s failed", live.game_id)
 
