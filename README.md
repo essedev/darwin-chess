@@ -43,10 +43,10 @@ Details in [Architecture](docs/ARCHITECTURE.md), [Decisions](docs/DECISIONS.md),
 
 | Date | Champion | Absolute Elo | Note |
 |---|---|---|---|
-| 2026-11-25 | gen-3 to gen-7 | 1,129 to 1,259 | small evaluation tweaks, +17 to +42 Elo each, margins of ± 120-140 |
+| 2026-11-25 | gen-3 to gen-7 | between 1,129 and 1,259 | small evaluation tweaks, +17 to +42 Elo each, margins of ± 120-140 |
 | 2026-11-25 | gen-8 | 1,488 ± 115 | iterative deepening with MVV-LVA ordering, +416 ± 149 over gen-7 |
 
-The agent spent four generations on small evaluation tweaks at effort `low`. Two changes came just before the jump: reasoning effort raised to `high` (DECISIONS #25), and the periodic reflection counted from the ledger: its in-memory counter reset at every restart, so the agent had never reflected. The first real reflection (experiment 25) was followed by iterative deepening (experiment 26), which became gen-8.
+The agent spent four generations on small evaluation tweaks. Two changes came just before the jump: reasoning effort raised to `high` (DECISIONS #25), and the periodic reflection counted from the ledger: its in-memory counter reset at every restart, so the agent had never reflected. The first real reflection (experiment 25) was followed by iterative deepening (experiment 26), which became gen-8.
 
 The full history, generation by generation, is on the [live site](https://darwin.esse.dev) and in [CYCLES](docs/CYCLES.md).
 

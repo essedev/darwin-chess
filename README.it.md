@@ -43,10 +43,10 @@ Dettagli in [Architettura](docs/ARCHITECTURE.md), [Decisioni](docs/DECISIONS.md)
 
 | Data | Campione | Elo assoluto | Nota |
 |---|---|---|---|
-| 2026-11-25 | da gen-3 a gen-7 | da 1.129 a 1.259 | piccoli ritocchi della valutazione, fra +17 e +42 Elo l'uno, margini di ± 120-140 |
+| 2026-11-25 | da gen-3 a gen-7 | fra 1.129 e 1.259 | piccoli ritocchi della valutazione, fra +17 e +42 Elo l'uno, margini di ± 120-140 |
 | 2026-11-25 | gen-8 | 1.488 ± 115 | approfondimento iterativo con ordinamento MVV-LVA, +416 ± 149 su gen-7 |
 
-L'agente ha passato quattro generazioni a ritoccare la valutazione a sforzo `low`. Due cambiamenti sono arrivati subito prima del salto: lo sforzo di ragionamento portato a `high` (DECISIONS #25) e la riflessione periodica contata dal registro: il contatore in memoria si azzerava a ogni riavvio, quindi l'agente non aveva mai riflettuto. La prima riflessione vera (esperimento 25) è stata seguita dall'approfondimento iterativo (esperimento 26), diventato gen-8.
+L'agente ha passato quattro generazioni a ritoccare la valutazione. Due cambiamenti sono arrivati subito prima del salto: lo sforzo di ragionamento portato a `high` (DECISIONS #25) e la riflessione periodica contata dal registro: il contatore in memoria si azzerava a ogni riavvio, quindi l'agente non aveva mai riflettuto. La prima riflessione vera (esperimento 25) è stata seguita dall'approfondimento iterativo (esperimento 26), diventato gen-8.
 
 La storia completa, generazione per generazione, è sul [sito](https://darwin.esse.dev) e nei [CYCLES](docs/CYCLES.md).
 
