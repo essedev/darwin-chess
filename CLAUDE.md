@@ -19,7 +19,7 @@ Un agente LLM (Haiku 5.5, via Anthropic o OpenRouter) scrive da zero un motore d
 - `make db-migrate`, `make db-revision msg='...'`
 - `make run-core` (esperimento), `make run-sessions n=3` (sessioni di prova): servono `DARWIN_LLM_API_KEY` e `make genome-init`
 - `make up` / `make down`: produzione in Compose (`core` + `api`), con `.env` da `.env.example`
-- `make deploy`: aggiorna server senza interrompere la sessione dell'agente e la partita Lichess in corso (svuota `core`, poi riavvia). Mai `docker compose up` a mano mentre lavora
+- `make deploy`: aggiorna server senza interrompere la sessione dell'agente e la partita Lichess in corso (svuota `core`, poi riavvia). `make deploy only=api` quando cambia solo il sito: riavvia `api` e lascia lavorare `core`. Mai `docker compose up` a mano mentre lavora
 - `make lab-build`, `make genome-init` (crea `gen-0` da `seed/`, rifiuta se `genome/` esiste)
 - `make images` (sandbox, arena, ancore, motori di test): serve prima di `make test`, che gira anche i test con container veri (marker `docker`, circa un minuto); `make test-unit` li salta
 

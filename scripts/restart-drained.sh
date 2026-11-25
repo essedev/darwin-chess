@@ -4,9 +4,18 @@
 set -euo pipefail
 
 WAIT_MIN="${DRAIN_WAIT_MIN:-60}"
+# ONLY=api: a change to the site alone (frontend, API) restarts api and leaves core running.
+ONLY="${ONLY:-}"
 control="data/control"
 
 docker compose --profile run build
+
+if [ "$ONLY" = "api" ]; then
+  docker compose --profile run up -d --force-recreate api
+  until curl -sf "localhost:${API_PORT:-4730}/api/health" >/dev/null; do sleep 2; done
+  echo "api up; core untouched."
+  exit 0
+fi
 
 if [ -n "$(docker compose --profile run ps --status running -q core)" ]; then
   mkdir -p "$control"

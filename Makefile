@@ -84,12 +84,12 @@ up-public: ## Come up, più il tunnel Cloudflare che pubblica la dashboard (solo
 DEPLOY_HOST ?= server
 DEPLOY_DIR ?= darwin-chess
 
-deploy: ## Porta il codice su server e riavvia senza interrompere sessione e partita Lichess
+deploy: ## Porta il codice su server e riavvia senza interrompere sessione e partita Lichess (only=api: solo il sito)
 	rsync -az --delete -e "ssh -o BatchMode=yes" --exclude node_modules --exclude .venv \
 		--exclude frontend/dist --exclude genome --exclude data --exclude .env --exclude __pycache__ \
 		--exclude .mypy_cache --exclude .ruff_cache --exclude .pytest_cache \
 		./ $(DEPLOY_HOST):$(DEPLOY_DIR)/
-	ssh -o BatchMode=yes $(DEPLOY_HOST) 'cd $(DEPLOY_DIR) && PATH=/usr/local/bin:$$PATH scripts/restart-drained.sh'
+	ssh -o BatchMode=yes $(DEPLOY_HOST) 'cd $(DEPLOY_DIR) && PATH=/usr/local/bin:$$PATH ONLY=$(only) scripts/restart-drained.sh'
 
 restart-drained: ## Sull'host di Compose: build, svuota core, riavvia core e api
 	scripts/restart-drained.sh
