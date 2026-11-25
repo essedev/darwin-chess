@@ -1,3 +1,5 @@
+"""Runtime settings of the whole backend, read from DARWIN_* variables and the root .env."""
+
 from functools import lru_cache
 from pathlib import Path
 

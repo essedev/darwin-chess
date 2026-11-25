@@ -1,3 +1,5 @@
+"""Value types shared by the referee: gates and their results, binaries, engines, games."""
+
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path

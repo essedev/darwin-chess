@@ -1,3 +1,5 @@
+"""The engines the referee puts on the board: candidates, Stockfish anchors, the random player."""
+
 from darwin.config import Settings
 from darwin.referee.models import Binary, EngineSpec, Mount
 

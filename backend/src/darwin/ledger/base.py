@@ -1,3 +1,5 @@
+"""Declarative base and column types shared by the ledger tables."""
+
 from datetime import UTC, datetime
 
 from sqlalchemy import DateTime

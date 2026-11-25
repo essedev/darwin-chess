@@ -45,7 +45,7 @@ export function Stage(props: {
   )
 }
 
-/** "#18 Penalità ai pedoni doppiati, contro il campione gen-5", or what else is on the board. */
+/** "#18 Doubled pawn penalty, against champion gen-5", or what else is on the board. */
 function ArenaHeading({ data, game }: { data: Ready; game: LiveGame | null }) {
   const i18n = useI18n()
   const { t, lang } = i18n

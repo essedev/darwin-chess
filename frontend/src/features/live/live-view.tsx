@@ -10,7 +10,7 @@ import { TopBar } from './top-bar'
 /**
  * Three columns that end at about the same height: how strong the champion is and the last
  * generations on the left, the game in the middle, the verdict, the spend and the last three
- * results on the right. Nothing here grows with the history: that lives in Evoluzione.
+ * results on the right. Nothing here grows with the history: that lives on the Evolution page.
  */
 export function LiveView() {
   const { t } = useI18n()

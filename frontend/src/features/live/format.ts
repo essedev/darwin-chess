@@ -25,8 +25,8 @@ export function playerName(i18n: I18n, engine: string, candidate: number | undef
 }
 
 /**
- * What kind of game the arena is playing, from the two engine names: the kind ("Giudizio")
- * and who plays ("candidato #6 contro il campione gen-2"); null for an unknown pairing.
+ * What kind of game the arena is playing, from the two engine names: the kind ("Judgement")
+ * and who plays ("candidate #6 vs the champion gen-2"); null for an unknown pairing.
  */
 export function matchLabel(
   i18n: I18n,

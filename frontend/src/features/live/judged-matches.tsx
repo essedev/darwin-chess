@@ -6,7 +6,7 @@ import { href } from '@/lib/use-route'
 import { cn } from '@/lib/utils'
 import { titleText } from './format'
 
-/** The live page shows a fixed three: the column never grows, the history is in Evoluzione. */
+/** The live page shows a fixed three: the column never grows, the history is on the Evolution page. */
 export const RECENT_SHOWN = 3
 
 const VERDICT: Record<string, { key: 'matches.verdict.h1' | 'matches.verdict.h0' | 'matches.verdict.continue'; tone: string }> = {
