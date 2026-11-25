@@ -5,16 +5,16 @@ event streams under the data dir and the file the Lichess bot keeps for its curr
 """
 
 import asyncio
-import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
+from darwin.api.hub import Full, Hub
 from darwin.api.lichess_live import read_lichess_live
 from darwin.api.live import read_live_game
 from darwin.config import get_settings
@@ -27,12 +27,26 @@ STREAM_TICK_S = 1.0
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    app.state.ledger = Ledger(get_settings().ledger_url)
+    settings = get_settings()
+    app.state.ledger = Ledger(settings.ledger_url)
+    data_dir = settings.data_dir
+    app.state.hub = Hub(
+        app.state.ledger,
+        {
+            "game": lambda: read_live_game(data_dir / "matches"),
+            "lichess": lambda: read_lichess_live(data_dir),
+        },
+    )
+    await app.state.hub.start()
     yield
+    await app.state.hub.stop()
     await app.state.ledger.close()
 
 
-app = FastAPI(title="darwin-chess", lifespan=lifespan)
+# Public, read-only: no generated docs or schema to browse.
+app = FastAPI(
+    title="darwin-chess", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None
+)
 
 
 @app.get("/api/health")
@@ -94,29 +108,26 @@ def _serve_dashboard() -> None:
 
 @app.get("/api/stream")
 async def stream(request: Request) -> StreamingResponse:
-    ledger: Ledger = request.app.state.ledger
-    data_dir = get_settings().data_dir
-    readers = {
-        "game": lambda: read_live_game(data_dir / "matches"),
-        "lichess": lambda: read_lichess_live(data_dir),
-    }
+    hub: Hub = request.app.state.hub
+    try:
+        queue = hub.subscribe()
+    except Full as exc:
+        raise HTTPException(503, "too many live viewers, retry later") from exc
 
     async def events() -> AsyncIterator[str]:
-        last_id = await queries.last_event_id(ledger)
-        last_sent: dict[str, str] = {}
-        while not await request.is_disconnected():
-            for event in await queries.events_after(ledger, last_id):
-                last_id = event["id"]
-                yield f"event: agent\ndata: {json.dumps(event)}\n\n"
-            for name, read in readers.items():
-                encoded = json.dumps(await asyncio.to_thread(read))
-                if encoded != last_sent.get(name):
-                    last_sent[name] = encoded
-                    yield f"event: {name}\ndata: {encoded}\n\n"
-            await asyncio.sleep(STREAM_TICK_S)
+        try:
+            while not await request.is_disconnected():
+                try:
+                    yield await asyncio.wait_for(queue.get(), STREAM_TICK_S * 15)
+                except TimeoutError:
+                    yield ": keep-alive\n\n"  # proxies close idle streams
+        finally:
+            hub.unsubscribe(queue)
 
     return StreamingResponse(
-        events(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"}
+        events(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
 
 
