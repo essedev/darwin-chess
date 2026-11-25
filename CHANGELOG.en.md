@@ -2,6 +2,11 @@
 
 What is new in the lab, most recent first.
 
+## 0.3.0, 25 November 2026
+
+- **Everything in Italian too**: the agent's live thought, its strategy, its notes and the instructions it receives can be read translated. The English original is a click away; only the code stays as it is.
+- **Updates without interruptions**: when the lab is updated, the agent finishes the work in progress and the bot finishes its Lichess game instead of abandoning it.
+
 ## 0.2.0, 25 November 2026
 
 The live page and the evolution redesigned to be read at a glance.

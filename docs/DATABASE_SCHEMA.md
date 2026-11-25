@@ -169,9 +169,9 @@ Testi per i visitatori del sito, in italiano e inglese. L'agente non li legge ma
 | Campo | Tipo | Note |
 |---|---|---|
 | id | INTEGER | PK |
-| kind | TEXT | `lichess_game`, `match`, `hypothesis`, `lesson`, `title` (titolo breve dell'ipotesi, scritto alla consegna) |
-| subject_id | INTEGER | `lichess_games.id`, `matches.id` o `experiments.id` secondo `kind`; UNIQUE con `kind` |
-| text_it / text_en | TEXT | per `hypothesis` e `lesson` l'inglese è l'originale dell'agente e l'italiano la traduzione; per `title` entrambi scritti dal modello |
+| kind | TEXT | `lichess_game`, `match`, `hypothesis`, `lesson`, `title` (titolo breve dell'ipotesi, scritto alla consegna), `thought` (pensiero dell'agente), `strategy`, `notes`, `prompt` (file della memoria e istruzioni) |
+| subject_id | INTEGER | `lichess_games.id`, `matches.id`, `experiments.id` o `agent_events.id` secondo `kind`; per `strategy`, `notes` e `prompt` il CRC32 del testo tradotto, così ogni versione ha la sua traduzione; UNIQUE con `kind` |
+| text_it / text_en | TEXT | per `hypothesis` e `lesson` l'inglese è l'originale dell'agente e l'italiano la traduzione; per `title` entrambi scritti dal modello; per pensieri, memoria e istruzioni l'inglese è l'originale |
 | model | TEXT | |
 | input_tokens / output_tokens | INTEGER | |
 | cost_usd | REAL | conta sul tetto dei commenti, separato dal budget dell'agente |

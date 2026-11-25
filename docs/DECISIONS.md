@@ -125,7 +125,7 @@ Fermare `core` lasciava accesi arena, motori e sandbox. Ogni container porta ora
 
 ## #20 Sito pubblico e bilingue, commenti per i visitatori separati dall'agente
 
-Status: attiva. Data: 2026-11-25.
+Status: attiva; la parte sui pensieri e sulla memoria in originale è superata da #23. Data: 2026-11-25.
 
 La dashboard diventa pubblica (Cloudflare Tunnel su `darwin.esse.dev`) e bilingue, italiano e inglese. Codice, prompt e testi dell'agente restano in inglese: ipotesi e lezioni vengono tradotte in italiano una volta e conservate, i pensieri in diretta e i file della memoria restano originali con un'etichetta, perché tradurre ogni pensiero costerebbe di più e arriverebbe in ritardo.
 
@@ -150,4 +150,12 @@ Status: attiva. Data: 2026-11-25.
 Riavviare `core` interrompeva tutto: la partita Lichess in corso persa a tempo (con punteggio), la sessione dell'agente segnata come errore, il giudizio rifatto da capo. `make deploy` chiede a `core` di svuotarsi con un file nella cartella dei dati, perché l'host la monta già e non serve aprire una porta: `core` non avvia sessioni né partite nuove, aspetta che finiscano quelle in corso (una sessione dura al massimo 40 minuti, una partita 3+2 una decina) e risponde con un altro file; solo allora `core` e `api` vengono ricreati.
 
 Il giudizio in corso non si aspetta e non si riprende: un match può durare un'ora, e riprenderlo dall'ultimo lotto vorrebbe dire salvare le partite giocate e ripartire dalle aperture giuste, per risparmiare solo tempo di calcolo. Si riapre se il riavvio diventa frequente. `core` gestisce anche SIGTERM: prima moriva subito senza chiudere niente.
+
+## #23 Tutto tradotto in italiano tranne il codice
+
+Status: attiva. Data: 2026-11-25. Supera in parte #20.
+
+Su richiesta di Simone si traducono anche il pensiero in diretta, la strategia, gli appunti e le istruzioni dell'agente; resta in inglese solo il codice, perché due versioni del codice non avrebbero senso. Il costo misurato è basso: una traduzione costa circa 0,0001 $, i pensieri sono circa 200 al giorno, gli appunti cambiano a ogni sessione ma si traducono al massimo una volta l'ora, l'ultima versione. In tutto circa 3 centesimi al giorno, dentro il tetto dei commenti di 0,20 $ che non cambia.
+
+Il pensiero italiano arriva qualche secondo dopo l'originale: nel frattempo il sito mostra l'inglese con la sua etichetta. Ogni versione di un file di memoria ha la sua traduzione, legata al CRC32 del testo, così il sito non mostra mai la traduzione di una versione vecchia accanto all'originale nuovo. Oltre 16.000 caratteri un file resta in inglese: tradurlo a ogni cambio diventerebbe una chiamata lunga e cara.
 

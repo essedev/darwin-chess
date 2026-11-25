@@ -2,6 +2,11 @@
 
 Le novità del laboratorio, dalla più recente.
 
+## 0.3.0, 25 novembre 2026
+
+- **Tutto in italiano**: anche il pensiero dell'agente in diretta, la sua strategia, i suoi appunti e le istruzioni che riceve si leggono tradotti. L'originale in inglese resta a un clic; solo il codice resta com'è.
+- **Aggiornamenti senza interruzioni**: quando il laboratorio si aggiorna, l'agente finisce il lavoro in corso e il bot finisce la sua partita su Lichess invece di abbandonarla.
+
 ## 0.2.0, 25 novembre 2026
 
 La diretta e l'evoluzione ridisegnate per leggersi in un colpo d'occhio.
