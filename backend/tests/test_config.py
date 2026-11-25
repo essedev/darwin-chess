@@ -36,5 +36,5 @@ def test_an_unknown_provider_needs_an_explicit_model(
 def test_paths_are_made_absolute(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.chdir(tmp_path)
     settings = Settings()
-    assert settings.data_dir == (tmp_path / "data").resolve()
+    assert settings.data_dir == (tmp_path.parent / "data").resolve()
     assert settings.mirror_dir.is_absolute() and settings.genome_dir.is_absolute()

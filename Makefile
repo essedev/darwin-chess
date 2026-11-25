@@ -59,7 +59,7 @@ clean: ## Pulisce artefatti di build
 	rm -rf frontend/dist frontend/node_modules backend/.venv
 
 db-migrate: ## Applica migrazioni del ledger
-	mkdir -p backend/data
+	mkdir -p data
 	cd backend && uv run alembic upgrade head
 
 db-revision: ## Nuova migrazione (msg=)

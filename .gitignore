@@ -19,6 +19,7 @@ test-results/
 
 # Runtime data
 backend/data/
+data/
 genome/
 
 .DS_Store

@@ -15,15 +15,20 @@ PROVIDERS = {
 class Settings(BaseSettings):
     """Runtime configuration, read from the environment (prefix DARWIN_) and .env."""
 
-    model_config = SettingsConfigDict(env_prefix="DARWIN_", env_file=".env", extra="ignore")
+    # One .env at the repository root (Compose reads it too); a local one may override it.
+    model_config = SettingsConfigDict(
+        env_prefix="DARWIN_", env_file=("../.env", ".env"), extra="ignore"
+    )
 
-    ledger_url: str = "sqlite+aiosqlite:///./data/ledger.sqlite"
+    # Defaults are relative to backend/, where the code runs in development; the data lives
+    # at the repository root, where Compose mounts it.
+    ledger_url: str = "sqlite+aiosqlite:///../data/ledger.sqlite"
     genome_dir: Path = Path("../genome")
     # Binaries, matches and artifacts. Containers spawned by the referee mount it at the same
     # path it has on the host, so it must be absolute (relative values are resolved here).
-    data_dir: Path = Path("data")
+    data_dir: Path = Path("../data")
     # Trusted bare copy of every commit that matters; the agent never writes it.
-    mirror_dir: Path = Path("data/mirror.git")
+    mirror_dir: Path = Path("../data/mirror.git")
 
     # "anthropic" or "openrouter" (any other provider must be configured in pi's models.json,
     # as the tests do). The key goes to pi in the variable that provider expects.

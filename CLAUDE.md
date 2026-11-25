@@ -35,6 +35,7 @@ Un agente LLM (Haiku 5.5, via Anthropic o OpenRouter) scrive da zero un motore d
 - `uv init --package` non crea `py.typed`: mypy usa `files = ["src", "tests"]`.
 - Nell'immagine `rust` il `CARGO_HOME` è `/usr/local/cargo`, non `~/.cargo`; il sandbox è offline (`CARGO_NET_OFFLINE`), quindi niente crate scaricati.
 - Alembic su SQLite: `render_as_batch=True` già attivo in `alembic/env.py`.
+- Dati e configurazione stanno alla radice: `data/` (registro, mirror, binari, partite, memoria dell'agente, job) e un solo `.env` (da `.env.example`), letti sia in sviluppo da `backend/` sia da Compose.
 - I container creati dall'arbitro montano i dati allo stesso path dell'host (`DARWIN_DATA_DIR`, assoluto): un path relativo o diverso rompe i bind mount quando `core` gira in container.
 - server è un MacBook Air M4 senza ventola, non un Mac mini: sotto carico continuo rallenta.
 - pi risolve i percorsi relativi sulla propria cartella dell'host: l'estensione (`agent/darwin-extension.ts`) li traduce in `/genome` prima di ogni `docker exec`. pi va sempre avviato con i flag di `orchestrator/pi.py` (niente caricamento automatico).
