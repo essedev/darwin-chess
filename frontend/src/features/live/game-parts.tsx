@@ -1,4 +1,5 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react'
+import { useT } from '@/i18n/context'
 import { cn } from '@/lib/utils'
 import { Board } from './board'
 
@@ -52,15 +53,17 @@ export function Player(props: {
 
 /** Games won so far in the match, shown beside an arena player. */
 export function Points({ value }: { value: number }) {
+  const t = useT()
   return (
     <>
       <b className="block font-mono text-xl leading-none font-medium tabular-nums">{value}</b>
-      <span className="text-xs text-muted-foreground">vinte</span>
+      <span className="text-xs text-muted-foreground">{t('arena.won')}</span>
     </>
   )
 }
 
 function Moves({ san, startPly }: { san: string[]; startPly: number }) {
+  const t = useT()
   const box = useRef<HTMLDivElement>(null)
   const [hidden, setHidden] = useState(false)
   useEffect(() => {
@@ -86,7 +89,7 @@ function Moves({ san, startPly }: { san: string[]; startPly: number }) {
             '[mask-image:linear-gradient(to_right,transparent,#000_32px)] lg:[mask-image:linear-gradient(to_bottom,transparent,#000_56px)]',
         )}
       >
-        {rows.length === 0 && <span className="text-muted-foreground">nessuna mossa</span>}
+        {rows.length === 0 && <span className="text-muted-foreground">{t('arena.noMoves')}</span>}
         {rows.map(([white, black], i) => (
           <div key={i} className="grid h-[26px] flex-none grid-cols-[26px_1fr_1fr] items-center">
             <span className="text-[11px] text-muted-foreground">{firstMove + i}</span>

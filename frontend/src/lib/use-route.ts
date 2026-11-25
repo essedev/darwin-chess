@@ -4,15 +4,8 @@ export type Page = 'diretta' | 'evoluzione' | 'codice' | 'mente' | 'laboratorio'
 
 export type Route = { page: Page; params: URLSearchParams }
 
-export const TABS: { page: Page; label: string }[] = [
-  { page: 'diretta', label: 'Diretta' },
-  { page: 'evoluzione', label: 'Evoluzione' },
-  { page: 'codice', label: 'Codice' },
-  { page: 'mente', label: 'Mente' },
-  { page: 'laboratorio', label: 'Laboratorio' },
-]
-
-const PAGES: readonly Page[] = ['evoluzione', 'codice', 'mente', 'laboratorio']
+/** The tabs in order. The slugs stay Italian in both languages: shared links keep working. */
+export const PAGES: readonly Page[] = ['diretta', 'evoluzione', 'codice', 'mente', 'laboratorio']
 
 /** "#/codice?ref=gen-3&path=src/main.rs" → codice + its params; anything unknown is the live view. */
 function parse(hash: string): Route {

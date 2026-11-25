@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
+import { LanguageProvider } from './i18n/provider'
 import './index.css'
 
 const queryClient = new QueryClient()
@@ -18,7 +19,9 @@ if (!root) throw new Error('Elemento #root mancante in index.html')
 createRoot(root).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <App />
+      <LanguageProvider>
+        <App />
+      </LanguageProvider>
     </QueryClientProvider>
   </StrictMode>,
 )

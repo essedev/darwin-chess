@@ -1,6 +1,8 @@
+import { pickText, useI18n } from '@/i18n/context'
+import { LangBadge } from '@/i18n/parts'
 import type { Experiment, Overview } from '@/lib/api'
 import { cn } from '@/lib/utils'
-import { GATES, failureText, money, num } from './format'
+import { failureText } from './format'
 import { JobCard } from './job-card'
 
 type Ready = Extract<Overview, { ready: true }>
@@ -22,20 +24,28 @@ export function SideCards({ data }: { data: Ready }) {
 }
 
 function VerdictCard({ experiment, judging }: { experiment: Experiment | null; judging: Experiment | null }) {
+  const i18n = useI18n()
+  const { t, label, lang, f } = i18n
   if (judging) {
+    const hypothesis = pickText(lang, { en: judging.hypothesis, it: judging.hypothesis_it })
     return (
       <section className={card}>
-        <p className="mb-2.5 text-[13px] text-muted-foreground">Che cosa sta giudicando l’arbitro</p>
-        <p className="mb-3.5 text-[22px] font-semibold tracking-tight">Candidato #{judging.id}</p>
-        <p className="text-xs leading-relaxed text-muted-foreground">{judging.hypothesis}</p>
+        <p className="mb-2.5 text-[13px] text-muted-foreground">{t('verdict.judging')}</p>
+        <p className="mb-3.5 text-[22px] font-semibold tracking-tight">{t('player.candidate', { id: judging.id })}</p>
+        {hypothesis && (
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            {hypothesis.fallback && <LangBadge lang={hypothesis.lang} className="mr-1.5" />}
+            <span lang={hypothesis.lang}>{hypothesis.text}</span>
+          </p>
+        )}
       </section>
     )
   }
   if (!experiment) {
     return (
       <section className={card}>
-        <p className="mb-2.5 text-[13px] text-muted-foreground">Ultimo verdetto</p>
-        <p className="text-[22px] font-semibold tracking-tight">Nessun esperimento ancora</p>
+        <p className="mb-2.5 text-[13px] text-muted-foreground">{t('verdict.last')}</p>
+        <p className="text-[22px] font-semibold tracking-tight">{t('verdict.none')}</p>
       </section>
     )
   }
@@ -43,28 +53,31 @@ function VerdictCard({ experiment, judging }: { experiment: Experiment | null; j
   const accepted = experiment.status === 'accepted'
   const question = match
     ? match.opponent === 'random'
-      ? 'Il candidato batte il giocatore casuale?'
-      : 'Il candidato è più forte del campione?'
-    : 'Il motore conosce le regole?'
+      ? t('verdict.question.random')
+      : t('verdict.question.champion')
+    : t('verdict.question.rules')
   const failed = experiment.gates.find((g) => !g.passed)
   return (
     <section className={card}>
       <p className="mb-2.5 text-[13px] text-muted-foreground">{question}</p>
       <p className={cn('mb-3.5 text-[22px] font-semibold tracking-tight', accepted ? 'text-good' : 'text-bad')}>
-        {accepted ? 'Sì: promosso' : failed ? `No: fermo a «${GATES[failed.gate] ?? failed.gate}»` : 'No'}
+        {accepted ? t('verdict.yes') : failed ? t('verdict.stoppedAt', { gate: label('gate', failed.gate) }) : t('verdict.no')}
       </p>
       {match?.llr != null && <LlrBar llr={match.llr} />}
       {match && (
         <p className="mt-2.5 text-xs leading-relaxed text-muted-foreground">
-          <span className="text-foreground">{match.wins + match.draws + match.losses}</span> partite ·{' '}
-          <span className="text-foreground">{num(Math.round(match.elo ?? 0))}</span> Elo · V {match.wins} P {match.draws} S {match.losses}
+          <span className="text-foreground">{f.num(match.wins + match.draws + match.losses)}</span> {t('verdict.games')} ·{' '}
+          <span className="text-foreground">{f.num(Math.round(match.elo ?? 0))}</span> Elo ·{' '}
+          {t('verdict.wdl', { w: match.wins, d: match.draws, l: match.losses })}
         </p>
       )}
-      {failed && !match && <FailureNote detail={failed.detail} />}
+      {failed && !match && (
+        <p className="mt-2.5 text-xs leading-relaxed text-muted-foreground">{failureText(i18n, failed.detail)}</p>
+      )}
       <div className="mt-3 flex flex-wrap gap-3.5 text-xs text-muted-foreground">
         {experiment.gates.map((g) => (
           <span key={g.gate}>
-            <span className={g.passed ? 'text-good' : 'text-bad'}>{g.passed ? '✓' : '✗'}</span> {GATES[g.gate] ?? g.gate}
+            <span className={g.passed ? 'text-good' : 'text-bad'}>{g.passed ? '✓' : '✗'}</span> {label('gate', g.gate)}
           </span>
         ))}
       </div>
@@ -73,6 +86,7 @@ function VerdictCard({ experiment, judging }: { experiment: Experiment | null; j
 }
 
 function LlrBar({ llr }: { llr: number }) {
+  const { t, f } = useI18n()
   const share = Math.max(-1, Math.min(1, llr / LLR_BOUND))
   return (
     <div className="mt-3">
@@ -82,31 +96,28 @@ function LlrBar({ llr }: { llr: number }) {
               style={{ left: `${share >= 0 ? 50 : 50 + share * 50}%`, width: `${Math.abs(share) * 50}%` }} />
       </div>
       <div className="mt-1.5 flex justify-between font-mono text-[11px] text-muted-foreground">
-        <span>scarta</span><span>LLR {num(llr)}</span><span>accetta</span>
+        <span>{t('verdict.llrReject')}</span><span>LLR {f.num(llr)}</span><span>{t('verdict.llrAccept')}</span>
       </div>
     </div>
   )
 }
 
-function FailureNote({ detail }: { detail: Record<string, unknown> }) {
-  return <p className="mt-2.5 text-xs leading-relaxed text-muted-foreground">{failureText(detail)}</p>
-}
-
 function SpendCard({ spend }: { spend: Ready['spend'] }) {
+  const { t, tn, f } = useI18n()
   const share = Math.min(1, spend.usd / spend.budget)
   const full = spend.usd >= spend.budget
   return (
     <section className={card}>
-      <p className="mb-2.5 text-[13px] text-muted-foreground">Quanto abbiamo speso oggi?</p>
+      <p className="mb-2.5 text-[13px] text-muted-foreground">{t('spend.title')}</p>
       <p className="flex items-baseline gap-2.5">
-        <b className="text-[32px] leading-none font-semibold tracking-tight tabular-nums">{money(spend.usd)}</b>
-        <span className="font-mono text-[13px] text-muted-foreground">di {money(spend.budget)}</span>
+        <b className="text-[32px] leading-none font-semibold tracking-tight tabular-nums">{f.money(spend.usd)}</b>
+        <span className="font-mono text-[13px] text-muted-foreground">{t('spend.of', { budget: f.money(spend.budget) })}</span>
       </p>
       <div className="mt-3 h-1.5 rounded-full bg-muted">
         <i className={cn('block h-1.5 rounded-full', full ? 'bg-bad' : 'bg-live')} style={{ width: `${share * 100}%` }} />
       </div>
       <p className="mt-2.5 text-xs text-muted-foreground">
-        {full ? 'Tetto raggiunto: l’agente riprende dopo mezzanotte (UTC).' : `${spend.sessions} sessioni oggi`}
+        {full ? t('spend.full') : t('spend.sessions', { sessions: tn('count.sessions', spend.sessions) })}
       </p>
     </section>
   )

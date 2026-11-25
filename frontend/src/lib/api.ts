@@ -5,6 +5,12 @@ export type Phase = 'genesis' | 'first_steps' | 'evolution'
 
 export type Gate = { gate: string; passed: boolean; detail: Record<string, unknown> }
 
+/**
+ * A short text written by a language model about a game or a match, in both languages. The
+ * fields added for the bilingual dashboard are optional: an older API simply leaves them out.
+ */
+export type Commentary = { it: string | null; en: string | null }
+
 export type MatchSummary = {
   opponent: string
   wins: number
@@ -23,8 +29,10 @@ export type Experiment = {
   phase: Phase
   status: string
   hypothesis: string | null
+  hypothesis_it?: string | null
   rejected_at_gate: string | null
   lesson: string | null
+  lesson_it?: string | null
   created_at: string
   gates: Gate[]
   match: MatchSummary | null
@@ -36,6 +44,7 @@ export type Generation = {
   elo_vs_parent: number | null
   elo_absolute: number | null
   hypothesis: string | null
+  hypothesis_it?: string | null
   tried: number
   created_at: string
 }
@@ -120,6 +129,7 @@ export type LichessGame = {
   generation_id: number
   time_control: string
   finished_at: string | null
+  commentary?: Commentary | null
 }
 
 export type LichessPerformance = { games: number; wins: number; draws: number; losses: number; performance: number }
@@ -128,6 +138,26 @@ export type Lichess = {
   live: LichessLive | null
   recent: LichessGame[]
   performance: Record<string, LichessPerformance>
+}
+
+/** A match the referee judged: a candidate against the random player or the champion. */
+export type JudgedMatch = {
+  id: number
+  experiment_id: number
+  kind: string
+  opponent: 'random' | 'champion' | string
+  wins: number
+  draws: number
+  losses: number
+  pentanomial: number[] | null
+  elo: number | null
+  elo_error: number | null
+  verdict: 'h1' | 'h0' | 'continue' | string | null
+  time_control: string
+  finished_at: string | null
+  hypothesis_en: string | null
+  hypothesis_it?: string | null
+  commentary?: Commentary | null
 }
 
 /** A non-2xx answer from the API; `status` lets a view tell "not found" from "down". */
@@ -163,14 +193,25 @@ export function useLichess() {
   return useQuery({
     queryKey: ['lichess'],
     queryFn: () => getJson<Lichess>('/api/lichess'),
-    refetchInterval: 30000,
+    refetchInterval: 15000,
+  })
+}
+
+/** The last judged matches. A 404 means an API without the endpoint yet: not retried. */
+export function useMatches() {
+  return useQuery({
+    queryKey: ['matches'],
+    queryFn: () => getJson<JudgedMatch[]>('/api/matches?limit=10'),
+    refetchInterval: 15000,
+    retry: retryUnlessClientError,
   })
 }
 
 /**
  * Live agent events and the game on the board, pushed by the API over SSE. The Lichess game
  * arrives on the same stream and goes into the ['lichess'] query; when it ends the query is
- * refetched, so the finished game shows up among the recent ones.
+ * refetched, so the finished game shows up among the recent ones. A status event of the agent
+ * (a session starts, a candidate goes to judgement) refetches the judged matches.
  */
 export function useLiveStream(initial: AgentEvent[]) {
   const queryClient = useQueryClient()
@@ -185,6 +226,7 @@ export function useLiveStream(initial: AgentEvent[]) {
     source.addEventListener('agent', (message) => {
       const event = JSON.parse((message as MessageEvent<string>).data) as AgentEvent
       setEvents((previous) => [...previous.slice(-199), event])
+      if (event.kind === 'status') void queryClient.invalidateQueries({ queryKey: ['matches'] })
     })
     source.addEventListener('game', (message) => {
       setGame(JSON.parse((message as MessageEvent<string>).data) as LiveGame | null)
@@ -214,7 +256,9 @@ export type GenerationDetail = {
   below_ladder: boolean
   experiment_id: number | null
   hypothesis: string | null
+  hypothesis_it?: string | null
   lesson: string | null
+  lesson_it?: string | null
   tried: number
   diff_stat: DiffStat | null
   lichess: LichessPerformance | null
@@ -227,7 +271,9 @@ export type ExperimentRow = {
   status: string
   trigger: string
   hypothesis: string | null
+  hypothesis_it?: string | null
   lesson: string | null
+  lesson_it?: string | null
   rejected_at_gate: string | null
   created_at: string
   finished_at: string | null
@@ -274,6 +320,7 @@ export type Lab = {
   }
   cost_per_generation: { generation: number; usd: number }[]
   changelog: string
+  changelog_en?: string | null
 }
 
 export function useGenerationsDetail() {

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useT } from '@/i18n/context'
 import { cn } from '@/lib/utils'
 
 export const card = 'rounded-[18px] bg-card p-5 shadow-[inset_0_0_0_1px_var(--border)]'
@@ -26,22 +27,26 @@ export function StateNote(props: { title: string; text?: ReactNode; tone?: 'mute
   )
 }
 
-export function LoadingNote({ what }: { what: string }) {
-  return <StateNote title={`Carico ${what}…`} />
+/** `what` is already translated, with its article: "gli esperimenti", "the experiments". */
+export function LoadingNote({ what, className }: { what: string; className?: string }) {
+  const t = useT()
+  return <StateNote title={t('state.loading', { what })} className={className} />
 }
 
-export function ErrorNote({ what, onRetry }: { what: string; onRetry?: () => void }) {
+export function ErrorNote({ what, onRetry, className }: { what: string; onRetry?: () => void; className?: string }) {
+  const t = useT()
   return (
     <StateNote
       tone="bad"
-      title={`Non riesco a caricare ${what}`}
+      className={className}
+      title={t('state.error', { what })}
       text={
         onRetry ? (
           <button type="button" onClick={onRetry} className="cursor-pointer underline underline-offset-4 hover:text-foreground">
-            Riprova
+            {t('state.retry')}
           </button>
         ) : (
-          'Il servizio potrebbe essere momentaneamente spento: riprova tra poco.'
+          t('state.down')
         )
       }
     />

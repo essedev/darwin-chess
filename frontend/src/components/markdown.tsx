@@ -22,9 +22,9 @@ const prose = [
  * Markdown written by the agent. Raw HTML is dropped (`skipHtml`), never rendered: the text
  * comes from the genome, and react-markdown already neutralises unsafe link protocols.
  */
-export function AgentMarkdown({ text, className }: { text: string; className?: string }) {
+export function AgentMarkdown({ text, className, lang }: { text: string; className?: string; lang?: string }) {
   return (
-    <div className={cn(prose, className)}>
+    <div className={cn(prose, className)} lang={lang}>
       <Markdown skipHtml>{text}</Markdown>
     </div>
   )

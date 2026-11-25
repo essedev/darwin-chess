@@ -1,30 +1,29 @@
+import { useI18n } from '@/i18n/context'
 import type { Lichess, LichessLive } from '@/lib/api'
-import { cn } from '@/lib/utils'
 import { useNow } from '@/lib/use-now'
+import { cn } from '@/lib/utils'
 import { clock } from './format'
 import { GameFrame, Player } from './game-parts'
-import { RecentGames } from './lichess-recent'
 
 const card = 'rounded-[18px] bg-card p-5 shadow-[inset_0_0_0_1px_var(--border)]'
 
-type Query = { isPending: boolean; isError: boolean; data: Lichess | undefined }
+type Query = { isPending: boolean; data: Lichess | undefined }
 
-/** The Lichess tab: the bot's game in progress, or the games it has finished. */
+/** The Lichess tab's board slot: the bot's game in progress, or why there is none to show. */
 export function LichessPanel({ query }: { query: Query }) {
-  if (query.isPending) return <Message title="Carico le partite su Lichess…" />
-  if (query.isError || !query.data)
-    return <Message title="Non riesco a leggere le partite su Lichess" text="Riprovo da solo tra poco." />
-  const { live, recent } = query.data
+  const { t } = useI18n()
+  if (!query.data) {
+    return query.isPending
+      ? <Message title={t('lichess.loading')} />
+      : <Message title={t('lichess.error.title')} text={t('lichess.error.text')} />
+  }
+  const { live } = query.data
   if (live) return <LiveGame live={live} />
-  return (
-    <div className="grid w-full gap-3.5">
-      <Message title="Nessuna partita su Lichess in corso" text="Quando il bot gioca, la partita compare qui in diretta." />
-      <RecentGames games={recent} />
-    </div>
-  )
+  return <Message title={t('lichess.idle.title')} text={t('lichess.idle.text')} />
 }
 
 function LiveGame({ live }: { live: LichessLive }) {
+  const { t } = useI18n()
   const turn = live.fen.split(' ')[1] === 'b' ? 'black' : 'white'
   // Lichess starts the clocks once both sides have moved.
   const ticking = live.moves.length >= 2
@@ -34,10 +33,10 @@ function LiveGame({ live }: { live: LichessLive }) {
     (colour === 'white' ? live.wtime : live.btime) - (colour === turn ? elapsed : 0)
   const player = (colour: 'white' | 'black') => {
     const aside = <Clock ms={remaining(colour)} running={ticking && colour === turn} />
-    const side = colour === 'white' ? 'bianco' : 'nero'
+    const side = t(`colour.${colour}`)
     if (colour === live.color)
       return <Player colour={colour} label={`darwin-chess-bot · gen-${live.generation}`} detail={side} aside={aside} />
-    const rating = live.opponent.rating === null ? 'senza punteggio' : String(live.opponent.rating)
+    const rating = live.opponent.rating === null ? t('lichess.unrated') : String(live.opponent.rating)
     return (
       <Player colour={colour} label={live.opponent.name} badge={live.opponent.title}
               detail={`${side} · ${rating}`} aside={aside} />

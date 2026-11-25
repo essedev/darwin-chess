@@ -1,5 +1,8 @@
+import { useT } from '@/i18n/context'
+
 /** Elo per generation, the line of the "Come sta andando" card. */
 export function Spark({ points }: { points: { id: number; elo: number }[] }) {
+  const t = useT()
   if (points.length < 2) return null
   const width = 300
   const height = 84
@@ -12,7 +15,7 @@ export function Spark({ points }: { points: { id: number; elo: number }[] }) {
   const last = points.at(-1)
   if (!last) return null
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="mt-3.5 block h-auto w-full overflow-visible" role="img" aria-label="Elo per generazione">
+    <svg viewBox={`0 0 ${width} ${height}`} className="mt-3.5 block h-auto w-full overflow-visible" role="img" aria-label={t('history.sparkLabel')}>
       <path d={`${line} L${x(points.length - 1)},${height} L${x(0)},${height} Z`} className="fill-live opacity-10" />
       <path d={line} className="fill-none stroke-live" strokeWidth={2} strokeLinejoin="round" />
       <circle cx={x(points.length - 1)} cy={y(last.elo)} r={3.5} className="fill-live" />
