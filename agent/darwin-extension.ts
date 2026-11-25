@@ -180,9 +180,10 @@ export default function (pi: ExtensionAPI) {
 		forwarder(
 			"run_job",
 			"Run job",
-			"Start a long CPU-only job (self-play, training) on a snapshot of the working tree, or read the status of jobs. Output files go to /job/out and become readable at /jobs/<id>/out in later sessions.",
+			"Start a long CPU-only job (self-play, training) on a snapshot of the working tree, read the status of jobs and the storage used, or delete a finished job's files. Output goes to /job/out and is readable at /jobs/<id>/out in later sessions. Storage has a quota: a job writing too much is killed, and new jobs are refused when the total is full.",
 			Type.Object({
-				action: Type.Union([Type.Literal("start"), Type.Literal("status")]),
+				action: Type.Union([Type.Literal("start"), Type.Literal("status"), Type.Literal("delete")]),
+				job_id: Type.Optional(Type.Integer({ description: "Job whose files to delete (delete only)" })),
 				command: Type.Optional(Type.String({ description: "Shell command run in /job/src (start only)" })),
 				hours: Type.Optional(Type.Number({ minimum: 0.1, maximum: 12 })),
 			}),

@@ -25,5 +25,8 @@ An illegal move, a crash or a timeout loses the game. You cannot see or change t
 
 ## Resources
 
-- No network. Use the standard library or crates already vendored in this repository.
+- No network. Use the standard library or the vendored crates: rand 0.9, rayon 1.12,
+  bytemuck 1.25. Python 3 with PyTorch (CPU) and numpy is there for training, not for the engine.
+- The referee runs `target/release/genome` alone, with no other file: embed everything the
+  engine needs (network weights, tables) in the binary, for example with `include_bytes!`.
 - Each engine process gets one CPU core during matches.

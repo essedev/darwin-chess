@@ -141,6 +141,8 @@ class Sandbox:
             "--pids-limit", "512", "--read-only", "--tmpfs", "/tmp:exec,size=2g",
             "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--user", "1000:1000",
             "-e", "HOME=/tmp", "-e", "CARGO_HOME=/tmp/cargo",
+            "-e", f"OMP_NUM_THREADS={int(s.build_cpus)}",
+            "-e", f"RAYON_NUM_THREADS={int(s.build_cpus)}",
             "--label", f"{docker.RUN_LABEL}={self.run_id}",
             "-v", f"{s.genome_dir}:/genome", "-v", f"{s.mirror_dir}:/mirror:ro",
             "-v", f"{s.data_dir / 'jobs'}:/jobs:ro", "-v", f"{memory}:/memory",

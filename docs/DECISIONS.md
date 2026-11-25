@@ -104,3 +104,13 @@ Status: attiva. Data: 2026-11-25.
 
 La chiave disponibile è Anthropic, quindi il default diventa Anthropic diretto; OpenRouter resta selezionabile con `DARWIN_LLM_PROVIDER`. Il cambio non tocca altro codice: pi conosce entrambi i provider, ciascuno con il suo ID del modello (`claude-haiku-5-5`, `anthropic/claude-haiku-5.5`) e la sua variabile per la chiave, e calcola il costo dagli stessi prezzi (0,10 $ e 0,50 $ per milione di token, cache in lettura 0,01 $). Supera la scelta di OpenRouter di #5.
 
+## #18 Librerie per l'agente, niente GPU, quota disco sul disco interno
+
+Status: attiva. Data: 2026-11-25.
+
+L'agente riceve poche crate Rust già scaricate (rand, rayon, bytemuck) e Python con PyTorch CPU e numpy, tutto dentro l'immagine e quindi offline. Senza librerie l'addestramento di una rete andrebbe scritto da zero in Rust, il punto in cui un modello economico rischia di arenarsi; con PyTorch è il percorso standard, lo stesso di Stockfish che addestra in PyTorch e incorpora la rete nel motore. Quello che la rete sa viene comunque dalle partite. Il motore resta in Rust e i pesi vanno incorporati nel binario, perché l'arbitro lo esegue da solo.
+
+Niente GPU: Docker su Mac non vede la GPU Apple, e usarla vorrebbe dire eseguire codice dell'agente su macOS fuori dal sandbox. Scartato anche un addestratore nostro a cui l'agente passa solo dati: l'agente configurerebbe invece di costruire. Per reti piccole stile NNUE la CPU basta; si riapre se l'addestramento diventa il collo di bottiglia.
+
+I job scrivono sul disco interno di server (120 GB liberi) con una quota di 10 GB per job e 40 GB in tutto: un job oltre la quota viene fermato, uno nuovo viene rifiutato a quota piena, e l'agente cancella da sé gli output vecchi. Scartato il disco esterno: è condiviso con la libreria di other services, quasi pieno, e collegato via cavo, quindi può sparire sotto `core`.
+

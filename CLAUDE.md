@@ -40,5 +40,7 @@ Un agente LLM (Haiku 5.5, via Anthropic o OpenRouter) scrive da zero un motore d
 - pi risolve i percorsi relativi sulla propria cartella dell'host: l'estensione (`agent/darwin-extension.ts`) li traduce in `/genome` prima di ogni `docker exec`. pi va sempre avviato con i flag di `orchestrator/pi.py` (niente caricamento automatico).
 - Il test `tests/orchestrator/test_docker_session.py` gira pi vero contro un modello finto: rompe se cambia il protocollo RPC o l'API delle estensioni di pi, ed è il primo controllo da fare quando si aggiorna pi.
 - fastchess aspetta 60 secondi fissi un motore che ignora `quit`: per questo ogni motore passa da `arena/engine_shim.py`, che dopo 2 secondi elimina il container. L'immagine arena ha solo `python3-minimal` (niente `uuid`, per esempio).
+- Le crate disponibili all'agente si risolvono da `/opt/vendor` tramite `/.cargo/config.toml` nell'immagine `lab` (letto da qualunque cartella sotto `/`, anche con `CARGO_HOME` diverso). Aggiungerne una: `cargo add` nello stage `vendor` di `lab/Dockerfile`, con versione fissata.
+- PyTorch e rayon vedono tutti i core della macchina, non il tetto `--cpus`: sandbox e job passano `OMP_NUM_THREADS` e `RAYON_NUM_THREADS`.
 - L'API monta `data/` in scrittura anche se non scrive: SQLite in WAL scrive l'indice condiviso anche per leggere.
 - I container dei motori sopravvivono al loro client: ogni run porta l'etichetta `darwin.run=<id>` e si ripulisce per etichetta, anche quando fallisce.

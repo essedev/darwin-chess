@@ -122,15 +122,30 @@ class SessionTools:
         return "\n".join(lines)
 
     async def run_job(self, params: dict[str, Any]) -> str:
-        if params.get("action") == "status":
+        action = params.get("action")
+        if action == "status":
             jobs = await self.ledger.jobs()
-            if not jobs:
-                return "No jobs yet."
-            return "\n".join(
-                f"job {j.id}: {j.status} (exit {j.exit_code}) `{j.command[:100]}`"
-                + (f"\n  log: {j.log_tail[-600:]}" if j.log_tail else "")
-                for j in jobs[:5]
+            used, ceiling = await self.jobs.storage()
+            storage = (
+                f"Job storage: {used:.1f} of {ceiling:g} GB "
+                f"({self.settings.job_disk_gb:g} GB per job)."
             )
+            if not jobs:
+                return f"No jobs yet. {storage}"
+            return "\n".join(
+                [storage]
+                + [
+                    f"job {j.id}: {j.status} (exit {j.exit_code}) `{j.command[:100]}`"
+                    + (f"\n  log: {j.log_tail[-600:]}" if j.log_tail else "")
+                    for j in jobs[:5]
+                ]
+            )
+        if action == "delete":
+            try:
+                freed = await self.jobs.delete(int(params.get("job_id") or 0))
+            except (JobError, ValueError) as exc:
+                raise ToolError(str(exc)) from exc
+            return f"Deleted the files of job {params.get('job_id')}: {freed:.2f} GB freed."
         command = str(params.get("command") or "").strip()
         if not command:
             raise ToolError("start needs a command")

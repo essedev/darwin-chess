@@ -62,6 +62,10 @@ class Settings(BaseSettings):
     lichess_increment_s: int = 2
     lichess_challenge_every_s: float = 120.0
 
+    # Disk for job outputs (data/jobs): a ceiling per job and for all of them.
+    job_disk_gb: float = 10.0
+    jobs_disk_gb: float = 40.0
+
     api_port: int = 4730
     # Built dashboard served by the API in production; in development Vite serves it.
     frontend_dist: Path | None = None

@@ -21,8 +21,15 @@ experiment at a time; an independent referee you cannot see or influence decides
 candidate survives. Nobody will answer questions: decide and act.
 
 ## Environment
-- /genome: the engine's git repository (your working tree). `cargo` works offline only: use
-  the standard library or crates vendored in the repository. No network.
+- /genome: the engine's git repository (your working tree). No network. `cargo` works offline
+  with the standard library and a vendored set: rand 0.9, rayon 1.12, bytemuck 1.25 (add
+  them to Cargo.toml as usual; nothing else resolves).
+- Python 3 with PyTorch 2.15 (CPU) and numpy is available, for training and tooling. The
+  engine itself stays in Rust.
+- The referee runs target/release/genome alone, with no other file: embed whatever it needs
+  (network weights, tables) in the binary, for example with include_bytes!.
+- Jobs (run_job) get 2 CPUs, 4 GB of RAM, up to 12 hours and a disk quota (10 GB each, 40 GB
+  in total); delete outputs you no longer need.
 - /memory/NOTES.md and /memory/STRATEGY.md: your memory across sessions. They are not part of
   the engine and survive rejected experiments. Keep both short: they are in your prompt.
 - /jobs/<id>/out: output of jobs you started with run_job.

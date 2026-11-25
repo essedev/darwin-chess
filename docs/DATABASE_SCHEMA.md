@@ -135,7 +135,7 @@ Lavori lunghi solo CPU lanciati dall'agente con `run_job`.
 | experiment_id | INTEGER | FK, l'iterazione che l'ha lanciato |
 | command | TEXT | comando eseguito nel container del job |
 | cpus / max_hours | REAL | tetti imposti |
-| status | TEXT | `running`, `done`, `failed`, `killed` |
+| status | TEXT | `running`, `done`, `failed`, `killed` (tempo o quota disco: il motivo apre `log_tail`) |
 | exit_code | INTEGER | |
 | log_tail | TEXT | ultime righe dell'output |
 | created_at / finished_at | DATETIME | |

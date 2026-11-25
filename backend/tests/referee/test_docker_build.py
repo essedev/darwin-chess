@@ -61,6 +61,20 @@ async def test_build_failure_returns_the_compiler_output(settings: Settings, gen
     assert "mismatched types" in result.detail["log"]
 
 
+async def test_vendored_crates_build_offline(settings: Settings, genome: Path) -> None:
+    (genome / "Cargo.toml").write_text(CARGO_TOML + '\n[dependencies]\nrand = "0.9"\n')
+    main = 'fn main() { let x: u8 = rand::random(); println!("{x}"); }\n'
+    (genome / "src").mkdir(parents=True, exist_ok=True)
+    (genome / "src" / "main.rs").write_text(main)
+    git(genome, "add", "-A")
+    git(genome, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "rand")
+    sha = git(genome, "rev-parse", "HEAD")
+    git(genome, "push", "-q", str(genome.parent / "mirror.git"), f"HEAD:refs/darwin/exp-{sha[:8]}")
+    result, binary = await build_gate(settings, sha)
+    assert result.passed, result.detail  # resolved from the image's vendored set, no network
+    assert binary is not None
+
+
 async def test_build_rejects_anything_but_a_full_sha(settings: Settings) -> None:
     with pytest.raises(RefereeError):
         await build_gate(settings, "HEAD; rm -rf /")
