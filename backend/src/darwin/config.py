@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     data_dir: Path = Path("../data")
     # Trusted bare copy of every commit that matters; the agent never writes it.
     mirror_dir: Path = Path("../data/mirror.git")
+    # The platform's own changelog, shown on the dashboard (the image copies it to /app).
+    changelog_path: Path = Path("../CHANGELOG.md")
 
     # "anthropic" or "openrouter" (any other provider must be configured in pi's models.json,
     # as the tests do). The key goes to pi in the variable that provider expects.
@@ -94,7 +96,7 @@ class Settings(BaseSettings):
             return {}
         return {PROVIDERS[self.llm_provider][0]: self.llm_api_key.get_secret_value()}
 
-    @field_validator("genome_dir", "data_dir", "mirror_dir", "agent_dir")
+    @field_validator("genome_dir", "data_dir", "mirror_dir", "agent_dir", "changelog_path")
     @classmethod
     def _absolute(cls, value: Path) -> Path:
         return value.expanduser().resolve()

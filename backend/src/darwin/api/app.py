@@ -1,7 +1,9 @@
-"""Read-only API for the dashboard: overview, live game, Lichess, and a server-sent event stream.
+"""Read-only API for the dashboard: overview, live game, Lichess, history, code and memory, and a
+server-sent event stream.
 
 The API never writes: it reads the ledger (SQLite in WAL, while core writes), the fastchess
-event streams under the data dir and the file the Lichess bot keeps for its current game.
+event streams under the data dir, the file the Lichess bot keeps for its current game, the
+trusted git mirror and the agent's memory files (`explore.py`).
 """
 
 import asyncio
@@ -11,9 +13,12 @@ from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import StreamingResponse
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
+from darwin.api.code import BadRequest, GitError, Mirror, NotFound
+from darwin.api.explore import router as explore_router
 from darwin.api.hub import Full, Hub
 from darwin.api.lichess_live import read_lichess_live
 from darwin.api.live import read_live_game
@@ -29,6 +34,7 @@ STREAM_TICK_S = 1.0
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
     app.state.ledger = Ledger(settings.ledger_url)
+    app.state.mirror = Mirror(settings.mirror_dir)
     data_dir = settings.data_dir
     app.state.hub = Hub(
         app.state.ledger,
@@ -47,6 +53,22 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(
     title="darwin-chess", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None
 )
+app.include_router(explore_router)
+
+
+def _error(status: int) -> Any:
+    async def handler(_: Request, exc: Exception) -> JSONResponse:
+        detail = "bad parameters" if isinstance(exc, RequestValidationError) else str(exc)
+        return JSONResponse({"detail": detail}, status_code=status)
+
+    return handler
+
+
+# Bad parameters are 400, not FastAPI's 422; git failures are not the caller's fault.
+app.add_exception_handler(RequestValidationError, _error(400))
+app.add_exception_handler(BadRequest, _error(400))
+app.add_exception_handler(NotFound, _error(404))
+app.add_exception_handler(GitError, _error(503))
 
 
 @app.get("/api/health")

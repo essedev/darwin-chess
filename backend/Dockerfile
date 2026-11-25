@@ -17,6 +17,9 @@ RUN pnpm build
 FROM docker:29-cli AS docker-cli
 
 FROM python:3.13-slim
+# git reads the trusted mirror for the code browser (read-only, never the agent's genome).
+RUN apt-get update && apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/*
 COPY --from=ghcr.io/astral-sh/uv:0.10.2 /uv /usr/local/bin/uv
 COPY --from=docker-cli /usr/local/bin/docker /usr/local/bin/docker
 COPY --from=node /usr/local/bin/node /usr/local/bin/node
@@ -26,8 +29,10 @@ RUN uv sync --frozen --no-dev --no-install-project
 COPY backend/ ./
 RUN uv sync --frozen --no-dev
 COPY seed/ /app/seed/
+COPY CHANGELOG.md /app/CHANGELOG.md
 COPY agent/darwin-extension.ts /app/agent/
 COPY --from=node /build/agent/node_modules /app/agent/node_modules
 COPY --from=node /build/frontend/dist /app/frontend/dist
-ENV PATH=/app/backend/.venv/bin:$PATH DARWIN_AGENT_DIR=/app/agent DARWIN_FRONTEND_DIST=/app/frontend/dist
+ENV PATH=/app/backend/.venv/bin:$PATH DARWIN_AGENT_DIR=/app/agent DARWIN_FRONTEND_DIST=/app/frontend/dist \
+    DARWIN_CHANGELOG_PATH=/app/CHANGELOG.md
 CMD ["python", "-m", "darwin.orchestrator"]

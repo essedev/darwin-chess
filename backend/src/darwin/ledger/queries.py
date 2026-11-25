@@ -88,28 +88,32 @@ async def experiment_view(ledger: Ledger, row: m.Experiment) -> dict[str, Any]:
         "lesson": row.lesson,
         "diff_stat": row.diff_stat,
         "created_at": row.created_at.isoformat(),
-        "gates": [
-            {
-                "gate": g.gate,
-                "passed": g.passed,
-                "detail": {k: v for k, v in g.detail.items() if k not in {"pgn", "log"}},
-            }
-            for g in gates
-        ],
-        "match": None
-        if match is None
-        else {
-            "opponent": match.engine_b,
-            "wins": match.wins,
-            "draws": match.draws,
-            "losses": match.losses,
-            "pentanomial": match.pentanomial,
-            "elo": match.elo_diff,
-            "elo_error": match.elo_error,
-            "llr": match.llr,
-            "verdict": match.verdict,
-            "time_control": match.time_control,
-        },
+        "gates": [gate_view(g) for g in gates],
+        "match": None if match is None else match_view(match),
+    }
+
+
+def gate_view(gate: m.GateResult) -> dict[str, Any]:
+    """A gate without its bulky fields (games, build log)."""
+    return {
+        "gate": gate.gate,
+        "passed": gate.passed,
+        "detail": {k: v for k, v in gate.detail.items() if k not in {"pgn", "log"}},
+    }
+
+
+def match_view(match: m.Match) -> dict[str, Any]:
+    return {
+        "opponent": match.engine_b,
+        "wins": match.wins,
+        "draws": match.draws,
+        "losses": match.losses,
+        "pentanomial": match.pentanomial,
+        "elo": match.elo_diff,
+        "elo_error": match.elo_error,
+        "llr": match.llr,
+        "verdict": match.verdict,
+        "time_control": match.time_control,
     }
 
 
