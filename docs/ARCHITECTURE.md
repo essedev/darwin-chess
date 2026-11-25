@@ -95,7 +95,7 @@ server (Docker Compose, restart automatico)
    └─ job        i lavori di run_job, con tetto di CPU
 ```
 
-- Avvio: `.env` con `DARWIN_HOME` (path assoluto del repository) e la chiave, poi `make genome-init` e `make up`. `core` applica le migrazioni all'avvio; `api` serve anche la dashboard compilata.
+- Avvio: `.env` con `DARWIN_HOME` (path assoluto del repository) e la chiave, poi `make genome-init` e `make up`. Su server `make up-public` avvia anche `tunnel`: `cloudflared` (versione fissata) pubblica l'API, e con lei la dashboard, su https://darwin.esse.dev senza aprire porte. Le credenziali del tunnel `darwin` stanno in `~/.cloudflared` su server, create una volta con `cloudflared tunnel login` e `tunnel create`; il record DNS lo ha creato `tunnel route dns`. `core` applica le migrazioni all'avvio; `api` serve anche la dashboard compilata.
 - Orchestratore e arbitro stanno nello stesso processo: sono entrambi fidati e il registro SQLite mantiene un solo scrittore. La separazione la garantisce la regola sugli import.
 - I dati (`DARWIN_DATA_DIR`: binari, partite, registro, artefatti) sono montati nei container allo stesso path che hanno sull'host, così i bind mount dei container creati da `core` e da `arena` si risolvono uguali in sviluppo e in produzione.
 - CPU, da tarare con un test di carico di un'ora: alla VM di Docker 8 core su 10; dentro, 2 per le compilazioni dell'agente e 6 per le partite (3 in parallelo). Un addestramento prende core dalle partite, non si somma. Senza ventola l'Air rallenta sotto carico continuo, e i core misti aggiungono rumore alle partite: servono più partite per un verdetto, non c'è distorsione sistematica.
