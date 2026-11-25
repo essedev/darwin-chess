@@ -63,6 +63,16 @@
 			   Gli stati passano ai tasti q w e r; le cifre sono delle sottovarianti, come negli altri
 			   concept.
 
+			Giro 4: le versioni di D sono "troppo monocromatiche". Aggiunte d6-d9: stessa struttura e
+			   stessi dettagli, ma con colore vero: sfondo e superfici leggermente tinti, due accenti
+			   (uno principale per numeri, grafico, barre e animazioni; uno secondario per in diretta,
+			   candidato in gara e mossa corrente), scacchiera nei colori della tavolozza, il
+			   riquadro della forza tinto. d2-d5 restano finché Simone non le toglie.
+			   d6 Bosco: verde bosco e ambra (IBM Plex).
+			   d7 Mare: petrolio e corallo (Inter + JetBrains Mono).
+			   d8 Terracotta: terracotta e oliva (Geist).
+			   d9 Notte: indaco e ambra, pensata anche per il tema scuro (Space Grotesk).
+
 			Dati: veri dal sito (25/11/2026, 17:40): gen-6 a 1.183 ± 142 contro Stockfish, #22 in
 			giudizio con 936 partite e LLR 1,05, spesa 0,07 $ su 2 $, ultimo pensiero tradotto.
 			La posizione sulla scacchiera è quella di concept B; pezzi cburnett dal CDN di Lichess
@@ -139,6 +149,18 @@
 				--sans: 'Space Grotesk', system-ui, sans-serif; --mono: 'Space Mono', ui-monospace, monospace; --big: 400 44px/1 var(--mono); --sq-l: #e7e7e3; --sq-d: #a9aaa4; }
 			:root[data-theme='dark'] body[data-v='d5'] { --bg: #0c0d0c; --fg: #e9eae6; --card: #131412; --muted: #1b1c1a; --muted-fg: #8b8c88; --line: #262724; --accent: #b6d84a; --good: #b6d84a; --bad: #f07f7f; --sq-l: #cfd0ca; --sq-d: #80827a; }
 			body[data-v='d5'] .top h1, body[data-v='d5'] .heading h2 { font-weight: 600; letter-spacing: -0.02em; }
+			/* Giro 4: D with colour. */
+			body[data-v='d6'] { --bg: #edf1ea; --fg: #17241d; --card: #f8faf5; --muted: #e2e8de; --muted-fg: #6c7a70; --line: #d3dccf; --accent: #2f6b4f; --accent2: #d38a1f; --good: #2f6b4f; --bad: #b2432f;
+				--sans: 'IBM Plex Sans', system-ui, sans-serif; --mono: 'IBM Plex Mono', ui-monospace, monospace; --sq-l: #e8edd8; --sq-d: #7f9a6c; }
+			:root[data-theme='dark'] body[data-v='d6'] { --bg: #0e1511; --fg: #e3ece5; --card: #141d18; --muted: #1b2620; --muted-fg: #87988c; --line: #24322a; --accent: #7cc49b; --accent2: #f0b14f; --good: #7cc49b; --bad: #ee8a72; --sq-l: #cdd8bd; --sq-d: #5f7a50; }
+			body[data-v='d7'] { --bg: #ecf2f4; --fg: #0f1f28; --card: #f9fcfd; --muted: #dfe9ed; --muted-fg: #6a7d87; --line: #cfdde3; --accent: #1b7285; --accent2: #e0644a; --good: #1f7a5a; --bad: #c73f3f;
+				--sans: 'Inter', system-ui, sans-serif; --mono: 'JetBrains Mono', ui-monospace, monospace; --sq-l: #e2ecef; --sq-d: #7fa1ad; }
+			:root[data-theme='dark'] body[data-v='d7'] { --bg: #0b1418; --fg: #e2eef2; --card: #111c21; --muted: #18262c; --muted-fg: #84999f; --line: #213239; --accent: #5cc3d6; --accent2: #f28b73; --good: #6fd1a4; --bad: #f58a8a; --sq-l: #c4d5db; --sq-d: #557a87; }
+			body[data-v='d8'] { --bg: #f5ece3; --fg: #2a1c15; --card: #fff9f3; --muted: #efe1d3; --muted-fg: #8a7464; --line: #e7d4c2; --accent: #b9532c; --accent2: #6e7d2e; --good: #5f7a26; --bad: #b0372f; --sq-l: #f2e3d1; --sq-d: #bf8c66; }
+			:root[data-theme='dark'] body[data-v='d8'] { --bg: #16100c; --fg: #f1e5d9; --card: #1e1611; --muted: #2a1f18; --muted-fg: #a28f7f; --line: #3a2b21; --accent: #ec8a5c; --accent2: #b8c45e; --good: #b8c45e; --bad: #f08273; --sq-l: #dcc8b1; --sq-d: #9c6e4c; }
+			body[data-v='d9'] { --bg: #edeef6; --fg: #141830; --card: #fafaff; --muted: #e1e3f0; --muted-fg: #6e7290; --line: #d3d6e8; --accent: #4a52cc; --accent2: #d99726; --good: #2c7d5a; --bad: #c0394f;
+				--sans: 'Space Grotesk', system-ui, sans-serif; --mono: 'Space Mono', ui-monospace, monospace; --big: 400 44px/1 var(--mono); --sq-l: #e4e6f5; --sq-d: #8790c8; }
+			:root[data-theme='dark'] body[data-v='d9'] { --bg: #0e1020; --fg: #e6e8f8; --card: #161a30; --muted: #1e2340; --muted-fg: #8d92b8; --line: #272d4f; --accent: #8f97ff; --accent2: #f2b44c; --good: #6fd3a0; --bad: #ff7e93; --sq-l: #cfd3f0; --sq-d: #5a63a8; }
 			body[data-base='d'] .brand::before { content: '♞'; margin-right: 8px; color: var(--muted-fg); font-weight: 400; }
 			body[data-base='d'] .tabs a { font-size: 13.5px; }
 			body[data-base='d'] .tabs a.on { border-color: var(--fg); border-bottom-width: 1px; }
@@ -170,6 +192,24 @@
 			body[data-base='d'] .retry { background: none; color: var(--fg); box-shadow: inset 0 0 0 1px var(--line); border-radius: 999px; font: 500 12px var(--mono); padding: 6px 14px; }
 			body[data-base='d'] .retry:hover { box-shadow: inset 0 0 0 1px var(--fg); }
 			body[data-base='d'] .shake { animation-duration: 1.2s; }
+
+			body[data-color='on'] .live i { background: var(--accent2); }
+			body[data-color='on'] .phases .on::before { color: var(--accent2); }
+			body[data-color='on'] .live { color: var(--accent2); }
+			body[data-color='on'] .heading .tag, body[data-color='on'] .rows .now .id { color: var(--accent2); }
+			body[data-color='on'] .rows .now { background: color-mix(in oklab, var(--accent2) 10%, transparent); margin: 0 -10px; padding: 8px 10px; border-radius: 8px; border-top-color: transparent; }
+			body[data-color='on'] .rows .now + li { border-top-color: transparent; }
+			body[data-color='on'] .left .pn:first-child { background: color-mix(in oklab, var(--accent) 7%, var(--card)); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent) 22%, var(--line)); }
+			body[data-color='on'] .big b { color: var(--accent); }
+			body[data-color='on'] .pn-h h2 { color: var(--accent); }
+			body[data-color='on'] .bar i { background: var(--accent); }
+			body[data-color='on'] .moves .cur { color: var(--accent2); }
+			body[data-color='on'] .board i.hl::after { background: color-mix(in oklab, var(--accent2) 40%, transparent); }
+			body[data-color='on'] .tray { background: color-mix(in oklab, var(--accent) 5%, var(--card)); }
+			body[data-color='on'] .art { color: var(--accent); }
+			body[data-color='on'] .retry { background: var(--accent); color: var(--card); box-shadow: none; }
+			body[data-color='on'] .link { color: var(--accent); }
+			body[data-color='on'] .stone.b { box-shadow: 0 0 0 1.5px var(--accent); }
 
 			/* Layout. */
 			.nav { display: flex; align-items: center; gap: 16px; padding: 0 32px; height: 52px; border-bottom: 1px solid var(--line); }
@@ -345,7 +385,11 @@
 				d2: 'Ardesia: D in grigi freddi e blu inchiostro, Inter e JetBrains Mono',
 				d3: 'Salvia: D in grigi verdi e salvia, IBM Plex Sans e Plex Mono',
 				d4: 'Editoriale: D su avorio con rosso ossido, serif solo nei titoli',
-				d5: 'Grafite: D in grafite con verde acido spento, Space Grotesk e Space Mono'
+				d5: 'Grafite: D in grafite con verde acido spento, Space Grotesk e Space Mono',
+				d6: 'Bosco: D a colori, verde bosco e ambra, IBM Plex',
+				d7: 'Mare: D a colori, petrolio e corallo, Inter e JetBrains Mono',
+				d8: 'Terracotta: D a colori, terracotta e oliva, Geist',
+				d9: 'Notte: D a colori, indaco e ambra, Space Grotesk e Space Mono'
 			};
 			const STATES = { ready: 'q pronto', loading: 'w caricamento', error: 'e errore', empty: 'r vuoto' };
 			const base = (v) => v.replace(/\d+$/, '');
@@ -528,6 +572,7 @@
 			document.querySelector('[data-states]').innerHTML = Object.entries(STATES).map(([k, l]) => `<button data-state="${k}">${l}</button>`).join('');
 			const sync = () => {
 				body.dataset.base = base(body.dataset.v);
+				body.dataset.color = ['d6', 'd7', 'd8', 'd9'].includes(body.dataset.v) ? 'on' : '';
 				document.querySelectorAll('.switch [data-v]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === body.dataset.v)));
 				document.querySelectorAll('.switch [data-state]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.state === body.dataset.state)));
 				document.querySelector('[data-desc]').textContent = DESC[body.dataset.v];
