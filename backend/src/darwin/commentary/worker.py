@@ -310,6 +310,25 @@ class CommentaryWorker:
             subject, prompts.title_prompt(row.hypothesis), system=prompts.TITLE_SYSTEM
         )
 
+    async def _translate(
+        self,
+        systems: tuple[str, ...],
+        prompt: str,
+        schema: dict[str, Any],
+        *,
+        max_tokens: int | None = None,
+    ) -> Written | None:
+        """A translation, trying each system prompt in turn. A refusal (Claude Haiku 5.5 has
+        no server-side fallback) or an unusable answer gets one more try with a plainer
+        request; each attempt is checked against the day's budget and paid as usual."""
+        for attempt, system in enumerate(systems):
+            if attempt:
+                log.info("commentary: translation retried with a plainer request")
+            written = await self._write(system, prompt, schema, max_tokens=max_tokens)
+            if written is not None:
+                return written
+        return None
+
     async def _thought(self, subject: Subject) -> bool:
         """The agent's thought on the live page, in Italian."""
         row = await records.event(self.ledger, subject.subject_id)
@@ -318,14 +337,14 @@ class CommentaryWorker:
         text = str(row.payload.get("text") or "").strip()
         if not text:
             return False
-        written = await self._write(
-            prompts.TRANSLATION_SYSTEM,
-            prompts.translation_prompt({"thought": text}),
-            prompts.translation_schema(["thought"]),
+        written = await self._translate(
+            (prompts.LOG_TRANSLATION_SYSTEM, prompts.PLAIN_TRANSLATION_SYSTEM),
+            prompts.translation_prompt({"message": text}),
+            prompts.translation_schema(["message"]),
         )
         if written is None:
             return False
-        return await self._store(subject, written, written.fields["thought"], text)
+        return await self._store(subject, written, written.fields["message"], text)
 
     async def _memory(self, subject: Subject) -> bool:
         """A memory file or the instructions in Italian, if the text has not changed since."""
@@ -334,8 +353,8 @@ class CommentaryWorker:
             return False  # a newer version: the next check queues it
         if await records.exists(self.ledger, subject):
             return False
-        written = await self._write(
-            prompts.MEMORY_TRANSLATION_SYSTEM,
+        written = await self._translate(
+            (prompts.MEMORY_TRANSLATION_SYSTEM, prompts.PLAIN_TRANSLATION_SYSTEM),
             prompts.memory_prompt(text),
             prompts.translation_schema(["text"]),
             max_tokens=MEMORY_MAX_TOKENS,
@@ -362,8 +381,10 @@ class CommentaryWorker:
         if not texts:
             return False
         schema = prompts.translation_schema(list(texts))
-        written = await self._write(
-            prompts.TRANSLATION_SYSTEM, prompts.translation_prompt(texts), schema
+        written = await self._translate(
+            (prompts.TRANSLATION_SYSTEM, prompts.PLAIN_TRANSLATION_SYSTEM),
+            prompts.translation_prompt(texts),
+            schema,
         )
         if written is None:
             return False

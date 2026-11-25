@@ -32,10 +32,11 @@ MOVES = "e2e4 e7e5 g1f3 b8c6 f1c4 g8f6 d2d3 f8c5 c2c3 d7d6 b1d2 a7a6"
 class FakeWriter:
     """Records every call; answers each required field, or nothing (a refusal)."""
 
-    def __init__(self, *, refuse: bool = False, cost: float = 0.001) -> None:
+    def __init__(self, *, refuse: bool = False, refuse_first: int = 0, cost: float = 0.001) -> None:
         self.calls: list[tuple[str, str, dict[str, Any]]] = []
         self.max_tokens: list[int] = []
         self.refuse = refuse
+        self.refuse_first = refuse_first  # refuses only the first n calls
         self.cost = cost
 
     async def write(
@@ -43,7 +44,7 @@ class FakeWriter:
     ) -> Written | None:
         self.calls.append((system, prompt, schema))
         self.max_tokens.append(max_tokens)
-        if self.refuse:
+        if self.refuse or len(self.calls) <= self.refuse_first:
             return None
         fields = {name: f"{name} text {len(self.calls)}" for name in schema["required"]}
         return Written(fields, "claude-haiku-5-5", 301, 51, self.cost)
@@ -247,11 +248,27 @@ async def test_a_thought_is_translated_and_keeps_the_original(ledger: Ledger) ->
     worker.enqueue(records.THOUGHT, status)  # not a thought: skipped
     await worker.work(until_idle=True)
     (call,) = writer.calls
-    assert call[0] == prompts.TRANSLATION_SYSTEM and call[2]["required"] == ["thought"]
+    assert call[0] == prompts.LOG_TRANSLATION_SYSTEM and call[2]["required"] == ["message"]
+    assert "agent" not in call[0].lower() and "thought" not in call[1].lower()
     rows = await stored(ledger)
     assert [(r.kind, r.subject_id, r.text_it, r.text_en) for r in rows] == [
-        ("thought", thought, "thought text 1", "I will deepen the search.")
+        ("thought", thought, "message text 1", "I will deepen the search.")
     ]
+
+
+async def test_a_refused_translation_is_retried_with_a_plainer_request(ledger: Ledger) -> None:
+    await ledger.seed("0" * 40)
+    exp = await judged(ledger, "Try a deeper search", match=False)
+    thought = await ledger.add_event(exp, "thought", {"text": "Now I check perft."})
+    writer = FakeWriter(refuse_first=1)
+    worker = make(ledger, writer)
+    worker.enqueue(records.THOUGHT, thought)
+    await worker.work(until_idle=True)
+    assert [call[0] for call in writer.calls] == [
+        prompts.LOG_TRANSLATION_SYSTEM,
+        prompts.PLAIN_TRANSLATION_SYSTEM,
+    ]
+    assert [r.text_it for r in await stored(ledger)] == ["message text 2"]
 
 
 async def test_memory_is_translated_once_per_version_at_most_hourly(
@@ -299,7 +316,7 @@ async def test_a_refusal_stores_nothing_and_the_worker_goes_on(ledger: Ledger) -
     worker.enqueue(records.HYPOTHESIS, exp)
     worker.enqueue(records.HYPOTHESIS, 999)  # no such experiment: skipped
     await worker.work(until_idle=True)
-    assert len(writer.calls) == 1 and await stored(ledger) == []
+    assert len(writer.calls) == 2 and await stored(ledger) == []  # one retry, then it gives up
 
 
 async def test_a_spent_budget_calls_nothing_and_drops_the_queue(ledger: Ledger) -> None:

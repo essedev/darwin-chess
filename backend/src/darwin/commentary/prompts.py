@@ -67,6 +67,23 @@ TITLE_SYSTEM = (
     "its own language."
 )
 
+# The live messages are translated as what they are to a reader, lines of a project's log:
+# framed as an AI's thoughts, the request can trip the reasoning-extraction classifier.
+LOG_TRANSLATION_SYSTEM = (
+    "You translate into Italian short status messages from the log of a software project, "
+    "a chess engine under development. Translate faithfully: same meaning, same numbers, "
+    "nothing added or left out, no comments of yours. Keep code identifiers, commands, commit "
+    "hashes and technical terms (for example alpha-beta, perft, UCI, SPRT, Elo) as they are. "
+    "Plain text, no Markdown."
+)
+
+# The second attempt after a refusal or an unusable answer: the plainest possible request.
+PLAIN_TRANSLATION_SYSTEM = (
+    "Translate the English text you are given into Italian, faithfully and completely. Keep "
+    "code, identifiers, numbers and any Markdown formatting unchanged. Write only the "
+    "translation, in the requested field."
+)
+
 MEMORY_TRANSLATION_SYSTEM = (
     "You translate into Italian a Markdown file an AI agent keeps while it develops a chess "
     "engine (its strategy or its notes), or the instructions it receives. Translate the prose "
