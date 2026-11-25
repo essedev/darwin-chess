@@ -21,7 +21,7 @@ from darwin.api.code import BadRequest, GitError, Mirror, NotFound
 from darwin.api.explore import router as explore_router
 from darwin.api.hub import Full, Hub
 from darwin.api.lichess_live import read_lichess_live
-from darwin.api.live import read_live_game
+from darwin.api.live import Follower, read_live_game
 from darwin.config import get_settings
 from darwin.ledger import queries
 from darwin.ledger.store import Ledger
@@ -36,10 +36,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.ledger = Ledger(settings.ledger_url)
     app.state.mirror = Mirror(settings.mirror_dir)
     data_dir = settings.data_dir
+    follower = Follower()
     app.state.hub = Hub(
         app.state.ledger,
         {
-            "game": lambda: read_live_game(data_dir / "matches"),
+            # One follower for the stream: every viewer sees the same game, held to its end.
+            "game": lambda: read_live_game(data_dir / "matches", follower),
             "lichess": lambda: read_lichess_live(data_dir),
         },
     )

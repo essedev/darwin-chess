@@ -43,14 +43,17 @@ function LiveGame({ live }: { live: LichessLive }) {
               detail={`${side} · ${rating}`} aside={aside} />
     )
   }
+  // Our bot below and the board from its side, as Lichess shows a game to its player.
+  const theirs = live.color === 'white' ? 'black' : 'white'
   return (
     <GameFrame
-      top={player('black')}
-      bottom={player('white')}
+      top={player(theirs)}
+      bottom={player(live.color)}
       fen={live.fen}
       lastMove={live.last_move}
       san={live.san}
       startPly={live.start_ply}
+      orientation={live.color}
     />
   )
 }

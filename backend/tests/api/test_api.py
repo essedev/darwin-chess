@@ -7,7 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from darwin.api.app import app
-from darwin.api.live import read_live_game
+from darwin.api.live import Follower, LiveGame, read_live_game
 from darwin.config import get_settings
 from darwin.ledger import commentary, lichess
 from darwin.ledger import models as m
@@ -214,3 +214,24 @@ def test_overview_lists_the_running_job_and_the_last_finished(
         ("selfplay --games 100", 4)
     ]
     assert (jobs["last_finished"]["command"], jobs["last_finished"]["exit_code"]) == ("train", 2)
+
+
+def test_the_board_follows_one_game_to_its_end_then_holds_it() -> None:
+    now = [0.0]
+    follower = Follower(hold_s=3.0, clock=lambda: now[0])
+    fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+    first, second = (
+        LiveGame("m1", 1, "candidate", "champion", fen),
+        LiveGame("m1", 2, "champion", "candidate", fen),
+    )
+    assert follower.pick([first, second]) is first
+    third = LiveGame("m1", 3, "candidate", "champion", fen)
+    assert follower.pick([first, second, third]) is first  # a newer game does not steal the board
+    first.result = "1-0"
+    assert follower.pick([first, second, third]) is first  # the final position stays a moment
+    now[0] = 2.9
+    assert follower.pick([first, second, third]) is first
+    now[0] = 3.1
+    assert follower.pick([first, second, third]) is second  # then the oldest still running
+    batch = LiveGame("m2", 1, "candidate", "champion", fen)
+    assert follower.pick([batch]) is batch  # a new batch: its own games

@@ -1,38 +1,50 @@
 import { useI18n } from '@/i18n/context'
 import type { LiveGame, Overview } from '@/lib/api'
 import { playerName } from './format'
-import { GameFrame, Player, Points, START } from './game-parts'
+import { GameFrame, Outcome, Player, START } from './game-parts'
 
 type Ready = Extract<Overview, { ready: true }>
 
-/** The referee's game on the board: a candidate on trial or a champion being rated. */
+/** Ours in a referee game: the candidate on trial, or the champion being rated. */
+function oursIn(game: LiveGame): string {
+  const engines = [game.white, game.black]
+  return engines.find((e) => e === 'candidate') ?? engines.find((e) => e === 'champion' || /^gen-\d+$/.test(e)) ?? game.white
+}
+
+/**
+ * The referee's game on the board, always from our side: ours below, the board turned when
+ * it plays black, so the names stay put while the colours alternate from game to game.
+ * The match score is in the verdict panel; here, once the game ends, its result.
+ */
 export function ArenaGame({ data, game }: { data: Ready; game: LiveGame | null }) {
   const i18n = useI18n()
   const { t } = i18n
   const name = (engine: string) => playerName(i18n, engine, (data.on_trial ?? data.current)?.id, data.champion.id)
-  // During a trial the whole match counts (finished batches, from the referee); otherwise
-  // the games of the match on the board.
-  const progress = data.on_trial?.progress ?? null
-  const won = (engine: string) => {
-    if (progress && engine === 'candidate') return progress.wins
-    if (progress && engine === 'champion') return progress.losses
-    return game?.tally[engine]?.wins ?? 0
+  if (!game) {
+    return (
+      <GameFrame top={<Player colour="black" label={t('arena.waiting')} detail="" />} bottom={<Player colour="white" label="" detail="" />}
+                 fen={START} lastMove={null} san={[]} startPly={0} />
+    )
   }
-  const points = (engine: string) => <Points value={won(engine)} />
+  const ours = oursIn(game)
+  const oursColour = game.white === ours ? 'white' : 'black'
+  const theirs = oursColour === 'white' ? game.black : game.white
+  const theirsColour = oursColour === 'white' ? 'black' : 'white'
+  const outcome = !game.result ? null
+    : game.result === '1/2-1/2' ? 'draw'
+    : (game.result === '1-0') === (oursColour === 'white') ? 'win' : 'loss'
   return (
     <GameFrame
-      top={
-        <Player colour="black" label={game ? name(game.black) : t('arena.waiting')}
-                detail={game ? t('colour.black') : ''} aside={game ? points(game.black) : null} />
-      }
+      top={<Player colour={theirsColour} label={name(theirs)} detail={t(`colour.${theirsColour}`)} />}
       bottom={
-        <Player colour="white" label={game ? name(game.white) : ''}
-                detail={game ? t('colour.white') : ''} aside={game ? points(game.white) : null} />
+        <Player colour={oursColour} label={name(ours)} detail={t(`colour.${oursColour}`)}
+                aside={outcome ? <Outcome outcome={outcome} /> : null} />
       }
-      fen={game?.fen ?? START}
-      lastMove={game?.last_move ?? null}
-      san={game?.san ?? []}
-      startPly={game?.start_ply ?? 0}
+      fen={game.fen}
+      lastMove={game.last_move}
+      san={game.san}
+      startPly={game.start_ply}
+      orientation={oursColour}
     />
   )
 }

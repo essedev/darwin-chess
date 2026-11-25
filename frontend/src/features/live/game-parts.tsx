@@ -6,8 +6,8 @@ import { Board } from './board'
 export const START = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
 
 /**
- * Black above the board, white below, the moves in their own column beside it. On narrow
- * screens the moves run in one line under the board.
+ * The other side above the board, ours below, the moves in their own column beside it. On
+ * narrow screens the moves run in one line under the board.
  */
 export function GameFrame(props: {
   top: ReactNode
@@ -16,13 +16,14 @@ export function GameFrame(props: {
   lastMove: string | null
   san: string[]
   startPly: number
+  orientation?: 'white' | 'black'
 }) {
   const t = useT()
   return (
     <div className="grid w-full min-w-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_132px]">
       <div className="grid min-w-0 gap-2.5">
         {props.top}
-        <Board fen={props.fen} lastMove={props.lastMove} />
+        <Board fen={props.fen} lastMove={props.lastMove} orientation={props.orientation} />
         {props.bottom}
       </div>
       {/* Beside the board the column starts at its top edge: below the player row above. */}
@@ -58,15 +59,11 @@ export function Player(props: {
   )
 }
 
-/** Games won so far in the match, shown beside an arena player. */
-export function Points({ value }: { value: number }) {
+/** How the game on the board ended, for the player beside it: shown while it is held. */
+export function Outcome({ outcome }: { outcome: 'win' | 'loss' | 'draw' }) {
   const t = useT()
-  return (
-    <span className="flex items-baseline gap-1.5">
-      <b className="font-mono text-[22px] leading-none font-medium tabular-nums">{value}</b>
-      <span className="text-xs text-muted-foreground">{t('arena.won')}</span>
-    </span>
-  )
+  const tone = outcome === 'win' ? 'bg-good/12 text-good' : outcome === 'loss' ? 'bg-bad/12 text-bad' : 'bg-muted text-muted-foreground'
+  return <span className={`rounded-full px-2.5 py-0.5 text-[12px] font-semibold ${tone}`}>{t(`arena.outcome.${outcome}`)}</span>
 }
 
 function Moves({ san, startPly }: { san: string[]; startPly: number }) {

@@ -1,11 +1,13 @@
 """The game being played right now, read from the newest fastchess event stream.
 
 fastchess writes one NDJSON line per move while the match runs; the API only reads it.
-Several games run in parallel: the dashboard follows the newest one still in progress.
+Several games run in parallel: the dashboard follows one of them from start to end (see
+Follower), so the board does not jump between games.
 """
 
 import json
-from collections.abc import Iterable
+import time
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -62,12 +64,45 @@ def replay(start_fen: str, moves: list[str]) -> dict[str, Any]:
     }
 
 
+HOLD_S = 3.0  # the final position of a finished game stays on the board this long
+
+
+class Follower:
+    """Which game the board shows. One game from its start to its end, then its final
+    position for a few seconds, then the oldest game still running. Showing the newest game,
+    as before, switched the board each time one of the parallel games started."""
+
+    def __init__(self, hold_s: float = HOLD_S, clock: Callable[[], float] = time.monotonic):
+        self.hold_s = hold_s
+        self.clock = clock
+        self.key: tuple[str, int] | None = None
+        self.finished_at: float | None = None
+
+    def pick(self, games: list["LiveGame"]) -> "LiveGame":
+        by_key = {(g.match, g.game): g for g in games}
+        current = by_key.get(self.key) if self.key is not None else None
+        if current is not None:
+            if current.result is None:
+                return current
+            now = self.clock()
+            if self.finished_at is None:
+                self.finished_at = now
+            if now - self.finished_at < self.hold_s:
+                return current
+        running = [g for g in games if g.result is None]
+        chosen = min(running, key=lambda g: g.game) if running else max(games, key=lambda g: g.game)
+        self.key, self.finished_at = (chosen.match, chosen.game), None
+        return chosen
+
+
 def newest_match(matches_dir: Path) -> Path | None:
     streams = list(matches_dir.glob("*/events.ndjson"))
     return max(streams, key=lambda p: p.stat().st_mtime) if streams else None
 
 
-def read_live_game(matches_dir: Path) -> dict[str, Any] | None:
+def read_live_game(matches_dir: Path, follower: Follower | None = None) -> dict[str, Any] | None:
+    """The game to show, with the match's tally. Without a follower (a one-off read): the
+    oldest game still running, else the last one."""
     stream = newest_match(matches_dir)
     if stream is None:
         return None
@@ -93,8 +128,7 @@ def read_live_game(matches_dir: Path) -> dict[str, Any] | None:
             games[number].termination = event.get("termination")
     if not games:
         return None
-    running = [g for g in games.values() if g.result is None]
-    chosen = max(running or games.values(), key=lambda g: g.game)
+    chosen = (follower or Follower(hold_s=0)).pick(list(games.values()))
     return {**chosen.view(), "tally": _tally(games.values())}
 
 
