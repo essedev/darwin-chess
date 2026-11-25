@@ -27,6 +27,8 @@ export const en: Messages = {
   'what.changes': 'the changes',
   'what.mind': 'the agent’s mind',
   'what.numbers': 'the numbers',
+  'text.more': 'Read all',
+  'text.less': 'Show less',
   'list.stale': 'Could not refresh the list: retrying shortly.',
 
   // Counts

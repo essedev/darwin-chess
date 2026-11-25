@@ -1,3 +1,4 @@
+import { ClampText } from '@/components/clamp-text'
 import { Panel, PanelFooter } from '@/components/panel'
 import { ErrorNote, LoadingNote } from '@/components/page'
 import { pickText, useI18n } from '@/i18n/context'
@@ -69,9 +70,7 @@ function Row({ match: m }: { match: JudgedMatch }) {
       </p>
       <p className="text-[12px] text-muted-foreground tabular-nums">{facts.join(' · ')}</p>
       {commentary && (
-        <p className="line-clamp-2 text-[13px] leading-normal text-muted-foreground" lang={commentary.lang} title={commentary.text}>
-          {commentary.text}
-        </p>
+        <ClampText text={commentary.text} lang={commentary.lang} className="text-[13px] leading-normal text-muted-foreground" />
       )}
     </li>
   )

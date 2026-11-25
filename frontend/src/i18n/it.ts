@@ -29,6 +29,8 @@ export const it = {
   'what.changes': 'le modifiche',
   'what.mind': 'la mente dell’agente',
   'what.numbers': 'i numeri',
+  'text.more': 'Leggi tutto',
+  'text.less': 'Mostra meno',
   'list.stale': 'Non riesco ad aggiornare l’elenco: riprovo da solo tra poco.',
 
   // Counts
