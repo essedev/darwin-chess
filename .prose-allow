@@ -1,0 +1,12 @@
+# Paths that are Italian on purpose; check-prose.py skips them. One glob per line, each
+# preceded by the reason.
+
+# The Italian changelog, already written and shown on the site; CHANGELOG.en.md is its
+# English twin.
+CHANGELOG.md
+
+# Mockups of the Italian dashboard UI.
+docs/concepts/**
+
+# The Italian UI dictionary.
+frontend/src/i18n/it.ts

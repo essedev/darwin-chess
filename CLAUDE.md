@@ -28,7 +28,8 @@ Un agente LLM (Haiku 5.5, via Anthropic o OpenRouter) scrive da zero un motore d
 - **Il confine di fiducia non si attraversa**: niente codice dell'arbitro nel sandbox, niente binari del genoma eseguiti sull'host, l'arbitro non importa da `orchestrator` o `api`. Ogni cosa che indebolisce l'isolamento va discussa prima.
 - **Il genoma è dell'agente**: non modificare `genome/` a mano. Per cambiare cosa riceve un genoma nuovo si edita `seed/`.
 - **Spesa LLM**: ogni run che chiama il modello costa. I test LLM stanno dietro il marker `llm`; un batch di iterazioni si lancia solo dopo aver misurato il costo su un campione e averlo fatto approvare.
-- File rivolti all'agente (`seed/*.md`, prompt) in inglese; doc per umani in italiano.
+- Public repository: code, comments, docs and commits in English; README.md is mirrored in README.it.md in the same commit.
+- File rivolti all'agente (`seed/*.md`, prompt) in inglese.
 
 ## Gotcha
 
