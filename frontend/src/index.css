@@ -39,6 +39,11 @@
     --color-card: var(--card);
     --color-foreground: var(--foreground);
     --color-background: var(--background);
+    --color-live: var(--live);
+    --color-good: var(--good);
+    --color-bad: var(--bad);
+    --color-sq-light: var(--sq-light);
+    --color-sq-dark: var(--sq-dark);
     --radius-sm: calc(var(--radius) * 0.6);
     --radius-md: calc(var(--radius) * 0.8);
     --radius-lg: var(--radius);
@@ -49,7 +54,13 @@
 }
 
 :root {
-    --background: oklch(1 0 0);
+    /* Direction D of the dashboard concept: warm paper, one orange accent. */
+    --live: #c2650a;
+    --good: #16803c;
+    --bad: #c0362c;
+    --sq-light: #e6e1d3;
+    --sq-dark: #8b9a7c;
+    --background: #f4f3ef;
     --foreground: oklch(0.145 0 0);
     --card: oklch(1 0 0);
     --card-foreground: oklch(0.145 0 0);
@@ -84,7 +95,12 @@
 }
 
 .dark {
-    --background: oklch(0.145 0 0);
+    --live: #f2a33a;
+    --good: #5fd68a;
+    --bad: #f2776b;
+    --sq-light: #d9d3c4;
+    --sq-dark: #77876a;
+    --background: #0c0c0e;
     --foreground: oklch(0.985 0 0);
     --card: oklch(0.205 0 0);
     --card-foreground: oklch(0.985 0 0);

@@ -1,0 +1,4 @@
+Chess pieces "cburnett" by Colin M.L. Burnett.
+Copied from the lichess repository (lichess-org/lila, public/piece/cburnett), whose
+COPYING.md lists them under GPLv2+: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
+These files keep their own license, whatever the license of the rest of this repository.

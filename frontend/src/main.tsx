@@ -6,6 +6,12 @@ import './index.css'
 
 const queryClient = new QueryClient()
 
+// Follow the system theme, also when it changes while the dashboard stays open.
+const dark = window.matchMedia('(prefers-color-scheme: dark)')
+const applyTheme = () => document.documentElement.classList.toggle('dark', dark.matches)
+applyTheme()
+dark.addEventListener('change', applyTheme)
+
 const root = document.getElementById('root')
 if (!root) throw new Error('Elemento #root mancante in index.html')
 
