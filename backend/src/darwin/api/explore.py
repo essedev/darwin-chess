@@ -13,7 +13,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from darwin.api.code import BadRequest, Mirror, NotFound
 from darwin.api.mind import read_changelog, read_mind
 from darwin.config import get_settings
-from darwin.ledger import history
+from darwin.ledger import commentary, history
 from darwin.ledger.store import Ledger
 from darwin.orchestrator.prompts import SYSTEM
 
@@ -123,8 +123,24 @@ async def code_diff(
 
 
 @router.get("/mind")
-async def mind() -> dict[str, Any]:
-    return await asyncio.to_thread(read_mind, get_settings().data_dir, SYSTEM)
+async def mind(request: Request) -> dict[str, Any]:
+    """The memory files and the instructions as written, each with the Italian of this very
+    version when it has been translated (`*_it`, else null)."""
+    found = await asyncio.to_thread(read_mind, get_settings().data_dir, SYSTEM)
+    italian = await history.memory_translations(
+        _ledger(request),
+        {
+            commentary.STRATEGY: found["strategy"],
+            commentary.NOTES: found["notes"],
+            commentary.PROMPT: found["system_prompt"],
+        },
+    )
+    return {
+        **found,
+        "strategy_it": italian[commentary.STRATEGY],
+        "notes_it": italian[commentary.NOTES],
+        "system_prompt_it": italian[commentary.PROMPT],
+    }
 
 
 @router.get("/lab")

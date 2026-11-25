@@ -143,6 +143,7 @@ class Orchestrator:
         judging = asyncio.create_task(self.judge_loop())
         catching_up = asyncio.create_task(self._catch_up_rating())
         commenting = asyncio.create_task(self.commentary.run())
+        translating_memory = asyncio.create_task(self.commentary.run_memory())
         lichess = self.lichess_client()
         playing = None
         bot = None
@@ -164,7 +165,7 @@ class Orchestrator:
                 await self.settle(bot)
                 await asyncio.Event().wait()  # drained: wait to be stopped
         finally:
-            for task in (judging, playing, catching_up, commenting, watching):
+            for task in (judging, playing, catching_up, commenting, translating_memory, watching):
                 if task is not None:
                     task.cancel()
                     with contextlib.suppress(asyncio.CancelledError):

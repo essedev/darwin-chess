@@ -3,9 +3,10 @@
 The agent never reads this table: commentary is for visitors only.
 """
 
+import zlib
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -19,7 +20,16 @@ MATCH = "match"
 HYPOTHESIS = "hypothesis"
 LESSON = "lesson"
 TITLE = "title"  # a short headline of the hypothesis, in both languages
-KINDS = (LICHESS_GAME, MATCH, HYPOTHESIS, LESSON, TITLE)
+THOUGHT = "thought"  # subject: agent_events.id
+# The agent's memory files and its instructions; subject: content_id() of the text translated.
+STRATEGY = "strategy"
+NOTES = "notes"
+PROMPT = "prompt"
+MEMORY = (STRATEGY, NOTES, PROMPT)
+KINDS = (LICHESS_GAME, MATCH, HYPOTHESIS, LESSON, TITLE, THOUGHT, *MEMORY)
+
+# Thoughts are for the live page: older ones still untranslated are not worth a call.
+THOUGHT_BACKFILL = timedelta(hours=6)
 
 # Shorter Lichess games get no commentary: there is too little to say, and Stockfish does
 # not evaluate them (the same threshold as the bot's analysis).
@@ -84,6 +94,18 @@ async def exists(ledger: Ledger, subject: Subject) -> bool:
     return found is not None
 
 
+def content_id(text: str) -> int:
+    """Which version of a memory file a translation is of."""
+    return zlib.crc32(text.encode())
+
+
+async def latest_of(ledger: Ledger, kind: str) -> datetime | None:
+    async with ledger.session() as s:
+        return await s.scalar(
+            select(func.max(m.Commentary.created_at)).where(m.Commentary.kind == kind)
+        )
+
+
 async def spend_since(ledger: Ledger, since: datetime) -> float:
     async with ledger.session() as s:
         total = await s.scalar(
@@ -133,6 +155,14 @@ async def missing(ledger: Ledger) -> list[Subject]:
                 )
             )
         ).all()
+        thoughts = (
+            await s.scalars(
+                select(m.AgentEvent).where(
+                    m.AgentEvent.kind == "thought",
+                    m.AgentEvent.created_at >= datetime.now(UTC) - THOUGHT_BACKFILL,
+                )
+            )
+        ).all()
     dated: list[tuple[datetime, Subject]] = []
     for game in games:
         if game_is_commented(game) and game.id not in done[LICHESS_GAME]:
@@ -150,6 +180,9 @@ async def missing(ledger: Ledger) -> list[Subject]:
         if exp.lesson and exp.id not in done[LESSON]:
             writer = next((at for exp_id, at in submitted if exp_id > exp.id), None)
             dated.append((writer or exp.finished_at or exp.created_at, Subject(LESSON, exp.id)))
+    for event in thoughts:
+        if event.id not in done[THOUGHT]:
+            dated.append((event.created_at, Subject(THOUGHT, event.id)))
     dated.sort(key=lambda item: (item[0], KINDS.index(item[1].kind), item[1].subject_id))
     return [subject for _, subject in dated]
 
@@ -178,6 +211,11 @@ async def match_inputs(
 async def lichess_game(ledger: Ledger, game_id: int) -> m.LichessGame | None:
     async with ledger.session() as s:
         return await s.get(m.LichessGame, game_id)
+
+
+async def event(ledger: Ledger, event_id: int) -> m.AgentEvent | None:
+    async with ledger.session() as s:
+        return await s.get(m.AgentEvent, event_id)
 
 
 async def experiment(ledger: Ledger, experiment_id: int) -> m.Experiment | None:

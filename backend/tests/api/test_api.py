@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 from darwin.api.app import app
 from darwin.api.live import read_live_game
 from darwin.config import get_settings
-from darwin.ledger import lichess
+from darwin.ledger import commentary, lichess
 from darwin.ledger import models as m
 from darwin.ledger.store import Ledger
 from darwin.referee.judge import Phase, Verdict
@@ -40,7 +40,11 @@ def seed(ledger_url: str) -> None:
             trigger="start",
         )
         await ledger.set_submission(exp, "Write the move generator", "a" * 40, {"files": 3})
-        await ledger.add_event(exp, "thought", {"text": "Bitboards first."})
+        thought = await ledger.add_event(exp, "thought", {"text": "Bitboards first."})
+        await commentary.add(
+            ledger, commentary.Subject(commentary.THOUGHT, thought), text_it="Prima le bitboard.",
+            text_en="Bitboards first.", model="m", input_tokens=1, output_tokens=1, cost_usd=0.0,
+        )  # fmt: skip
         await ledger.record_verdict(
             exp,
             Verdict(
@@ -67,6 +71,7 @@ def test_overview_tells_the_story(client: TestClient, ledger_url: str) -> None:
     ]
     assert body["experiments"]["total"] == 1
     assert body["events"][-1]["payload"] == {"text": "Bitboards first."}
+    assert body["events"][-1]["text_it"] == "Prima le bitboard."
 
 
 def test_live_game_follows_the_newest_running_game(tmp_path: Path) -> None:

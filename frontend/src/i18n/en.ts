@@ -289,6 +289,9 @@ export const en: Messages = {
   'mind.intro':
     'The agent remembers nothing from one session to the next: what it knows it writes in two files, the strategy and the notes, and rereads them every time. Below, the instructions it gets from us.',
   'mind.english': 'The agent writes these files in English, the language it works in.',
+  'mind.translationPending': 'This version is not translated yet: shown as written.',
+  'mind.showOriginal': 'Show the English original',
+  'mind.showItalian': 'Show the translation',
   'mind.updated': 'Last updated:',
   'mind.strategy.title': 'The strategy',
   'mind.strategy.hint': 'The long-term plan: where it wants to take the engine, and in what order.',

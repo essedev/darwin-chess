@@ -290,7 +290,10 @@ export const it = {
   // Mente
   'mind.intro':
     'L’agente non ricorda nulla da una sessione all’altra: quello che sa lo scrive in due file, la strategia e gli appunti, e li rilegge ogni volta. Sotto, le istruzioni che riceve da noi.',
-  'mind.english': 'L’agente scrive questi file in inglese, la lingua in cui lavora: qui li vedi come li ha scritti.',
+  'mind.english': 'L’agente scrive questi file in inglese, la lingua in cui lavora: qui li leggi tradotti, con l’originale a un clic.',
+  'mind.translationPending': 'Questa versione non è ancora tradotta: la vedi come l’ha scritta.',
+  'mind.showOriginal': 'Mostra l’originale in inglese',
+  'mind.showItalian': 'Mostra la traduzione',
   'mind.updated': 'Ultimo aggiornamento:',
   'mind.strategy.title': 'La strategia',
   'mind.strategy.hint': 'Il piano a lungo termine: dove vuole portare il motore e in che ordine.',

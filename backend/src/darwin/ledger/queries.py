@@ -155,12 +155,17 @@ async def events_after(ledger: Ledger, after_id: int, limit: int = 200) -> list[
     async with ledger.session() as s:
         query = select(m.AgentEvent).where(m.AgentEvent.id > after_id)
         rows = (await s.scalars(query.order_by(m.AgentEvent.id).limit(limit))).all()
+        italian = await commentary.of(
+            s, commentary.THOUGHT, [e.id for e in rows if e.kind == "thought"]
+        )
     return [
         {
             "id": e.id,
             "experiment_id": e.experiment_id,
             "kind": e.kind,
             "payload": e.payload,
+            # A thought's Italian arrives a few seconds after it: a later read carries it.
+            "text_it": commentary.italian(italian.get(e.id)),
             "at": e.created_at.isoformat(),
         }
         for e in rows

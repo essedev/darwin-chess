@@ -1,6 +1,7 @@
 """The worker on a real ledger, with a fake model: no network, no spend."""
 
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -8,7 +9,12 @@ from sqlalchemy import select
 
 from darwin.commentary import prompts
 from darwin.commentary.model import Written
-from darwin.commentary.worker import CommentaryWorker, budget_allows
+from darwin.commentary.worker import (
+    MEMORY_MAX_CHARS,
+    MEMORY_MAX_TOKENS,
+    CommentaryWorker,
+    budget_allows,
+)
 from darwin.config import Settings
 from darwin.ledger import commentary as records
 from darwin.ledger import lichess
@@ -28,11 +34,15 @@ class FakeWriter:
 
     def __init__(self, *, refuse: bool = False, cost: float = 0.001) -> None:
         self.calls: list[tuple[str, str, dict[str, Any]]] = []
+        self.max_tokens: list[int] = []
         self.refuse = refuse
         self.cost = cost
 
-    async def write(self, system: str, prompt: str, schema: dict[str, Any]) -> Written | None:
+    async def write(
+        self, system: str, prompt: str, schema: dict[str, Any], *, max_tokens: int = 0
+    ) -> Written | None:
         self.calls.append((system, prompt, schema))
+        self.max_tokens.append(max_tokens)
         if self.refuse:
             return None
         fields = {name: f"{name} text {len(self.calls)}" for name in schema["required"]}
@@ -224,6 +234,61 @@ async def test_a_title_is_written_in_both_languages_from_the_hypothesis(ledger: 
     worker.enqueue(records.TITLE, exp)  # already written: nothing to do
     await worker.work(until_idle=True)
     assert len(writer.calls) == 2
+
+
+async def test_a_thought_is_translated_and_keeps_the_original(ledger: Ledger) -> None:
+    await ledger.seed("0" * 40)
+    exp = await judged(ledger, "Try a deeper search", match=False)
+    thought = await ledger.add_event(exp, "thought", {"text": "I will deepen the search."})
+    status = await ledger.add_event(exp, "status", {"state": "judging"})
+    writer = FakeWriter()
+    worker = make(ledger, writer)
+    worker.enqueue(records.THOUGHT, thought)
+    worker.enqueue(records.THOUGHT, status)  # not a thought: skipped
+    await worker.work(until_idle=True)
+    (call,) = writer.calls
+    assert call[0] == prompts.TRANSLATION_SYSTEM and call[2]["required"] == ["thought"]
+    rows = await stored(ledger)
+    assert [(r.kind, r.subject_id, r.text_it, r.text_en) for r in rows] == [
+        ("thought", thought, "thought text 1", "I will deepen the search.")
+    ]
+
+
+async def test_memory_is_translated_once_per_version_at_most_hourly(
+    ledger: Ledger, tmp_path: Path
+) -> None:
+    memory = tmp_path / "agent" / "memory"
+    memory.mkdir(parents=True)
+    (memory / "STRATEGY.md").write_text("# Plan\n\nSearch first.\n")
+    (memory / "NOTES.md").write_text("x" * (MEMORY_MAX_CHARS + 1))  # too long: stays English
+    writer = FakeWriter()
+    worker = make(ledger, writer, data_dir=tmp_path)
+    await worker.queue_memory()
+    await worker.work(until_idle=True)
+    kinds = sorted(r.kind for r in await stored(ledger))
+    assert kinds == ["prompt", "strategy"]
+    assert set(writer.max_tokens) == {MEMORY_MAX_TOKENS}
+    assert all(call[0] == prompts.MEMORY_TRANSLATION_SYSTEM for call in writer.calls)
+
+    (memory / "STRATEGY.md").write_text("# Plan\n\nEvaluate first.\n")
+    await worker.queue_memory()  # changed, but translated less than an hour ago
+    assert worker.queue.empty()
+    await worker.queue_memory()
+    assert len(writer.calls) == 2
+
+
+async def test_a_memory_file_changed_since_queued_is_not_translated(
+    ledger: Ledger, tmp_path: Path
+) -> None:
+    memory = tmp_path / "agent" / "memory"
+    memory.mkdir(parents=True)
+    (memory / "STRATEGY.md").write_text("Search first.\n")
+    writer = FakeWriter()
+    worker = make(ledger, writer, data_dir=tmp_path)
+    worker.enqueue(records.STRATEGY, records.content_id("Search first.\n"))
+    (memory / "STRATEGY.md").write_text("Evaluate first.\n")
+    await worker.work(until_idle=True)
+    assert writer.calls == []
 
 
 async def test_a_refusal_stores_nothing_and_the_worker_goes_on(ledger: Ledger) -> None:

@@ -13,6 +13,7 @@ from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from darwin.api.mind import read_mind
 from darwin.commentary import prompts
 from darwin.commentary.model import AnthropicWriter, Writer, Written
 from darwin.config import Settings
@@ -22,11 +23,20 @@ from darwin.ledger import models as m
 from darwin.ledger.commentary import Subject
 from darwin.ledger.store import Ledger
 from darwin.orchestrator.budget import day_start
+from darwin.orchestrator.prompts import SYSTEM as AGENT_SYSTEM
 from darwin.referee import analysis
 
 log = logging.getLogger(__name__)
 
 CALL_RESERVE_USD = 0.002  # a generous ceiling for one call, checked before making it
+
+# The memory files are looked at every few minutes; one that changes often (the notes, after
+# most sessions) is translated at most once an hour, the latest version. Past this size a
+# file stays in English: its translation would be a long, costly call at every change.
+MEMORY_CHECK_S = 600.0
+MEMORY_EVERY = timedelta(hours=1)
+MEMORY_MAX_CHARS = 16_000
+MEMORY_MAX_TOKENS = 8000
 
 # Stockfish over a game, from our side (the referee's analysis; the tests pass a fake).
 Evaluate = Callable[[Settings, list[str], str], Awaitable[list[int]]]
@@ -129,6 +139,40 @@ class CommentaryWorker:
             await self.work()  # returns only when today's budget is spent
             await self._until_tomorrow()
 
+    async def run_memory(self) -> None:
+        """Its own task in core: the memory files are checked every few minutes."""
+        if not self.enabled:
+            return
+        while True:
+            try:
+                await self.queue_memory()
+            except Exception:
+                log.exception("commentary: cannot check the memory files")
+            await asyncio.sleep(MEMORY_CHECK_S)
+
+    def memory_texts(self) -> dict[str, str]:
+        """The agent's strategy, notes and instructions as the site shows them now."""
+        mind = read_mind(self.settings.data_dir, AGENT_SYSTEM)
+        return {
+            records.STRATEGY: mind["strategy"],
+            records.NOTES: mind["notes"],
+            records.PROMPT: mind["system_prompt"],
+        }
+
+    async def queue_memory(self) -> None:
+        """Queues the translation of each memory text whose current version has none."""
+        texts = await asyncio.to_thread(self.memory_texts)
+        for kind, text in texts.items():
+            if not text.strip() or len(text) > MEMORY_MAX_CHARS:
+                continue
+            subject = Subject(kind, records.content_id(text))
+            if await records.exists(self.ledger, subject):
+                continue
+            last = await records.latest_of(self.ledger, kind)
+            if kind != records.PROMPT and last and datetime.now(UTC) - last < MEMORY_EVERY:
+                continue
+            self.enqueue(kind, subject.subject_id)
+
     async def _until_tomorrow(self) -> None:
         now = datetime.now(UTC)
         await asyncio.sleep((day_start(now) + timedelta(days=1) - now).total_seconds())
@@ -164,16 +208,24 @@ class CommentaryWorker:
             return await self._translations(subject.subject_id)
         if subject.kind == records.TITLE:
             return await self._title(subject)
+        if subject.kind == records.THOUGHT:
+            return await self._thought(subject)
+        if subject.kind in records.MEMORY:
+            return await self._memory(subject)
         log.error("commentary: unknown kind %s", subject.kind)
         return False
 
-    async def _write(self, system: str, prompt: str, schema: dict[str, Any]) -> Written | None:
+    async def _write(
+        self, system: str, prompt: str, schema: dict[str, Any], *, max_tokens: int | None = None
+    ) -> Written | None:
         assert self.writer is not None
         since = day_start(datetime.now(UTC))
         spent = await records.spend_since(self.ledger, since)
         if not budget_allows(spent, self.settings.commentary_daily_usd):
             raise BudgetSpent
-        return await self.writer.write(system, prompt, schema)
+        if max_tokens is None:
+            return await self.writer.write(system, prompt, schema)
+        return await self.writer.write(system, prompt, schema, max_tokens=max_tokens)
 
     async def _store(self, subject: Subject, written: Written, text_it: str, text_en: str) -> bool:
         return await records.add(
@@ -257,6 +309,40 @@ class CommentaryWorker:
         return await self._it_en(
             subject, prompts.title_prompt(row.hypothesis), system=prompts.TITLE_SYSTEM
         )
+
+    async def _thought(self, subject: Subject) -> bool:
+        """The agent's thought on the live page, in Italian."""
+        row = await records.event(self.ledger, subject.subject_id)
+        if row is None or row.kind != "thought" or await records.exists(self.ledger, subject):
+            return False
+        text = str(row.payload.get("text") or "").strip()
+        if not text:
+            return False
+        written = await self._write(
+            prompts.TRANSLATION_SYSTEM,
+            prompts.translation_prompt({"thought": text}),
+            prompts.translation_schema(["thought"]),
+        )
+        if written is None:
+            return False
+        return await self._store(subject, written, written.fields["thought"], text)
+
+    async def _memory(self, subject: Subject) -> bool:
+        """A memory file or the instructions in Italian, if the text has not changed since."""
+        text = (await asyncio.to_thread(self.memory_texts))[subject.kind]
+        if records.content_id(text) != subject.subject_id:
+            return False  # a newer version: the next check queues it
+        if await records.exists(self.ledger, subject):
+            return False
+        written = await self._write(
+            prompts.MEMORY_TRANSLATION_SYSTEM,
+            prompts.memory_prompt(text),
+            prompts.translation_schema(["text"]),
+            max_tokens=MEMORY_MAX_TOKENS,
+        )
+        if written is None:
+            return False
+        return await self._store(subject, written, written.fields["text"], text)
 
     async def _it_en(self, subject: Subject, prompt: str, *, system: str = prompts.SYSTEM) -> bool:
         written = await self._write(system, prompt, prompts.IT_EN_SCHEMA)

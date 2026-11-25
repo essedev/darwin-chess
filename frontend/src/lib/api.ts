@@ -69,6 +69,8 @@ export type AgentEvent = {
   experiment_id: number
   kind: 'thought' | 'tool_call' | 'tool_result' | 'status'
   payload: Record<string, unknown>
+  /** A thought's Italian, a few seconds after it: the overview carries it, the stream does not. */
+  text_it?: string | null
   at: string
 }
 
@@ -259,7 +261,13 @@ export function useLiveStream(initial: AgentEvent[]) {
     return () => source.close()
   }, [queryClient])
 
-  const merged = [...initial.filter((e) => !events.some((x) => x.id === e.id)), ...events]
+  // The overview refetches every few seconds and brings the Italian of a thought once it
+  // is written; the stream's copy of the same event never has it.
+  const translated = new Map(initial.filter((e) => e.text_it).map((e) => [e.id, e]))
+  const merged = [
+    ...initial.filter((e) => !events.some((x) => x.id === e.id)),
+    ...events.map((e) => translated.get(e.id) ?? e),
+  ]
   return { events: merged, game, connected }
 }
 
@@ -330,7 +338,16 @@ export type DiffFile = { path: string; status: string; additions: number; deleti
 
 export type CodeDiff = { from: string; to: string; files: DiffFile[] }
 
-export type Mind = { strategy: string | null; notes: string | null; system_prompt: string | null; updated_at: string | null }
+export type Mind = {
+  strategy: string | null
+  notes: string | null
+  system_prompt: string | null
+  /** The Italian of exactly the version above, null until it is translated. */
+  strategy_it?: string | null
+  notes_it?: string | null
+  system_prompt_it?: string | null
+  updated_at: string | null
+}
 
 export type Lab = {
   started_at: string | null

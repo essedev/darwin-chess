@@ -108,15 +108,16 @@ function Caption({ events, agent }: { events: AgentEvent[]; agent: Ready['agent'
   const i18n = useI18n()
   const { t, f, lang } = i18n
   const thought = [...events].reverse().find((e) => e.kind === 'thought')
-  const text = thought ? plainText(String(thought.payload.text)) : ''
+  const italian = lang === 'it' && thought?.text_it ? plainText(thought.text_it) : ''
+  const text = italian || (thought ? plainText(String(thought.payload.text)) : '')
   return (
     <div className="mx-auto mt-1 w-full max-w-[620px] text-center">
       <p className="font-mono text-[11px] font-medium tracking-wider text-muted-foreground uppercase">
         {captionLabel(i18n, agent)}
-        {text && lang === 'it' && `, ${t('caption.inEnglish')}`}
+        {text && lang === 'it' && !italian && `, ${t('caption.inEnglish')}`}
         {thought && ` · ${f.time(thought.at)}`}
       </p>
-      <p lang={text ? 'en' : undefined} title={text || undefined}
+      <p lang={italian ? 'it' : text ? 'en' : undefined} title={text || undefined}
          className="mt-1.5 line-clamp-2 text-[17px] leading-snug font-medium text-balance lg:text-lg">
         {text || t('caption.empty')}
       </p>

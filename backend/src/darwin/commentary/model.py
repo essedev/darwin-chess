@@ -35,7 +35,9 @@ class Written:
 class Writer(Protocol):
     """What the worker needs from a model; the tests give it a fake."""
 
-    async def write(self, system: str, prompt: str, schema: dict[str, Any]) -> Written | None: ...
+    async def write(
+        self, system: str, prompt: str, schema: dict[str, Any], *, max_tokens: int = ...
+    ) -> Written | None: ...
 
 
 def cost_of(message: Message, settings: Settings) -> tuple[int, float]:
@@ -97,12 +99,14 @@ class AnthropicWriter:
     async def close(self) -> None:
         await self.client.close()
 
-    async def write(self, system: str, prompt: str, schema: dict[str, Any]) -> Written | None:
+    async def write(
+        self, system: str, prompt: str, schema: dict[str, Any], *, max_tokens: int = MAX_TOKENS
+    ) -> Written | None:
         model = self.settings.commentary_model
         try:
             message = await self.client.messages.create(
                 model=model,
-                max_tokens=MAX_TOKENS,
+                max_tokens=max_tokens,
                 system=system,
                 messages=[{"role": "user", "content": prompt}],
                 output_config={

@@ -67,6 +67,15 @@ TITLE_SYSTEM = (
     "its own language."
 )
 
+MEMORY_TRANSLATION_SYSTEM = (
+    "You translate into Italian a Markdown file an AI agent keeps while it develops a chess "
+    "engine (its strategy or its notes), or the instructions it receives. Translate the prose "
+    "faithfully: same meaning, same numbers, nothing added or left out, no comments of yours. "
+    "Keep the Markdown exactly as it is (headings, lists, emphasis, links, line breaks) and "
+    "leave untouched code, commands, file names, identifiers and technical terms (for example "
+    "alpha-beta, perft, NNUE, UCI, SPRT, bitboard, Elo)."
+)
+
 STATUS = {
     "mate": "checkmate",
     "resign": "resignation",
@@ -307,6 +316,10 @@ def match_prompt(facts: MatchFacts) -> str:
 
 def title_prompt(hypothesis: str) -> str:
     return f"The agent's description of its change:\n\n{hypothesis}"
+
+
+def memory_prompt(text: str) -> str:
+    return f"Translate this text into Italian (field text):\n\n{text}"
 
 
 def translation_schema(fields: Sequence[str]) -> dict[str, Any]:

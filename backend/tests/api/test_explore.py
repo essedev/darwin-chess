@@ -258,6 +258,25 @@ def test_mind_refuses_a_linked_memory_file(client: TestClient, lab: Lab) -> None
     assert tail.endswith("newest line\n") and len(tail.encode()) <= MAX_MEMORY_BYTES
 
 
+def test_mind_carries_the_italian_of_the_current_version(
+    client: TestClient, lab: Lab, ledger_url: str
+) -> None:
+    async def translate() -> None:
+        ledger = Ledger(ledger_url)
+        subject = commentary.Subject(commentary.STRATEGY, commentary.content_id("Search first.\n"))
+        await commentary.add(ledger, subject, text_it="Prima la ricerca.\n",
+                             text_en="Search first.\n", model="m", input_tokens=1,
+                             output_tokens=1, cost_usd=0.0)  # fmt: skip
+        await ledger.close()
+
+    asyncio.run(translate())
+    body = client.get("/api/mind").json()
+    assert body["strategy_it"] == "Prima la ricerca.\n"
+    assert (body["notes_it"], body["system_prompt_it"]) == (None, None)
+    (lab.data_dir / "agent" / "memory" / "STRATEGY.md").write_text("Evaluate first.\n")
+    assert client.get("/api/mind").json()["strategy_it"] is None  # a newer version
+
+
 def test_generations_detail_newest_first(client: TestClient, lab: Lab) -> None:
     gen1, gen0 = client.get("/api/generations/detail").json()
     assert gen1["id"] == 1 and gen1["parent_commit"] == lab.gen0

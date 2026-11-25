@@ -308,3 +308,13 @@ async def experiment_commits(ledger: Ledger, experiment_id: int) -> tuple[str, s
     async with ledger.session() as s:
         row = await s.get(m.Experiment, experiment_id)
         return None if row is None else (row.base_commit, row.candidate_commit)
+
+
+async def memory_translations(ledger: Ledger, texts: dict[str, str]) -> dict[str, str | None]:
+    """The Italian of each memory text, by kind, when this exact version was translated."""
+    out: dict[str, str | None] = {}
+    async with ledger.session() as s:
+        for kind, text in texts.items():
+            found = await commentary.of(s, kind, [commentary.content_id(text)]) if text else {}
+            out[kind] = commentary.italian(next(iter(found.values()), None))
+    return out

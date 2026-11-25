@@ -9,6 +9,7 @@ from typing import Any
 
 from darwin.config import Settings
 from darwin.ledger import lichess
+from darwin.ledger.commentary import THOUGHT
 from darwin.ledger.store import LabState, Ledger
 from darwin.orchestrator import prompts
 from darwin.orchestrator.jobs import Jobs
@@ -176,7 +177,11 @@ class SessionRunner:
                     cost_usd=call_cost,
                 )
                 if text := _text_of(message).strip():
-                    await self.ledger.add_event(experiment_id, "thought", {"text": _short(text)})
+                    event_id = await self.ledger.add_event(
+                        experiment_id, "thought", {"text": _short(text)}
+                    )
+                    if self.router.notify is not None:  # its Italian, for the live page
+                        self.router.notify(THOUGHT, event_id)
                 if message.get("stopReason") == "error":
                     await self.ledger.add_event(
                         experiment_id,
