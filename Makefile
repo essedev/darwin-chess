@@ -77,8 +77,12 @@ ledger-to-volume: ## Copia data/ledger.sqlite nel volume del registro (una volta
 	sqlite3 data/ledger.sqlite "pragma wal_checkpoint(TRUNCATE)"
 	docker run --rm -v darwin-chess_ledger:/ledger -v "$(CURDIR)/data:/src:ro" alpine sh -c 'test ! -e /ledger/ledger.sqlite && cp /src/ledger.sqlite /ledger/'
 
+up-public: ## Come up, più il tunnel Cloudflare che pubblica la dashboard (solo su server)
+	$(MAKE) images
+	docker compose --profile run --profile public up -d --build
+
 down: ## Ferma core e api
-	docker compose --profile run down
+	docker compose --profile run --profile public down
 
 images: lab-build ## Costruisce tutte le immagini: sandbox, arena, ancore, motori di test
 	docker build -t darwin-arena arena

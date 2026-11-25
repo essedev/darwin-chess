@@ -43,5 +43,17 @@ services:
       - "4730:4730"
     restart: unless-stopped
 
+  # Publishes the dashboard on darwin.esse.dev through a Cloudflare Tunnel, without opening
+  # ports. Its own profile: it needs the tunnel credentials made once with `cloudflared
+  # tunnel login` / `create` in ~/.cloudflared (see docs/ARCHITECTURE.md, Deploy).
+  tunnel:
+    image: cloudflare/cloudflared:2026.11.2
+    profiles: [public]
+    command: ["tunnel", "--no-autoupdate", "--config", "/home/nonroot/.cloudflared/config.yml", "run"]
+    volumes:
+      - ${HOME}/.cloudflared:/home/nonroot/.cloudflared:ro
+    depends_on: [api]
+    restart: unless-stopped
+
 volumes:
   ledger:

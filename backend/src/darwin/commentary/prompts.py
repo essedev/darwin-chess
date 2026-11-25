@@ -32,7 +32,10 @@ SYSTEM = (
     "- Write the same commentary twice, in Italian (field it) and in English (field en). "
     "Each must read naturally in its own language, not as a word-for-word translation.\n"
     "- Refer to our engine as the engine or the agent's engine, and to chess moves with their "
-    "move number, as written in the facts."
+    "move number, as written in the facts.\n"
+    "- Italian terms: the referee is l'arbitro, the champion il campione, the candidate il "
+    "candidato, a draw una patta, checkmate scacco matto, stalemate stallo. Never use the "
+    "English words in the Italian text."
 )
 
 IT_EN_SCHEMA: dict[str, Any] = {
