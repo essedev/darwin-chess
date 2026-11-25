@@ -7,7 +7,7 @@ from darwin.referee.judge import Phase
 NOW = datetime(2026, 11, 25, tzinfo=UTC)
 
 
-def context(kind: str = "iteration") -> SessionContext:
+def context(kind: str = "iteration", new_lichess_losses: int = 0) -> SessionContext:
     last = m.Experiment(
         id=7,
         phase="evolution",
@@ -36,6 +36,7 @@ def context(kind: str = "iteration") -> SessionContext:
         notes="n" * 10000,
         strategy="- keep it simple",
         max_tool_calls=80,
+        new_lichess_losses=new_lichess_losses,
     )
 
 
@@ -54,3 +55,9 @@ def test_notes_are_cut_to_their_tail() -> None:
 def test_a_reflection_forbids_submitting() -> None:
     text = session_prompt(context("reflection"))
     assert "do not submit" in text and "STRATEGY.md" in text
+
+
+def test_new_lichess_losses_are_announced_only_when_there_are_some() -> None:
+    assert "Lichess" not in session_prompt(context())
+    assert "1 new loss since" in session_prompt(context(new_lichess_losses=1))
+    assert "3 new losses since your last session" in session_prompt(context(new_lichess_losses=3))

@@ -17,6 +17,8 @@ from darwin.config import Settings
 from darwin.ledger import models as m
 from darwin.ledger.store import Ledger
 from darwin.orchestrator.loop import Orchestrator
+from darwin.referee.judge import Phase, Verdict
+from darwin.referee.models import Gate, GateResult
 
 from .fake_llm import make_app
 
@@ -36,7 +38,13 @@ SCRIPT: list[dict[str, Any]] = [
         "tool": "bash",
         "args": {"command": "git add -A && git -c user.name=a -c user.email=a@a commit -qm mine"},
     },
-    {"tool": "submit", "args": {"hypothesis": "Add a notes file; the engine is still not UCI."}},
+    {
+        "tool": "submit",
+        "args": {
+            "hypothesis": "Add a notes file; the engine is still not UCI.",
+            "lesson_for_previous": "A stub that only prints cannot pass perft.",
+        },
+    },
     {"text": "Submitted, stopping."},
 ]
 
@@ -53,6 +61,13 @@ def git(repo: Path, *args: str) -> None:
         check=True,
         capture_output=True,
     )
+
+
+def genome_gen0(repo: Path) -> str:
+    done = subprocess.run(
+        ["git", "-C", str(repo), "rev-parse", "gen-0"], capture_output=True, text=True, check=True
+    )
+    return done.stdout.strip()
 
 
 @pytest.fixture
@@ -127,9 +142,31 @@ async def test_a_scripted_session_reaches_a_verdict(
         )
     )
 
+    # A verdict from an earlier session: this one must see it and file the lesson on it.
+    gen0 = genome_gen0(genome)
+    await ledger.seed(gen0)
+    earlier = await ledger.start_experiment(
+        kind="iteration",
+        phase=Phase.GENESIS,
+        base_commit=gen0,
+        base_generation_id=0,
+        trigger="start",
+    )
+    await ledger.set_submission(earlier, "Print hello", "e" * 40, {})
+    await ledger.record_verdict(
+        earlier,
+        Verdict(False, [GateResult(Gate.PERFT, False, {"problem": "protocol"}, 1)], None, None),
+    )
+
     await Orchestrator(settings, ledger).run(max_sessions=1)
 
-    [experiment] = await ledger.recent_experiments(5)
+    experiment, previous = await ledger.recent_experiments(5)
+    assert previous.id == earlier
+    assert previous.lesson == "A stub that only prints cannot pass perft."
+    assert experiment.lesson is None
+    first_prompt = json.dumps(seen[0]["messages"])
+    assert f"Last verdict (#{earlier}: rejected)" in first_prompt
+    assert "lesson_for_previous" in first_prompt
     async with ledger.session() as s:
         events = (await s.scalars(select(m.AgentEvent).order_by(m.AgentEvent.id))).all()
         calls = (await s.scalars(select(m.LlmCall))).all()

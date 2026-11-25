@@ -4,7 +4,7 @@
  * 1. Routes the built-in tools (read, write, edit, bash) into the session's sandbox container
  *    with `docker exec`: pi itself runs on the host, the agent's commands never do.
  * 2. Adds the darwin tools, thin forwarders to the orchestrator's local API, where all the
- *    logic lives: perft_check, submit, experiments, run_job.
+ *    logic lives: perft_check, submit, experiments, run_job, lichess_losses.
  *
  * Configuration comes from the environment set by the orchestrator: DARWIN_SANDBOX,
  * DARWIN_DOCKER, DARWIN_TOOLS_URL, DARWIN_TOOLS_TOKEN.
@@ -185,6 +185,16 @@ export default function (pi: ExtensionAPI) {
 				action: Type.Union([Type.Literal("start"), Type.Literal("status")]),
 				command: Type.Optional(Type.String({ description: "Shell command run in /job/src (start only)" })),
 				hours: Type.Optional(Type.Number({ minimum: 0.1, maximum: 12 })),
+			}),
+		),
+	);
+	pi.registerTool(
+		forwarder(
+			"lichess_losses",
+			"Lichess losses",
+			"Read recent games the champion lost on Lichess, each with the move where Stockfish saw the evaluation drop the most. It points at the mistake, not at the fix.",
+			Type.Object({
+				limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 10, description: "Default 5" })),
 			}),
 		),
 	);

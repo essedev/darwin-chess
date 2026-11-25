@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from darwin.config import Settings
+from darwin.ledger import lichess
 from darwin.ledger.store import LabState, Ledger
 from darwin.orchestrator import prompts
 from darwin.orchestrator.jobs import Jobs
@@ -18,6 +19,7 @@ from darwin.orchestrator.tools import SessionTools, ToolRouter
 log = logging.getLogger(__name__)
 
 TEXT_LIMIT = 2000
+LOSSES_COUNTED = 1000  # a cap on the count, far above what one session's gap can hold
 
 
 @dataclass(frozen=True)
@@ -60,8 +62,13 @@ class SessionRunner:
             base_generation_id=state.champion.id,
             trigger=trigger,
         )
-        recent = list(await self.ledger.recent_experiments(8))
+        # Past experiments only: this session's own row is already in the ledger, and taking
+        # it for the previous one showed an empty verdict and filed lessons one off.
+        recent = [r for r in await self.ledger.recent_experiments(9) if r.id != experiment_id][:8]
         previous = recent[0] if recent else None
+        # Lichess losses the agent has not been told about: since the previous session started.
+        since = previous.created_at if previous else None
+        new_losses = len(await lichess.losses(self.ledger, since=since, limit=LOSSES_COUNTED))
         box = Sandbox(s, experiment_id)
         tools = SessionTools(
             s,
@@ -90,6 +97,7 @@ class SessionRunner:
                 notes=await self._memory(box, "NOTES.md"),
                 strategy=await self._memory(box, "STRATEGY.md"),
                 max_tool_calls=s.session_max_tool_calls,
+                new_lichess_losses=new_losses,
             )
             system = s.data_dir / "agent" / "system-prompt.md"
             system.parent.mkdir(parents=True, exist_ok=True)

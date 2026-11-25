@@ -53,6 +53,7 @@ Work is only kept if you submit it: commits alone do not survive the session.
 read, write, edit, bash run in the sandbox. perft_check asks the referee about your move
 generator. experiments searches past experiments. run_job starts long CPU-only work
 (self-play, training) that outlives the session. submit hands in the candidate.
+lichess_losses shows recent games the champion lost on Lichess and where each went wrong.
 """
 
 
@@ -69,6 +70,7 @@ class SessionContext:
     notes: str
     strategy: str
     max_tool_calls: int
+    new_lichess_losses: int  # since the previous session started
 
 
 def _experiment_line(row: m.Experiment) -> str:
@@ -93,6 +95,12 @@ def session_prompt(ctx: SessionContext) -> str:
         f"({ctx.champion.commit_sha[:12]}). Your working tree starts at {ctx.base_commit[:12]}.",
         f"Tool calls available this session: {ctx.max_tool_calls}.",
     ]
+    if ctx.new_lichess_losses:
+        parts.append(
+            f"Lichess: {ctx.new_lichess_losses} new "
+            f"{'loss' if ctx.new_lichess_losses == 1 else 'losses'} since your last session "
+            "(lichess_losses shows where each went wrong)."
+        )
     if ctx.recent:
         last = ctx.recent[0]
         parts.append(f"\n## Last verdict (#{last.id}: {last.status})")

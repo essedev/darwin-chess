@@ -15,6 +15,7 @@ import chess
 from fastapi import FastAPI, Header, HTTPException, Request
 
 from darwin.config import Settings
+from darwin.ledger import lichess
 from darwin.ledger import models as m
 from darwin.ledger.store import Ledger
 from darwin.orchestrator import sandbox
@@ -48,6 +49,7 @@ class SessionTools:
             "submit": self.submit,
             "experiments": self.experiments,
             "run_job": self.run_job,
+            "lichess_losses": self.lichess_losses,
         }.get(tool)
         if handler is None:
             raise ToolError(f"unknown tool {tool}")
@@ -138,6 +140,57 @@ class SessionTools:
         except JobError as exc:
             raise ToolError(str(exc)) from exc
         return f"Job {job_id} started. Its output will be in /jobs/{job_id}/out."
+
+    async def lichess_losses(self, params: dict[str, Any]) -> str:
+        limit = min(max(int(params.get("limit") or 5), 1), 10)
+        rows = await lichess.losses(self.ledger, limit=limit)
+        if not rows:
+            return "No Lichess losses yet."
+        head = f"{len(rows)} most recent Lichess loss(es), newest first."
+        return "\n\n".join([head, *(_describe_loss(row) for row in rows)])
+
+
+LOSS_PLIES = 40  # the tail of the game is where the loss happened; the opening costs tokens
+MATE_CP = 10000  # how the analysis encodes a forced mate
+WORST_KEYS = {"move_number", "move", "eval_before_cp", "eval_after_cp", "fen_before"}
+
+
+def _pawns(cp: int) -> str:
+    if cp >= MATE_CP:
+        return "a forced mate for you"
+    if cp <= -MATE_CP:
+        return "a forced mate against you"
+    return f"{cp / 100:+.1f}"
+
+
+def _describe_loss(row: m.LichessGame) -> str:
+    opponent = " ".join(p for p in (row.opponent_title, row.opponent) if p)
+    if row.opponent_rating:
+        opponent += f" ({row.opponent_rating})"
+    plies = row.moves.split()
+    kind = "rated" if row.rated else "casual"
+    lines = [
+        f"Game {row.lichess_id} (gen-{row.generation_id}): you were {row.color} against "
+        f"{opponent}, {row.time_control} {kind}, ended ({row.status}) after "
+        f"{(len(plies) + 1) // 2} moves."
+    ]
+    worst = row.analysis or {}
+    if worst.keys() >= WORST_KEYS:
+        lines.append(
+            f"  Worst move: move {worst['move_number']} ({worst['move']}): your evaluation "
+            f"went from {_pawns(int(worst['eval_before_cp']))} to "
+            f"{_pawns(int(worst['eval_after_cp']))}, position before: {worst['fen_before']}"
+        )
+    else:
+        lines.append("  Worst move: not analysed.")
+    if len(plies) > LOSS_PLIES:
+        lines.append(
+            f"  Moves (UCI, last {LOSS_PLIES} of {len(plies)} plies): ... "
+            + " ".join(plies[-LOSS_PLIES:])
+        )
+    else:
+        lines.append(f"  Moves (UCI): {' '.join(plies) or '(none)'}")
+    return "\n".join(lines)
 
 
 def _describe(row: m.Experiment, gates: list[m.GateResult] | Any) -> str:

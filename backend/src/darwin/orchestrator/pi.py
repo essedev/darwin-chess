@@ -21,7 +21,7 @@ from darwin.config import Settings
 log = logging.getLogger(__name__)
 
 STREAM_LIMIT = 32 * 1024 * 1024  # one record can carry a whole file read by a tool
-TOOLS = "read,write,edit,bash,perft_check,submit,experiments,run_job"
+TOOLS = "read,write,edit,bash,perft_check,submit,experiments,run_job,lichess_losses"
 
 
 class PiError(Exception):
