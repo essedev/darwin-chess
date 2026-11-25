@@ -7,8 +7,8 @@
 		<!--
 			Concept C: che carattere ha darwin-chess (colori, font, superfici) e come si comporta
 			quando aspetta i dati, quando qualcosa si rompe e quando non c'è ancora niente.
-			Tasti: x a b c per la variante, 1 pronto, 2 caricamento, 3 errore, 4 vuoto (anche dai
-			bottoni nella barra del mock), t tema, p nasconde la barra.
+			Tasti: x a b c d per la variante, 1-5 per le sottovarianti di D; q pronto, w caricamento,
+			e errore, r vuoto (anche dai bottoni nella barra del mock); t tema, p nasconde la barra.
 
 			Il problema: il sito di oggi (a1 di concept B) è ordinato ma anonimo: Geist su carta
 			calda, un arancione, schede bianche. Gli stati sono frasi centrate ("Carico la
@@ -51,6 +51,18 @@
 			Giro 2: Simone vuole meno colore e meno esagerazione, "una via di mezzo minimal ma con
 			   bei dettagli"; gli piacciono le ASCII di Arcade. Aggiunta D, le altre restano.
 
+			Giro 3: Simone chiede più versioni di colori e font di D. Sottovarianti, stessa struttura
+			   e stessi dettagli, cambiano solo tavolozza e coppia di font:
+			   d1 Carta e inchiostro: D com'era (Geist + Geist Mono, carta calda, arancio spento).
+			   d2 Ardesia: grigi freddi, blu inchiostro (Inter + JetBrains Mono).
+			   d3 Salvia: grigi verdi, verde salvia (IBM Plex Sans + IBM Plex Mono).
+			   d4 Editoriale sobria: avorio, rosso ossido, serif solo nei titoli (Instrument Serif +
+			      Geist + Geist Mono).
+			   d5 Grafite: grafite e verde acido spento, i font di Arcade a bassa voce (Space
+			      Grotesk + Space Mono).
+			   Gli stati passano ai tasti q w e r; le cifre sono delle sottovarianti, come negli altri
+			   concept.
+
 			Dati: veri dal sito (25/11/2026, 17:40): gen-6 a 1.183 ± 142 contro Stockfish, #22 in
 			giudizio con 936 partite e LLR 1,05, spesa 0,07 $ su 2 $, ultimo pensiero tradotto.
 			La posizione sulla scacchiera è quella di concept B; pezzi cburnett dal CDN di Lichess
@@ -59,7 +71,7 @@
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 		<link
-			href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap"
+			href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@400;500;700&family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
 			rel="stylesheet"
 		/>
 		<style>
@@ -106,42 +118,58 @@
 				--h1: 700 30px/1 var(--display); --big: 700 52px/1 var(--num); --big-ls: -0.05em; --sq-l: #e9e6ff; --sq-d: #8b7bf0; --art: var(--accent); --lime: #c6f135; }
 			:root[data-theme='dark'] body[data-v='c'] { --bg: #0b0b10; --fg: #f4f3ff; --card: #15151d; --muted: #20202b; --muted-fg: #9a98b0; --line: #f4f3ff; --accent: #a594ff; --good: #c6f135; --bad: #ff4d7d; --sq-l: #c9c2ff; --sq-d: #5a49d6; --shadow: 0 0 0 2px #3a3a4c, 5px 5px 0 0 #c6f135; }
 
-			body[data-v='d'] { --bg: #f7f6f3; --fg: #161615; --card: #fdfcfa; --muted: #efede8; --muted-fg: #8b8984; --line: #e3e0da; --accent: #c2531f; --good: #2f6b45; --bad: #b2382b;
+			body[data-base='d'] { --bg: #f7f6f3; --fg: #161615; --card: #fdfcfa; --muted: #efede8; --muted-fg: #8b8984; --line: #e3e0da; --accent: #c2531f; --good: #2f6b45; --bad: #b2382b;
 				--sans: 'Geist', system-ui, sans-serif; --mono: 'Geist Mono', ui-monospace, monospace; --display: var(--sans); --num: var(--mono);
 				--radius: 12px; --shadow: inset 0 0 0 1px var(--line); --h2: 500 10.5px var(--mono); --h2-tt: uppercase; --h2-ls: 0.12em; --h2-c: var(--muted-fg);
 				--h1: 600 26px var(--sans); --big: 500 44px/1 var(--mono); --big-ls: -0.06em; --sq-l: #ece9e2; --sq-d: #b7b1a4; --art: var(--fg); }
-			:root[data-theme='dark'] body[data-v='d'] { --bg: #0e0e0f; --fg: #ececea; --card: #141415; --muted: #1d1d1f; --muted-fg: #8a8a86; --line: #262628; --accent: #e07a45; --good: #7fbf95; --bad: #ef7a6a; --sq-l: #cfcac0; --sq-d: #8e877a; --art: var(--fg); }
-			body[data-v='d'] .brand::before { content: '♞'; margin-right: 8px; color: var(--muted-fg); font-weight: 400; }
-			body[data-v='d'] .tabs a { font-size: 13.5px; }
-			body[data-v='d'] .tabs a.on { border-color: var(--fg); border-bottom-width: 1px; }
-			body[data-v='d'] .live { background: none; padding: 0; color: var(--fg); font-weight: 500; }
-			body[data-v='d'] .live i { background: var(--accent); width: 6px; height: 6px; }
-			body[data-v='d'] .live.off i { display: none; }
-			body[data-v='d'] .live.off { color: var(--muted-fg); }
-			body[data-v='d'] .top h1 { letter-spacing: -0.03em; }
-			body[data-v='d'] .phases { font: 11px var(--mono); letter-spacing: 0.04em; }
-			body[data-v='d'] .phases .on::before { color: var(--accent); }
-			body[data-v='d'] .pn-h { border-bottom: 1px dashed var(--line); }
-			body[data-v='d'] .heading .tag { color: var(--muted-fg); }
-			body[data-v='d'] .heading h2 { font-weight: 600; letter-spacing: -0.02em; }
-			body[data-v='d'] .tray { padding: 6px; border-radius: 12px; }
-			body[data-v='d'] .board { border-radius: 6px; }
-			body[data-v='d'] .board i.hl::after { background: color-mix(in oklab, var(--accent) 26%, transparent); }
-			body[data-v='d'] .moves .cur { background: none; padding: 0; color: var(--accent); text-decoration: underline; text-underline-offset: 4px; }
-			body[data-v='d'] .bar { height: 4px; border-radius: 2px; }
-			body[data-v='d'] .bar i { background: var(--fg); }
-			body[data-v='d'] .bar b { opacity: 0.35; }
-			body[data-v='d'] .big span { font-size: 13px; }
-			body[data-v='d'] .rows .now .id { color: var(--accent); }
-			body[data-v='d'] .rows li { border-top-style: dashed; }
-			body[data-v='d'] .caption p:last-child { font-weight: 450; font-size: 17px; }
-			body[data-v='d'] .state .t { font: 500 13px var(--mono); letter-spacing: 0.02em; }
-			body[data-v='d'] .art { color: var(--fg); }
-			body[data-v='d'] .tray .art[data-art='error'] { font-size: 56px; line-height: 1; color: var(--fg); }
-			body[data-v='d'] .state.bad .t { color: var(--bad); }
-			body[data-v='d'] .retry { background: none; color: var(--fg); box-shadow: inset 0 0 0 1px var(--line); border-radius: 999px; font: 500 12px var(--mono); padding: 6px 14px; }
-			body[data-v='d'] .retry:hover { box-shadow: inset 0 0 0 1px var(--fg); }
-			body[data-v='d'] .shake { animation-duration: 1.2s; }
+			:root[data-theme='dark'] body[data-base='d'] { --bg: #0e0e0f; --fg: #ececea; --card: #141415; --muted: #1d1d1f; --muted-fg: #8a8a86; --line: #262628; --accent: #e07a45; --good: #7fbf95; --bad: #ef7a6a; --sq-l: #cfcac0; --sq-d: #8e877a; --art: var(--fg); }
+			body[data-v='d2'] { --bg: #f4f5f7; --fg: #121419; --card: #fbfcfd; --muted: #eceef2; --muted-fg: #858a96; --line: #dfe2e8; --accent: #3d58b8; --good: #2f6b55; --bad: #b4383a;
+				--sans: 'Inter', system-ui, sans-serif; --mono: 'JetBrains Mono', ui-monospace, monospace; --sq-l: #e9ebf0; --sq-d: #a7adbb; }
+			:root[data-theme='dark'] body[data-v='d2'] { --bg: #0d0f13; --fg: #e8eaef; --card: #13161b; --muted: #1b1f26; --muted-fg: #8990a0; --line: #252a33; --accent: #8ea4f0; --good: #7cc4a0; --bad: #ef7f7f; --sq-l: #c9cdd8; --sq-d: #7c8395; }
+			body[data-v='d3'] { --bg: #f3f4ef; --fg: #181c18; --card: #fbfcf8; --muted: #e9ebe3; --muted-fg: #858a80; --line: #dcdfd4; --accent: #4f7a5a; --good: #4f7a5a; --bad: #a8433a;
+				--sans: 'IBM Plex Sans', system-ui, sans-serif; --mono: 'IBM Plex Mono', ui-monospace, monospace; --sq-l: #e8eae1; --sq-d: #a6ae9c; }
+			:root[data-theme='dark'] body[data-v='d3'] { --bg: #0d0f0d; --fg: #e6e9e2; --card: #141713; --muted: #1c201b; --muted-fg: #8b9386; --line: #262b24; --accent: #8fbf98; --good: #8fbf98; --bad: #e98a7c; --sq-l: #c9cdbf; --sq-d: #7f8874; }
+			body[data-v='d4'] { --bg: #f8f6f1; --fg: #1a1816; --card: #fdfcf9; --muted: #efece5; --muted-fg: #8c867c; --line: #e4dfd5; --accent: #8c2f2f; --good: #3f6a3c; --bad: #8c2f2f;
+				--display: 'Instrument Serif', Georgia, serif; --h1: 400 34px/1 var(--display); --sq-l: #eeeae1; --sq-d: #b9ae9b; }
+			:root[data-theme='dark'] body[data-v='d4'] { --bg: #100e0c; --fg: #eeeae2; --card: #171512; --muted: #201d19; --muted-fg: #948d82; --line: #2b2723; --accent: #d47a6e; --good: #8fbf88; --bad: #e08a7c; --sq-l: #d2cab9; --sq-d: #8d8270; }
+			body[data-v='d4'] .top h1, body[data-v='d4'] .heading h2 { letter-spacing: -0.01em; font-weight: 400; }
+			body[data-v='d4'] .heading h2 { font: 400 28px/1.05 var(--display); }
+			body[data-v='d4'] .ans { font: 400 30px/1 var(--display); }
+			body[data-v='d5'] { --bg: #f3f3f1; --fg: #151615; --card: #fafaf8; --muted: #e9e9e6; --muted-fg: #868784; --line: #dcdcd8; --accent: #6e8f12; --good: #5d7d10; --bad: #b63b3b;
+				--sans: 'Space Grotesk', system-ui, sans-serif; --mono: 'Space Mono', ui-monospace, monospace; --big: 400 44px/1 var(--mono); --sq-l: #e7e7e3; --sq-d: #a9aaa4; }
+			:root[data-theme='dark'] body[data-v='d5'] { --bg: #0c0d0c; --fg: #e9eae6; --card: #131412; --muted: #1b1c1a; --muted-fg: #8b8c88; --line: #262724; --accent: #b6d84a; --good: #b6d84a; --bad: #f07f7f; --sq-l: #cfd0ca; --sq-d: #80827a; }
+			body[data-v='d5'] .top h1, body[data-v='d5'] .heading h2 { font-weight: 600; letter-spacing: -0.02em; }
+			body[data-base='d'] .brand::before { content: '♞'; margin-right: 8px; color: var(--muted-fg); font-weight: 400; }
+			body[data-base='d'] .tabs a { font-size: 13.5px; }
+			body[data-base='d'] .tabs a.on { border-color: var(--fg); border-bottom-width: 1px; }
+			body[data-base='d'] .live { background: none; padding: 0; color: var(--fg); font-weight: 500; }
+			body[data-base='d'] .live i { background: var(--accent); width: 6px; height: 6px; }
+			body[data-base='d'] .live.off i { display: none; }
+			body[data-base='d'] .live.off { color: var(--muted-fg); }
+			body[data-base='d'] .top h1 { letter-spacing: -0.03em; }
+			body[data-base='d'] .phases { font: 11px var(--mono); letter-spacing: 0.04em; }
+			body[data-base='d'] .phases .on::before { color: var(--accent); }
+			body[data-base='d'] .pn-h { border-bottom: 1px dashed var(--line); }
+			body[data-base='d'] .heading .tag { color: var(--muted-fg); }
+			body[data-base='d'] .heading h2 { font-weight: 600; letter-spacing: -0.02em; }
+			body[data-base='d'] .tray { padding: 6px; border-radius: 12px; }
+			body[data-base='d'] .board { border-radius: 6px; }
+			body[data-base='d'] .board i.hl::after { background: color-mix(in oklab, var(--accent) 26%, transparent); }
+			body[data-base='d'] .moves .cur { background: none; padding: 0; color: var(--accent); text-decoration: underline; text-underline-offset: 4px; }
+			body[data-base='d'] .bar { height: 4px; border-radius: 2px; }
+			body[data-base='d'] .bar i { background: var(--fg); }
+			body[data-base='d'] .bar b { opacity: 0.35; }
+			body[data-base='d'] .big span { font-size: 13px; }
+			body[data-base='d'] .rows .now .id { color: var(--accent); }
+			body[data-base='d'] .rows li { border-top-style: dashed; }
+			body[data-base='d'] .caption p:last-child { font-weight: 450; font-size: 17px; }
+			body[data-base='d'] .state .t { font: 500 13px var(--mono); letter-spacing: 0.02em; }
+			body[data-base='d'] .art { color: var(--fg); }
+			body[data-base='d'] .tray .art[data-art='error'] { font-size: 56px; line-height: 1; color: var(--fg); }
+			body[data-base='d'] .state.bad .t { color: var(--bad); }
+			body[data-base='d'] .retry { background: none; color: var(--fg); box-shadow: inset 0 0 0 1px var(--line); border-radius: 999px; font: 500 12px var(--mono); padding: 6px 14px; }
+			body[data-base='d'] .retry:hover { box-shadow: inset 0 0 0 1px var(--fg); }
+			body[data-base='d'] .shake { animation-duration: 1.2s; }
 
 			/* Layout. */
 			.nav { display: flex; align-items: center; gap: 16px; padding: 0 32px; height: 52px; border-bottom: 1px solid var(--line); }
@@ -313,9 +341,14 @@
 				a: 'Terminale: il sito è la console del laboratorio; mono, verde fosforo, DNA che gira',
 				b: 'Taccuino: il quaderno da naturalista; serif da titolo, seppia, albero che cresce',
 				c: 'Arcade: un tabellone di gioco; grotesk in grassetto, viola e lime, cavallo che salta',
-				d: 'Sintesi: minimal quasi in bianco e nero, dettagli fini, le ASCII di Arcade in inchiostro'
+				d: 'Sintesi: minimal quasi in bianco e nero, dettagli fini, le ASCII di Arcade in inchiostro',
+				d2: 'Ardesia: D in grigi freddi e blu inchiostro, Inter e JetBrains Mono',
+				d3: 'Salvia: D in grigi verdi e salvia, IBM Plex Sans e Plex Mono',
+				d4: 'Editoriale: D su avorio con rosso ossido, serif solo nei titoli',
+				d5: 'Grafite: D in grafite con verde acido spento, Space Grotesk e Space Mono'
 			};
-			const STATES = { ready: '1 pronto', loading: '2 caricamento', error: '3 errore', empty: '4 vuoto' };
+			const STATES = { ready: 'q pronto', loading: 'w caricamento', error: 'e errore', empty: 'r vuoto' };
+			const base = (v) => v.replace(/\d+$/, '');
 			const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 			// Real data, 25/11/2026 17:40.
@@ -456,7 +489,7 @@
 			};
 
 			function render() {
-				const v = document.body.dataset.v, st = document.body.dataset.state;
+				const v = base(document.body.dataset.v), st = document.body.dataset.state;
 				const panel = (title, body, action = '') => `<section class="pn"><header class="pn-h"><h2>${title}</h2>${action}</header>${st === 'ready' ? body : stateBlock(st, v)}</section>`;
 				const live = st === 'error' ? '<span class="live off">Connessione persa</span>' : '<span class="live"><i></i>In diretta</span>';
 				const top = `<header class="top"><h1>Generazione 6</h1><span class="sub">il candidato #22 prova a diventare la 7</span>${live}<span class="phases"><span>Genesi</span><span>Primi passi</span><span class="on">Evoluzione</span><span>Mondo</span></span></header>`;
@@ -478,7 +511,7 @@
 
 			let t = 0;
 			function tick(now) {
-				const v = document.body.dataset.v;
+				const v = base(document.body.dataset.v);
 				if (!ART[v]) return;
 				document.querySelectorAll('[data-art]').forEach((el) => { el.textContent = ART[v][el.dataset.art](reduce ? 6 : t); });
 				document.querySelectorAll('[data-small]').forEach((el) => { el.textContent = SMALL[v](reduce ? 2 : t); });
@@ -491,9 +524,10 @@
 			const root = document.documentElement, body = document.body;
 			const load = () => { try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { return {}; } };
 			const save = (s) => { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch {} };
-			document.querySelector('[data-buttons]').innerHTML = Object.keys(DESC).map((v) => `<button data-v="${v}">${v.toUpperCase()} ${DESC[v].split(':')[0]}</button>`).join(' ');
+			document.querySelector('[data-buttons]').innerHTML = Object.keys(DESC).map((v) => `<button data-v="${v}">${/\d$/.test(v) ? `${v.slice(-1)} D` : v.toUpperCase()} ${DESC[v].split(':')[0]}</button>`).join(' ');
 			document.querySelector('[data-states]').innerHTML = Object.entries(STATES).map(([k, l]) => `<button data-state="${k}">${l}</button>`).join('');
 			const sync = () => {
+				body.dataset.base = base(body.dataset.v);
 				document.querySelectorAll('.switch [data-v]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === body.dataset.v)));
 				document.querySelectorAll('.switch [data-state]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.state === body.dataset.state)));
 				document.querySelector('[data-desc]').textContent = DESC[body.dataset.v];
@@ -513,7 +547,8 @@
 				const k = e.key.toLowerCase();
 				if (k === 't') setTheme(root.dataset.theme === 'dark' ? 'light' : 'dark');
 				else if (k === 'p') body.dataset.chrome = body.dataset.chrome === 'off' ? 'on' : 'off';
-				else if (['1', '2', '3', '4'].includes(k)) setState(Object.keys(STATES)[+k - 1]);
+				else if (['q', 'w', 'e', 'r'].includes(k)) setState(Object.keys(STATES)['qwer'.indexOf(k)]);
+				else if (/^\d$/.test(k)) pick(k === '1' ? base(body.dataset.v) : `${base(body.dataset.v)}${k}`);
 				else pick(k);
 			});
 			const Q = new URLSearchParams(location.search);
