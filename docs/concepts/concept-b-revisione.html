@@ -91,6 +91,14 @@
 			   nella colonna destra, sotto spesa: le tre colonne finiscono quasi alla stessa altezza
 			   e la colonna centrale chiude con il pensiero dell'agente. Evoluzione in a1 è quella di
 			   A, invariata. a2 e a3 restano come al giro 2.
+
+			Giro 4: "Mostra altri" allungava la colonna destra fino a sbilanciare di nuovo la pagina.
+			   La causa: una lista che cresce non ha posto in un layout a colonne bilanciate, e la
+			   Diretta racconta l'adesso, non lo storico. In a1 la lista è fissa a 3 e non si
+			   espande: in fondo dice quanti ne mostra e porta allo storico vero. I verdetti vanno in
+			   Evoluzione (A), dove ci sono già filtri e pagine; le partite Lichess vanno al profilo
+			   del bot su Lichess, che ha già l'elenco completo. La pagina resta della stessa altezza
+			   qualunque cosa succeda.
 		-->
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1087,7 +1095,9 @@
 			}
 			function liveAR() {
 				const last5 = GENS.filter((g) => !g.seed).slice(0, 5);
-				const shown = S.liveMore ? 7 : 3;
+				// a1: the live page shows a fixed three; the full history lives elsewhere, so the column never grows.
+				const fixed = S.v === 'a1';
+				const shown = S.liveMore && !fixed ? 7 : 3;
 				const share = RUN.llr / RUN.bound;
 				const gens = [
 					`<li class="now"><span class="gid">#18</span><span class="gt"><b>${tx(EXPS[0].title)}</b><span>${T('in gara contro gen-5', 'racing gen-5')}</span></span><span class="ge"></span></li>`,
@@ -1098,9 +1108,11 @@
 					return `<li><div class="vr"><div class="vr-head"><span class="vid">#${m.exp}</span><b>${tx(e.title)}</b><span class="pill ${m.v === 'h1' ? 'good' : 'bad'}">${m.v === 'h1' ? (e.gen ? `gen-${e.gen}` : T('promosso', 'promoted')) : T('scartato', 'rejected')}</span></div><p class="vr-meta">${n(m.w + m.d + m.l)} ${T('partite', 'games')} · ${sgn(m.elo)} ± ${n(m.err)} ${T('sul campione', 'vs champion')} · ${m.at}</p><p class="vr-text clamp2">${esc(tx(m.c))}</p></div></li>`;
 				}).join('');
 				const games = LICHESS.slice(0, shown).map((g) => `<li><div class="vr"><div class="vr-head"><span class="res ${RES[g.r][1]}">${tx(RES[g.r][0])}</span><b>${g.opp}</b><span class="mono mut" style="font-size:12px">${g.elo}</span><a class="mut" href="#" aria-label="${T('Apri su Lichess', 'Open on Lichess')}">${ext}</a></div><p class="vr-meta">gen-${g.gen} ${T(g.col === 'w' ? 'col bianco' : 'col nero', g.col === 'w' ? 'with white' : 'with black')} · 3+2 · ${g.at}</p>${g.c ? `<p class="vr-text clamp2">${esc(tx(g.c))}</p>` : ''}</div></li>`).join('');
-				const more = S.liveMore ? '' : `<div class="more"><button data-more>${S.tab === 'arena' ? T('Mostra altri 4', 'Show 4 more') : T('Mostra altre 7', 'Show 7 more')}</button></div>`;
+				const more = fixed
+					? `<p class="pn-f" style="display:flex;justify-content:space-between;align-items:center">${S.tab === 'arena' ? `<span>${T('3 dei 7 verdetti di oggi', '3 of today’s 7 verdicts')}</span><a class="link" data-go="evoluzione">${T('Tutti in Evoluzione', 'All in Evolution')}</a>` : `<span>${T('3 delle 20 partite di oggi', '3 of today’s 20 games')}</span><a class="link" href="https://lichess.org/@/darwin-chess-bot/all" target="_blank" rel="noreferrer" style="display:inline-flex;gap:5px;align-items:center">${T('Tutte su Lichess', 'All on Lichess')} ${ext}</a>`}</p>`
+					: S.liveMore ? '' : `<div class="more"><button data-more>${S.tab === 'arena' ? T('Mostra altri 4', 'Show 4 more') : T('Mostra altre 7', 'Show 7 more')}</button></div>`;
 				const list = S.tab === 'arena'
-					? panel(T('Ultimi verdetti dell’arbitro', 'The referee’s latest verdicts'), `<ol class="vlist">${verdicts}</ol>${more}`, { action: `<a class="link" data-go="evoluzione">${T('Tutti', 'All')}</a>` })
+					? panel(T('Ultimi verdetti dell’arbitro', 'The referee’s latest verdicts'), `<ol class="vlist">${verdicts}</ol>${more}`, fixed ? {} : { action: `<a class="link" data-go="evoluzione">${T('Tutti', 'All')}</a>` })
 					: panel(T('Ultime partite su Lichess', 'Latest games on Lichess'), `<ol class="vlist">${games}</ol>${more}`);
 				const elo = panel(T('Forza del campione', 'Champion strength'), `<div class="big"><b>${n(1129)}</b><span class="pm">± 136</span><span class="u">Elo</span></div>
 					<p class="cap">${T('contro Stockfish · gen-5', 'against Stockfish · gen-5')}</p><div class="ch">${eloChart({ w: 300, h: 104, band: true, xl: true })}</div>
