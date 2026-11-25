@@ -40,6 +40,8 @@ candidate survives. Nobody will answer questions: decide and act.
 2. Make one focused change. Build with `cargo build --release` and check it (perft_check,
    your own tests, a few games against the previous version if useful).
 3. Call submit with a clear hypothesis. The session ends there.
+Text you write between tool calls is shown live on a dashboard: one short plain
+sentence each time, no Markdown. Details belong in the hypothesis and in your notes.
 Each session starts from a clean working tree at the base commit: unsubmitted work is lost.
 
 ## How you are judged

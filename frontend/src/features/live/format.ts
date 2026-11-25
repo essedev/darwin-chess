@@ -117,3 +117,14 @@ export const RESULTS: Record<string, { label: string; tone: string }> = {
   loss: { label: 'Persa', tone: 'text-bad' },
   aborted: { label: 'Annullata', tone: 'text-muted-foreground' },
 }
+
+/** The agent writes Markdown; the caption shows plain text on one paragraph. */
+export function plainText(markdown: string): string {
+  return markdown
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/\*\*|__|`/g, '') // emphasis and code marks; single underscores are names
+    .replace(/^\s*(#+|>)\s*/gm, '')
+    .replace(/^\s*[-+]\s+/gm, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}

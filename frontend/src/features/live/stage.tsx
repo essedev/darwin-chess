@@ -3,7 +3,7 @@ import { useState } from 'react'
 import type { AgentEvent, Lichess, LiveGame, Overview } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { ArenaGame } from './arena-game'
-import { TOOLS, matchLabel } from './format'
+import { TOOLS, matchLabel, plainText } from './format'
 import { LichessPanel } from './lichess-game'
 
 type Ready = Extract<Overview, { ready: true }>
@@ -84,13 +84,14 @@ function Caption({ events, agent }: { events: AgentEvent[]; agent: Ready['agent'
   const action = [...events].reverse().find((e) => e.kind === 'tool_call')
   const label = agent === 'paused' ? 'Agente in pausa' : agent === 'working' ? 'L’agente pensa' : 'Ultimo pensiero'
   const tool = action ? String(action.payload.tool) : ''
+  const text = thought ? plainText(String(thought.payload.text)) : ''
   return (
     <div className="w-full max-w-[680px] text-center">
       <p className="mb-2 inline-flex items-center gap-1.5 font-mono text-[11px] font-medium tracking-wider text-muted-foreground uppercase">
         <i className="size-1.5 rounded-full bg-live" /> {label}
       </p>
-      <p className="text-[17px] leading-snug font-medium text-balance lg:text-xl">
-        {thought ? String(thought.payload.text) : 'Ancora nessun pensiero da mostrare.'}
+      <p className="line-clamp-3 text-[17px] leading-snug font-medium text-balance lg:text-xl" title={text}>
+        {text || 'Ancora nessun pensiero da mostrare.'}
       </p>
       {action && (
         <p className="mt-2.5 font-mono text-xs text-muted-foreground">
