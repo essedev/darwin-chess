@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 
 export type Phase = 'genesis' | 'first_steps' | 'evolution'
@@ -130,9 +130,24 @@ export type Lichess = {
   performance: Record<string, LichessPerformance>
 }
 
+/** A non-2xx answer from the API; `status` lets a view tell "not found" from "down". */
+export class ApiError extends Error {
+  readonly status: number
+  constructor(url: string, status: number) {
+    super(`${url}: ${status}`)
+    this.status = status
+  }
+}
+
+/** A 4xx: the ref, path or id is not there (or not valid); asking again will not change it. */
+export const isClientError = (error: Error) => error instanceof ApiError && error.status < 500
+
+/** Retries server hiccups, not answers that will not change. */
+const retryUnlessClientError = (count: number, error: Error) => !isClientError(error) && count < 3
+
 async function getJson<T>(url: string): Promise<T> {
   const response = await fetch(url)
-  if (!response.ok) throw new Error(`${url}: ${response.status}`)
+  if (!response.ok) throw new ApiError(url, response.status)
   return (await response.json()) as T
 }
 
@@ -185,4 +200,137 @@ export function useLiveStream(initial: AgentEvent[]) {
 
   const merged = [...initial.filter((e) => !events.some((x) => x.id === e.id)), ...events]
   return { events: merged, game, connected }
+}
+
+export type DiffStat = { files: number; insertions: number; deletions: number }
+
+export type GenerationDetail = {
+  id: number
+  commit: string
+  parent_commit: string | null
+  created_at: string
+  elo_vs_parent: number | null
+  elo_absolute: number | null
+  below_ladder: boolean
+  experiment_id: number | null
+  hypothesis: string | null
+  lesson: string | null
+  tried: number
+  diff_stat: DiffStat | null
+  lichess: LichessPerformance | null
+}
+
+export type ExperimentRow = {
+  id: number
+  kind: 'iteration' | 'reflection'
+  phase: Phase
+  status: string
+  trigger: string
+  hypothesis: string | null
+  lesson: string | null
+  rejected_at_gate: string | null
+  created_at: string
+  finished_at: string | null
+  base_commit: string | null
+  candidate_commit: string | null
+  cost_usd: number | null
+  gates: Gate[]
+  match: MatchSummary | null
+}
+
+export type ExperimentPage = { items: ExperimentRow[]; next_before_id: number | null }
+
+export type CodeTree = { ref: string; commit: string; generation: number | null; files: { path: string; size: number }[] }
+
+export type CodeFile = {
+  ref: string
+  commit: string
+  path: string
+  size: number
+  binary: boolean
+  truncated: boolean
+  content: string | null
+}
+
+export type DiffFile = { path: string; status: string; additions: number; deletions: number; patch: string | null }
+
+export type CodeDiff = { from: string; to: string; files: DiffFile[] }
+
+export type Mind = { strategy: string | null; notes: string | null; system_prompt: string | null; updated_at: string | null }
+
+export type Lab = {
+  started_at: string | null
+  totals: {
+    spend_usd: number
+    sessions: number
+    iterations: number
+    accepted: number
+    rejected: number
+    llm_calls: number
+    input_tokens: number
+    cached_tokens: number
+    output_tokens: number
+    lichess_games: number
+  }
+  cost_per_generation: { generation: number; usd: number }[]
+  changelog: string
+}
+
+export function useGenerationsDetail() {
+  return useQuery({
+    queryKey: ['generations', 'detail'],
+    queryFn: () => getJson<GenerationDetail[]>('/api/generations/detail'),
+    refetchInterval: 60000,
+  })
+}
+
+export function useExperiments() {
+  return useInfiniteQuery({
+    queryKey: ['experiments'],
+    queryFn: ({ pageParam }) =>
+      getJson<ExperimentPage>(`/api/experiments?limit=50${pageParam === null ? '' : `&before_id=${pageParam}`}`),
+    initialPageParam: null as number | null,
+    getNextPageParam: (last) => last.next_before_id,
+    refetchInterval: 60000,
+  })
+}
+
+/** A ref the code endpoints understand: gen-N, exp-N or a commit; undefined is the champion. */
+export function useCodeTree(ref: string | undefined) {
+  return useQuery({
+    queryKey: ['code', 'tree', ref ?? 'champion'],
+    queryFn: () => getJson<CodeTree>(`/api/code/tree${ref ? `?ref=${encodeURIComponent(ref)}` : ''}`),
+    staleTime: 60000,
+    retry: retryUnlessClientError,
+  })
+}
+
+export function useCodeFile(ref: string, path: string | null) {
+  return useQuery({
+    queryKey: ['code', 'file', ref, path],
+    queryFn: () =>
+      getJson<CodeFile>(`/api/code/file?ref=${encodeURIComponent(ref)}&path=${encodeURIComponent(path ?? '')}`),
+    enabled: path !== null,
+    staleTime: Infinity, // keyed by commit, the content never changes
+    retry: retryUnlessClientError,
+  })
+}
+
+/** `spec` is "gen=3" or "exp=12", the query string of /api/code/diff. */
+export function useCodeDiff(spec: string | null) {
+  return useQuery({
+    queryKey: ['code', 'diff', spec],
+    queryFn: () => getJson<CodeDiff>(`/api/code/diff?${spec ?? ''}`),
+    enabled: spec !== null,
+    staleTime: Infinity,
+    retry: retryUnlessClientError,
+  })
+}
+
+export function useMind() {
+  return useQuery({ queryKey: ['mind'], queryFn: () => getJson<Mind>('/api/mind'), refetchInterval: 60000 })
+}
+
+export function useLab() {
+  return useQuery({ queryKey: ['lab'], queryFn: () => getJson<Lab>('/api/lab'), refetchInterval: 60000 })
 }

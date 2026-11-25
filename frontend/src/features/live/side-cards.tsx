@@ -1,6 +1,6 @@
 import type { Experiment, Overview } from '@/lib/api'
 import { cn } from '@/lib/utils'
-import { GATES, money, num } from './format'
+import { GATES, failureText, money, num } from './format'
 import { JobCard } from './job-card'
 
 type Ready = Extract<Overview, { ready: true }>
@@ -89,18 +89,7 @@ function LlrBar({ llr }: { llr: number }) {
 }
 
 function FailureNote({ detail }: { detail: Record<string, unknown> }) {
-  const problem = String(detail.problem ?? '')
-  const text: Record<string, string> = {
-    wrong_count: `Sbaglia il conteggio delle mosse dopo ${String(detail.move ?? '')}.`,
-    missing_moves: 'Non vede alcune mosse legali.',
-    illegal_moves: 'Considera mosse illegali.',
-    protocol: 'Non risponde ancora come un motore UCI.',
-    build_failed: 'Il codice non compila.',
-    illegal_move: 'Ha giocato una mossa illegale.',
-    crash: 'Si è bloccato durante una partita.',
-    timeout: 'Ha smesso di rispondere durante una partita.',
-  }
-  return <p className="mt-2.5 text-xs leading-relaxed text-muted-foreground">{text[problem] ?? problem}</p>
+  return <p className="mt-2.5 text-xs leading-relaxed text-muted-foreground">{failureText(detail)}</p>
 }
 
 function SpendCard({ spend }: { spend: Ready['spend'] }) {

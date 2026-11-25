@@ -60,6 +60,12 @@
     --bad: #c0362c;
     --sq-light: #e6e1d3;
     --sq-dark: #8b9a7c;
+    --code-keyword: #a3263f;
+    --code-string: #2f6f3a;
+    --code-number: #9a5b00;
+    --code-type: #2b5d9c;
+    --code-function: #6b3fa0;
+    --code-comment: #8a8578;
     --background: #f4f3ef;
     --foreground: oklch(0.145 0 0);
     --card: oklch(1 0 0);
@@ -100,6 +106,12 @@
     --bad: #f2776b;
     --sq-light: #d9d3c4;
     --sq-dark: #77876a;
+    --code-keyword: #f2869a;
+    --code-string: #9bd39a;
+    --code-number: #f2b866;
+    --code-type: #8ab8f2;
+    --code-function: #c8a6f2;
+    --code-comment: #8b8b8b;
     --background: #0c0c0e;
     --foreground: oklch(0.985 0 0);
     --card: oklch(0.205 0 0);
@@ -144,3 +156,13 @@
     @apply font-sans;
     }
 }
+/* Syntax colours for the code page (highlight.js class names), warm in both themes. */
+.hljs-keyword, .hljs-selector-tag, .hljs-meta .hljs-keyword { color: var(--code-keyword); }
+.hljs-string, .hljs-char, .hljs-regexp, .hljs-addition { color: var(--code-string); }
+.hljs-number, .hljs-literal, .hljs-symbol, .hljs-variable.constant_ { color: var(--code-number); }
+.hljs-type, .hljs-built_in, .hljs-title.class_, .hljs-attr, .hljs-attribute { color: var(--code-type); }
+.hljs-title.function_, .hljs-title, .hljs-section, .hljs-name { color: var(--code-function); }
+.hljs-comment, .hljs-quote, .hljs-meta, .hljs-deletion { color: var(--code-comment); }
+.hljs-comment, .hljs-quote { font-style: italic; }
+.hljs-section, .hljs-strong { font-weight: 600; }
+.hljs-emphasis { font-style: italic; }

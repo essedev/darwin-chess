@@ -13,6 +13,11 @@ const decimal = new Intl.NumberFormat('it-IT', { maximumFractionDigits: 2 })
 export const money = (usd: number) => euro.format(usd)
 export const num = (value: number) => decimal.format(value)
 
+const cents = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'USD', maximumFractionDigits: 3 })
+
+/** Small sums keep a third decimal: one attempt often costs a fraction of a cent. */
+export const preciseMoney = (usd: number) => (usd < 1 ? cents.format(usd) : euro.format(usd))
+
 /**
  * Elo per champion. Absolute (against Stockfish anchors) once a champion has been rated;
  * before that, relative to the random player: the sum of every promotion's gain.
@@ -49,6 +54,24 @@ export const GATES: Record<string, string> = {
   perft: 'regole',
   smoke: 'partite pulite',
   match: 'match',
+}
+
+/** Why a gate failed, in plain Italian, from its public detail ("problem" plus context). */
+export function failureText(detail: Record<string, unknown>, gate?: string): string {
+  const problem = String(detail.problem ?? '')
+  if (gate === 'build' && problem === 'timeout') return 'La compilazione ha superato il tempo massimo.'
+  const text: Record<string, string> = {
+    wrong_count: `Sbaglia il conteggio delle mosse dopo ${String(detail.move ?? '')}.`,
+    wrong_total: 'Sbaglia il conteggio totale delle mosse.',
+    missing_moves: 'Non vede alcune mosse legali.',
+    illegal_moves: 'Considera mosse illegali.',
+    protocol: 'Non risponde ancora come un motore UCI.',
+    build_failed: 'Il codice non compila.',
+    illegal_move: 'Ha giocato una mossa illegale.',
+    crash: 'Si è bloccato durante una partita.',
+    timeout: 'Ha smesso di rispondere durante una partita.',
+  }
+  return text[problem] ?? problem
 }
 
 export const TOOLS: Record<string, string> = {
@@ -127,4 +150,21 @@ export function plainText(markdown: string): string {
     .replace(/^\s*[-+]\s+/gm, '')
     .replace(/\s+/g, ' ')
     .trim()
+}
+
+/** "+34", "−12" (true minus sign), "0": a gain or loss of Elo. */
+export function signed(value: number): string {
+  const rounded = Math.round(value)
+  if (rounded === 0) return '0'
+  return rounded > 0 ? `+${num(rounded)}` : `−${num(-rounded)}`
+}
+
+/** "12 nov, 14:30" in the visitor's time zone. */
+export function dateTime(iso: string): string {
+  return new Date(iso).toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+}
+
+/** "12 novembre 2026". */
+export function longDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })
 }
