@@ -30,6 +30,7 @@ PENDING_TTL_S = 60.0
 
 
 CHALLENGE_ATTEMPTS = 5
+MIN_CHALLENGE_GAP_S = 5.0  # between two matchmaking rounds, even when a decline wakes it
 
 
 class LichessBot:
@@ -60,6 +61,9 @@ class LichessBot:
         self.max_games = max_games
         self.games_played = 0
         self.finished = asyncio.Event()
+        # A decline wakes matchmaking at once; who declined is not asked again this run.
+        self.retry = asyncio.Event()
+        self.declined_by: set[str] = set()
 
     def enough(self) -> bool:
         return self.max_games is not None and self.games_played >= self.max_games
@@ -123,6 +127,12 @@ class LichessBot:
                 challenger = str((challenge.get("challenger") or {}).get("id", "")).lower()
                 if challenge.get("id") == self.pending_id or challenger == self.me:
                     self._clear_pending()
+                    opponent = str((challenge.get("destUser") or {}).get("name", ""))
+                    reason = challenge.get("declineReason") or kind
+                    log.info("lichess: %s did not accept (%s), trying another", opponent, reason)
+                    if opponent:
+                        self.declined_by.add(opponent.lower())
+                    self.retry.set()
         except RateLimited:
             raise
         except Exception:  # one bad event must not drop the stream
@@ -163,7 +173,12 @@ class LichessBot:
 
     async def _matchmaking(self) -> None:
         while True:
-            await asyncio.sleep(self.settings.lichess_challenge_every_s)
+            try:
+                await asyncio.wait_for(self.retry.wait(), self.settings.lichess_challenge_every_s)
+                await asyncio.sleep(MIN_CHALLENGE_GAP_S)
+            except TimeoutError:
+                pass
+            self.retry.clear()
             try:
                 await self._challenge_someone()
             except RateLimited:
@@ -178,7 +193,11 @@ class LichessBot:
         if self.busy() or await self.engine_for() is None:
             return
         await self._identify()
-        bots = await self.client.online_bots()
+        bots = [
+            b
+            for b in await self.client.online_bots()
+            if str(b.get("username") or b.get("id") or "").lower() not in self.declined_by
+        ]
         # Lichess refuses some challenges outright (an opponent's daily cap, its own rules):
         # try another bot at once instead of losing a matchmaking round.
         for _attempt in range(CHALLENGE_ATTEMPTS):

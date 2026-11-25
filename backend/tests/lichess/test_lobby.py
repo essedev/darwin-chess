@@ -8,6 +8,7 @@ from typing import Any
 import pytest
 
 from darwin.ledger.store import Ledger
+from darwin.lichess import bot as bot_module
 from darwin.lichess import rules
 from darwin.referee.models import EngineSpec
 
@@ -99,3 +100,35 @@ async def test_a_refused_challenge_moves_on_to_another_bot_at_once(
     assert [name for name, _ in fake.challenged] == ["Busy", "Free"]
     # Same matchmaking round: the retry did not wait for the next one, 3 s later.
     assert fake.challenged_at[1] - fake.challenged_at[0] < 1.0
+
+
+async def test_a_declined_challenge_wakes_matchmaking_and_skips_that_bot(
+    tmp_path: Path,
+    fake: FakeLichess,
+    lichess_url: str,
+    ledger: Ledger,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def first_listed(bots: list[dict[str, Any]], *, me: str, **_: Any) -> str | None:
+        names = [str(b["username"]) for b in bots if str(b["username"]).lower() != me]
+        return names[0] if names else None
+
+    monkeypatch.setattr(rules, "pick_opponent", first_listed)
+    monkeypatch.setattr(bot_module, "MIN_CHALLENGE_GAP_S", 0.0)
+    fake.bots += [blitz_user("Picky", 1600), blitz_user("Willing", 1600)]
+    settings = bot_settings(tmp_path, lichess_url, challenge_every_s=1)
+    async with running_bot(settings, ledger, champion):
+        await until(lambda: bool(fake.challenged), 10)
+        fake.events.put_nowait(
+            {
+                "type": "challengeDeclined",
+                "challenge": {
+                    "id": "out1",
+                    "challenger": {"id": "darwinbot"},
+                    "destUser": {"name": "Picky"},
+                    "declineReason": "This bot only plays rapid",
+                },
+            }
+        )
+        await until(lambda: any(name == "Willing" for name, _ in fake.challenged), 5)
+    assert [name for name, _ in fake.challenged] == ["Picky", "Willing"]
