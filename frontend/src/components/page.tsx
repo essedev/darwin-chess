@@ -1,8 +1,10 @@
 import type { ReactNode } from 'react'
+import { type Art, AsciiArt } from '@/components/ascii'
 import { useT } from '@/i18n/context'
 import { cn } from '@/lib/utils'
 
-export const card = 'rounded-[18px] bg-card p-5 shadow-[inset_0_0_0_1px_var(--border)]'
+// The same surface as a Panel without a subject: a hairline and a 12px radius.
+export const card = 'panel rounded-[12px] p-5'
 
 /** A content page under the navigation: title, one plain line on what it shows, then the body. */
 export function PageShell(props: { title: string; intro: ReactNode; children: ReactNode; className?: string }) {
@@ -17,37 +19,59 @@ export function PageShell(props: { title: string; intro: ReactNode; children: Re
   )
 }
 
-/** Loading, empty and error states share one quiet look, inside or outside a card. */
-export function StateNote(props: { title: string; text?: ReactNode; tone?: 'muted' | 'bad'; className?: string }) {
+/**
+ * Loading, empty and error states, inside or outside a panel: a small ASCII animation over
+ * the words (components/ascii.tsx). `art: false` keeps only the words, for tight spots.
+ */
+export function StateNote(props: {
+  title: string
+  text?: ReactNode
+  tone?: 'muted' | 'bad'
+  art?: Art | false
+  big?: boolean
+  className?: string
+}) {
+  const art = props.art ?? false
   return (
-    <div className={cn('grid gap-1 py-6 text-center', props.className)} role={props.tone === 'bad' ? 'alert' : undefined}>
-      <p className={cn('text-[15px] font-medium', props.tone === 'bad' && 'text-bad')}>{props.title}</p>
-      {props.text && <p className="text-[13px] text-muted-foreground">{props.text}</p>}
+    <div
+      className={cn('grid justify-items-center gap-2 py-6 text-center', props.big && 'py-16', props.className)}
+      role={props.tone === 'bad' ? 'alert' : 'status'}
+    >
+      {art && <AsciiArt art={props.big || art !== 'loading' ? art : 'inline'} className="mb-1" />}
+      <p className={cn('font-mono text-[13px] font-medium tracking-[0.02em]', props.tone === 'bad' && 'text-live')}>{props.title}</p>
+      {props.text && <div className="max-w-[44ch] text-[13px] leading-normal text-muted-foreground">{props.text}</div>}
     </div>
   )
 }
 
 /** `what` is already translated, with its article: "gli esperimenti", "the experiments". */
-export function LoadingNote({ what, className }: { what: string; className?: string }) {
+export function LoadingNote({ what, big, className }: { what: string; big?: boolean; className?: string }) {
   const t = useT()
-  return <StateNote title={t('state.loading', { what })} className={className} />
+  return <StateNote art="loading" big={big} title={t('state.loading', { what })} className={className} />
 }
 
-export function ErrorNote({ what, onRetry, className }: { what: string; onRetry?: () => void; className?: string }) {
+export function ErrorNote(props: { what: string; onRetry?: () => void; big?: boolean; className?: string }) {
   const t = useT()
   return (
     <StateNote
       tone="bad"
-      className={className}
-      title={t('state.error', { what })}
+      art="error"
+      big={props.big}
+      className={props.className}
+      title={t('state.error', { what: props.what })}
       text={
-        onRetry ? (
-          <button type="button" onClick={onRetry} className="cursor-pointer underline underline-offset-4 hover:text-foreground">
-            {t('state.retry')}
-          </button>
-        ) : (
-          t('state.down')
-        )
+        <>
+          <p>{t('state.down')}</p>
+          {props.onRetry && (
+            <button
+              type="button"
+              onClick={props.onRetry}
+              className="mt-3 h-8 cursor-pointer rounded-full bg-live px-4 font-mono text-[12px] font-medium text-white transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none"
+            >
+              {t('state.retry')}
+            </button>
+          )}
+        </>
       }
     />
   )

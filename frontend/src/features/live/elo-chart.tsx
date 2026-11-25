@@ -47,18 +47,18 @@ export function EloChart({ points, height = 110, axis = false }: { points: EloPo
           ))}
           {band && (
             <rect x={left} width={width - left - right} y={y(band[1])} height={y(band[0]) - y(band[1])} rx={3}
-                  className="fill-live opacity-10" />
+                  className="fill-[var(--hue,var(--live))] opacity-10" />
           )}
           {points.length > 1 && (
             <path d={points.map((p, i) => `${i ? 'L' : 'M'}${x(i)},${y(p.elo)}`).join(' ')}
-                  className="fill-none stroke-live opacity-70" strokeWidth={1.5} strokeDasharray="3 3" />
+                  className="fill-none stroke-[var(--hue,var(--live))] opacity-70" strokeWidth={1.5} strokeDasharray="3 3" />
           )}
           {points.map((p, i) => (
-            <g key={p.id} className="stroke-live">
+            <g key={p.id} className="stroke-[var(--hue,var(--live))]">
               <line x1={x(i)} x2={x(i)} y1={y(p.elo + p.error)} y2={y(p.elo - p.error)} strokeWidth={1.5} opacity={0.55} />
               <line x1={x(i) - 5} x2={x(i) + 5} y1={y(p.elo + p.error)} y2={y(p.elo + p.error)} strokeWidth={1.5} opacity={0.55} />
               <line x1={x(i) - 5} x2={x(i) + 5} y1={y(p.elo - p.error)} y2={y(p.elo - p.error)} strokeWidth={1.5} opacity={0.55} />
-              <circle cx={x(i)} cy={y(p.elo)} r={4} className="fill-live stroke-none">
+              <circle cx={x(i)} cy={y(p.elo)} r={4} className="fill-[var(--hue,var(--live))] stroke-none">
                 <title>{`gen-${p.id}: ${f.num(Math.round(p.elo))} ± ${f.num(Math.round(p.error))}`}</title>
               </circle>
               <text x={x(i)} y={height - 6} textAnchor="middle" className="fill-muted-foreground stroke-none font-mono text-[10px]">

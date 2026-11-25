@@ -14,6 +14,7 @@ export function Nav({ current }: { current: Page }) {
       className="sticky top-0 z-20 flex items-center gap-4 border-b bg-background/90 px-4 backdrop-blur sm:px-8"
     >
       <a href={href('diretta')} className="shrink-0 cursor-pointer text-[15px] font-bold tracking-tight">
+        <span aria-hidden className="mr-2 font-normal text-c-verdict">♞</span>
         darwin-chess
       </a>
       <ul className="-mb-px flex min-w-0 gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">

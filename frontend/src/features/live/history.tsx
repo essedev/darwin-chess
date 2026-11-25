@@ -34,11 +34,11 @@ function Strength({ data, lichess }: { data: Ready; lichess: LichessPerformance 
   const own = champion && champion.elo_absolute !== null ? champion : null
   const shared = overlap(rated)
   return (
-    <Panel title={t('elo.title')} help={t('elo.help')}>
+    <Panel title={t('elo.title')} help={t('elo.help')} hue="strength">
       {own ? (
         <>
           <p className="flex items-baseline gap-2">
-            <b className="text-[46px] leading-none font-semibold tracking-[-0.035em] tabular-nums">
+            <b className="font-mono text-[44px] leading-none font-medium tracking-[-0.06em] text-[var(--hue)] tabular-nums">
               {f.num(Math.round(own.elo_absolute ?? 0))}
             </b>
             {own.elo_absolute_error != null && (
@@ -82,8 +82,9 @@ function Generations({ data }: { data: Ready }) {
   return (
     <Panel
       title={t('generations.panel')}
+      hue="gens"
       action={
-        <a href={href('evoluzione')} className="cursor-pointer text-[12px] font-medium text-live underline-offset-4 hover:underline">
+        <a href={href('evoluzione')} className="cursor-pointer text-[12px] font-medium text-[var(--hue)] underline-offset-4 hover:underline">
           {t('generations.all', { n: data.experiments.total })}
         </a>
       }
@@ -129,7 +130,7 @@ function Row(props: {
         <b className="block truncate text-[13.5px] font-medium" title={props.title} lang={props.lang}>{props.title}</b>
         <span className="block truncate text-[11.5px] text-muted-foreground">{props.subtitle}</span>
       </span>
-      <span className="text-right font-mono text-[13px] font-medium tabular-nums">
+      <span className="text-right font-mono text-[13px] font-medium text-c-strength tabular-nums">
         {props.value ?? (props.now ? '' : <span className="text-muted-foreground">–</span>)}
         {props.error && <small className="block text-[10.5px] font-normal text-muted-foreground">{props.error}</small>}
       </span>

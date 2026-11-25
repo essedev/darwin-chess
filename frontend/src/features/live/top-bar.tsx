@@ -26,14 +26,14 @@ export function TopBar({ data, connected }: { data: Ready; connected: boolean })
       </div>
       <span
         className={cn(
-          'inline-flex h-[24px] items-center gap-[7px] rounded-full px-[10px] text-xs font-semibold',
-          live ? 'bg-bad/15 text-bad' : 'bg-muted text-muted-foreground',
+          'inline-flex h-[24px] items-center gap-[7px] text-[13px] font-medium',
+          live ? 'text-live' : 'text-muted-foreground',
         )}
       >
         <i className={cn('size-[7px] rounded-full bg-current', live && 'animate-pulse')} />
         {!connected ? t('top.disconnected') : data.agent === 'paused' ? t('agent.paused') : t('top.live')}
       </span>
-      <ol aria-label={t('top.phases')} className="flex items-center text-[12px] text-muted-foreground sm:ml-auto">
+      <ol aria-label={t('top.phases')} className="flex items-center font-mono text-[11px] tracking-[0.04em] text-muted-foreground sm:ml-auto">
         {PHASES.map((p, i) => (
           <li
             key={p}
@@ -44,7 +44,7 @@ export function TopBar({ data, connected }: { data: Ready; connected: boolean })
               i > 0 && 'sm:before:mx-2 sm:before:h-px sm:before:w-3.5 sm:before:bg-border sm:before:content-[""]',
             )}
           >
-            <i className={cn('size-1.5 rounded-full', i < phaseIndex ? 'bg-muted-foreground' : i === phaseIndex ? 'bg-live' : 'bg-border')} />
+            <i className={cn('size-1.5 rounded-full', i < phaseIndex ? 'bg-muted-foreground' : i === phaseIndex ? 'bg-c-verdict' : 'bg-border')} />
             {t(`phase.${p}`)}
           </li>
         ))}

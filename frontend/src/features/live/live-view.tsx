@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { StateNote } from '@/components/page'
 import { useI18n } from '@/i18n/context'
 import { useLichess, useLiveStream, useOverview } from '@/lib/api'
 import { History } from './history'
@@ -24,9 +25,9 @@ export function LiveView() {
     window.history.replaceState(null, '', next === 'lichess' ? '#lichess' : window.location.pathname)
   }
 
-  if (overview.isPending) return <Notice title={t('live.loading')} />
-  if (overview.isError) return <Notice title={t('live.apiDown.title')} text={t('live.apiDown.text')} />
-  if (!data?.ready) return <Notice title={t('live.notStarted.title')} text={t('live.notStarted.text')} />
+  if (overview.isPending) return <Notice art="loading" title={t('live.loading')} />
+  if (overview.isError) return <Notice art="error" title={t('live.apiDown.title')} text={t('live.apiDown.text')} />
+  if (!data?.ready) return <Notice art="empty" title={t('live.notStarted.title')} text={t('live.notStarted.text')} />
 
   return (
     <main className="mx-auto grid w-full max-w-[1440px] flex-1 grid-cols-1 content-start gap-x-8 gap-y-7 px-4 pt-4 pb-10 sm:px-8 sm:pt-6 lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[280px_minmax(0,1fr)_320px]">
@@ -38,11 +39,11 @@ export function LiveView() {
   )
 }
 
-function Notice({ title, text }: { title: string; text?: string }) {
+/** The whole page in one state: loading, the API down, the lab not started yet. */
+function Notice({ title, text, art }: { title: string; text?: string; art: 'loading' | 'error' | 'empty' }) {
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-2 p-4 text-center">
-      <h1 className="text-2xl font-semibold">{title}</h1>
-      {text && <p className="text-muted-foreground">{text}</p>}
+    <main className="flex flex-1 items-center justify-center p-4">
+      <StateNote big art={art} tone={art === 'error' ? 'bad' : 'muted'} title={title} text={text} />
     </main>
   )
 }

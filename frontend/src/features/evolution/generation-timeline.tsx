@@ -1,6 +1,7 @@
 import { ExpandRow, Fact } from '@/components/expand-row'
 import { ErrorNote, LoadingNote, StateNote } from '@/components/page'
 import { Help, panel } from '@/components/panel'
+import { hueStyle } from '@/lib/hue'
 import { EloChart } from '@/features/live/elo-chart'
 import { type EloPoint, MIN_PERFORMANCE_GAMES, plainText, titleText } from '@/features/live/format'
 import { pickText, useI18n } from '@/i18n/context'
@@ -25,12 +26,12 @@ export function GenerationTimeline() {
       ) : generations.isError ? (
         <ErrorNote what={t('what.generations')} onRetry={() => void generations.refetch()} />
       ) : generations.data.length === 0 ? (
-        <StateNote title={t('generations.none.title')} text={t('generations.none.text')} className={cn(panel, 'p-5')} />
+        <StateNote art="empty" title={t('generations.none.title')} text={t('generations.none.text')} className={cn(panel, 'p-5')} />
       ) : (
         <>
           {rated.length > 0 && (
-            <div className={cn(panel, 'p-5')}>
-              <p className="mb-2 flex items-center gap-1.5 text-[12px] text-muted-foreground">
+            <div className={cn(panel, 'p-5')} style={hueStyle('strength')}>
+              <p className="panel-label mb-3 flex items-center gap-1.5">
                 {t('elo.chartTitle')} <Help text={t('elo.help')} />
               </p>
               <EloChart points={rated} height={170} axis />
@@ -83,7 +84,7 @@ function GenerationRow({ generation: g, champion }: { generation: GenerationDeta
               {g.tried <= 1 ? t('generations.firstTry') : t('generations.afterTries', { n: g.tried })} · {f.time(g.created_at)}
             </span>
           </span>
-          <span className="text-right font-mono text-[14px] font-medium tabular-nums">
+          <span className="text-right font-mono text-[14px] font-medium text-c-strength tabular-nums">
             {g.elo_absolute !== null ? (
               <>
                 {f.num(Math.round(g.elo_absolute))}

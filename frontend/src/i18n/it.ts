@@ -18,8 +18,8 @@ export const it = {
   // Shared states; {what} carries its article
   'state.loading': 'Carico {what}…',
   'state.error': 'Non riesco a caricare {what}',
-  'state.retry': 'Riprova',
-  'state.down': 'Il servizio potrebbe essere momentaneamente spento: riprova tra poco.',
+  'state.retry': 'Riprova ora',
+  'state.down': 'Il servizio potrebbe essere in aggiornamento: riprovo da solo tra pochi secondi.',
   'what.page': 'la pagina',
   'what.experiments': 'gli esperimenti',
   'what.generations': 'le generazioni',
@@ -90,10 +90,10 @@ export const it = {
 
   // Live view
   'live.loading': 'Carico la diretta…',
-  'live.apiDown.title': 'Non riesco a raggiungere l’API',
-  'live.apiDown.text': 'Controlla che il servizio api sia acceso (make dev-be).',
-  'live.notStarted.title': 'L’esperimento non è ancora partito',
-  'live.notStarted.text': 'Il registro è vuoto: avvia l’orchestratore con make run-core.',
+  'live.apiDown.title': 'Il laboratorio non risponde',
+  'live.apiDown.text': 'Potrebbe essere in aggiornamento: riprovo da solo tra pochi secondi.',
+  'live.notStarted.title': 'La partita non è ancora cominciata',
+  'live.notStarted.text': 'L’agente sta scrivendo le regole degli scacchi: il primo campione arriva quando l’arbitro le approva.',
   'top.generation': 'Generazione {n}',
   'top.noChampion': 'nessun campione, si scrivono le regole',
   'top.racing': 'il candidato #{id} prova a diventare la {next}',

@@ -13,7 +13,7 @@ const pieces = Object.fromEntries(
 /** `orientation` is the side at the bottom: ours, as Lichess puts the player who is watching. */
 export function Board(props: { fen: string; lastMove: string | null; orientation?: 'white' | 'black' }) {
   const { fen, lastMove, orientation = 'white' } = props
-  const highlight = { background: 'rgb(242 163 58 / 0.38)' }
+  const highlight = { background: 'color-mix(in oklab, var(--c-spend) 45%, transparent)' }
   const squareStyles = lastMove ? { [lastMove.slice(0, 2)]: highlight, [lastMove.slice(2, 4)]: highlight } : {}
   return (
     // A tray around the board: 8px of the panel surface, radii concentric (8 + 8 = 16).

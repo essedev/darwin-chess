@@ -32,14 +32,14 @@ function VerdictPanel({ trial, last }: { trial: Experiment | null; last: JudgedM
   const { t } = useI18n()
   if (!trial) {
     return (
-      <Panel title={t('verdict.last')}>
+      <Panel title={t('verdict.last')} hue="verdict">
         {last ? <LastVerdict match={last} big /> : <p className="text-[22px] font-semibold tracking-tight">{t('verdict.none')}</p>}
       </Panel>
     )
   }
   const progress = trial.progress
   return (
-    <Panel title={t(`verdict.question.${trial.phase === 'evolution' ? 'champion' : trial.phase === 'first_steps' ? 'random' : 'rules'}`)}>
+    <Panel hue="verdict" title={t(`verdict.question.${trial.phase === 'evolution' ? 'champion' : trial.phase === 'first_steps' ? 'random' : 'rules'}`)}>
       {progress?.bounds ? (
         <Evidence progress={progress} bounds={progress.bounds} />
       ) : (
@@ -65,7 +65,7 @@ function Evidence({ progress, bounds }: { progress: MatchProgress; bounds: [numb
   const lean = progress.llr > 0 ? t('verdict.leanYes') : progress.llr < 0 ? t('verdict.leanNo') : t('verdict.leanNone')
   return (
     <>
-      <p className="text-[22px] font-semibold tracking-tight">{t('verdict.unknown')}</p>
+      <p className="text-[22px] font-semibold tracking-tight text-[var(--hue)]">{t('verdict.unknown')}</p>
       <div className="relative mt-3.5 h-2 overflow-hidden rounded-full bg-muted" role="img"
            aria-label={t('verdict.llrLabel', { llr: f.num(progress.llr), upper: f.num(upper) })}>
         <span className={cn('absolute top-0 h-2', share >= 0 ? 'rounded-r-full bg-good' : 'rounded-l-full bg-bad')}
@@ -113,13 +113,13 @@ function SpendPanel({ spend }: { spend: Ready['spend'] }) {
   const share = Math.min(1, spend.usd / spend.budget)
   const full = spend.usd >= spend.budget
   return (
-    <Panel title={t('spend.title')}>
+    <Panel title={t('spend.title')} hue="spend">
       <p className="flex items-baseline gap-2">
-        <b className="text-[30px] leading-none font-semibold tracking-[-0.03em] tabular-nums">{f.money(spend.usd)}</b>
+        <b className="font-mono text-[30px] leading-none font-medium tracking-[-0.05em] text-[var(--hue)] tabular-nums">{f.money(spend.usd)}</b>
         <span className="font-mono text-[13px] text-muted-foreground">{t('spend.of', { budget: f.money(spend.budget) })}</span>
       </p>
       <div className="mt-3 h-1.5 rounded-full bg-muted">
-        <i className={cn('block h-1.5 rounded-full', full ? 'bg-bad' : 'bg-live')} style={{ width: `${Math.max(share * 100, 2)}%` }} />
+        <i className={cn('block h-1.5 rounded-full', full ? 'bg-bad' : 'bg-[var(--hue)]')} style={{ width: `${Math.max(share * 100, 2)}%` }} />
       </div>
       <p className="mt-2.5 text-[12px] text-muted-foreground">
         {full ? t('spend.full') : t('spend.sessions', { sessions: tn('count.sessions', spend.sessions) })}

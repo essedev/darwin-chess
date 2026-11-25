@@ -1,6 +1,7 @@
 import { useI18n } from '@/i18n/context'
 import type { Lichess, LichessLive } from '@/lib/api'
 import { useNow } from '@/lib/use-now'
+import { StateNote } from '@/components/page'
 import { panel } from '@/components/panel'
 import { cn } from '@/lib/utils'
 import { clock } from './format'
@@ -15,12 +16,12 @@ export function LichessPanel({ query }: { query: Query }) {
   const { t } = useI18n()
   if (!query.data) {
     return query.isPending
-      ? <Message title={t('lichess.loading')} />
-      : <Message title={t('lichess.error.title')} text={t('lichess.error.text')} />
+      ? <Message art="loading" title={t('lichess.loading')} />
+      : <Message art="error" title={t('lichess.error.title')} text={t('lichess.error.text')} />
   }
   const { live } = query.data
   if (live) return <LiveGame live={live} />
-  return <Message title={t('lichess.idle.title')} text={t('lichess.idle.text')} />
+  return <Message art="empty" title={t('lichess.idle.title')} text={t('lichess.idle.text')} />
 }
 
 function LiveGame({ live }: { live: LichessLive }) {
@@ -70,11 +71,11 @@ function Clock({ ms, running }: { ms: number; running: boolean }) {
   )
 }
 
-function Message({ title, text }: { title: string; text?: string }) {
+/** The board's place when there is no game to show: the same states as the rest of the site. */
+function Message({ title, text, art }: { title: string; text?: string; art: 'loading' | 'error' | 'empty' }) {
   return (
     <section className={card}>
-      <p className="text-[22px] font-semibold tracking-tight">{title}</p>
-      {text && <p className="mt-1.5 text-[13px] text-muted-foreground">{text}</p>}
+      <StateNote big art={art} tone={art === 'error' ? 'bad' : 'muted'} title={title} text={text} />
     </section>
   )
 }

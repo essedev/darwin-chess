@@ -42,6 +42,10 @@
     --color-foreground: var(--foreground);
     --color-background: var(--background);
     --color-live: var(--live);
+    --color-c-strength: var(--c-strength);
+    --color-c-gens: var(--c-gens);
+    --color-c-verdict: var(--c-verdict);
+    --color-c-spend: var(--c-spend);
     --color-good: var(--good);
     --color-bad: var(--bad);
     --color-sq-light: var(--sq-light);
@@ -56,37 +60,38 @@
 }
 
 :root {
-    /* Direction D of the dashboard concept: warm paper, one orange accent. */
-    --live: #c2650a;
-    /* Raised surfaces (panels, the board's tray): a full hairline and a soft drop. */
-    --panel-shadow: inset 0 0 0 1px var(--border), 0 1px 2px rgb(0 0 0 / 0.04), 0 14px 32px -18px rgb(30 20 0 / 0.18);
-    --good: #16803c;
-    --bad: #c0362c;
-    --sq-light: #e6e1d3;
-    --sq-dark: #8b9a7c;
+    /* Concept C, variant E: neutral paper, one colour per subject (strength blue, generations
+       violet, verdict green, spend amber), coral for what is live. */
+    --live: #e2553f;
+    /* Surfaces: a hairline, no drop. */
+    --panel-shadow: inset 0 0 0 1px var(--border);
+    --good: #1e9a5a;
+    --bad: #d23b3b;
+    --sq-light: #ece6d2;
+    --sq-dark: #7d9c63;
     --code-keyword: #a3263f;
     --code-string: #2f6f3a;
     --code-number: #9a5b00;
     --code-type: #2b5d9c;
     --code-function: #6b3fa0;
     --code-comment: #8a8578;
-    --background: #f4f3ef;
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
+    --background: #f7f6f2;
+    --foreground: #18181a;
+    --card: #fdfdfb;
     --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
+    --popover: #fdfdfb;
     --popover-foreground: oklch(0.145 0 0);
     --primary: oklch(0.205 0 0);
     --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
+    --secondary: #efede8;
     --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
+    --muted: #efede8;
+    --muted-foreground: #7d7b76;
+    --accent: #efede8;
     --accent-foreground: oklch(0.205 0 0);
     --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
+    --border: #e6e3dc;
+    --input: #e6e3dc;
     --ring: oklch(0.708 0 0);
     --chart-1: oklch(0.87 0 0);
     --chart-2: oklch(0.556 0 0);
@@ -102,38 +107,43 @@
     --sidebar-accent-foreground: oklch(0.205 0 0);
     --sidebar-border: oklch(0.922 0 0);
     --sidebar-ring: oklch(0.708 0 0);
+    --c-strength: #2f6fde;
+    --c-gens: #7a4fd8;
+    --c-verdict: #1e9a5a;
+    --c-spend: #d9960f;
+    --c-board: #d9960f;
 }
 
 .dark {
-    --live: #f2a33a;
-    --panel-shadow: inset 0 0 0 1px var(--border), 0 14px 32px -18px rgb(0 0 0 / 0.7);
-    --good: #5fd68a;
-    --bad: #f2776b;
-    --sq-light: #d9d3c4;
-    --sq-dark: #77876a;
+    --live: #ff7c66;
+    --panel-shadow: inset 0 0 0 1px var(--border);
+    --good: #4fd08a;
+    --bad: #ff6b6b;
+    --sq-light: #d6d0bb;
+    --sq-dark: #5f7d4a;
     --code-keyword: #f2869a;
     --code-string: #9bd39a;
     --code-number: #f2b866;
     --code-type: #8ab8f2;
     --code-function: #c8a6f2;
     --code-comment: #8b8b8b;
-    --background: #0c0c0e;
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
+    --background: #101012;
+    --foreground: #ececed;
+    --card: #17171a;
     --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
+    --popover: #17171a;
     --popover-foreground: oklch(0.985 0 0);
     --primary: oklch(0.922 0 0);
     --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
+    --secondary: #212125;
     --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
+    --muted: #212125;
+    --muted-foreground: #8c8c92;
+    --accent: #212125;
     --accent-foreground: oklch(0.985 0 0);
     --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
+    --border: #29292e;
+    --input: #2f2f35;
     --ring: oklch(0.556 0 0);
     --chart-1: oklch(0.87 0 0);
     --chart-2: oklch(0.556 0 0);
@@ -148,6 +158,11 @@
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(1 0 0 / 10%);
     --sidebar-ring: oklch(0.556 0 0);
+    --c-strength: #6ea0ff;
+    --c-gens: #a98bff;
+    --c-verdict: #4fd08a;
+    --c-spend: #f2bd4a;
+    --c-board: #f2bd4a;
 }
 
 @layer base {
@@ -171,3 +186,12 @@
 .hljs-comment, .hljs-quote { font-style: italic; }
 .hljs-section, .hljs-strong { font-weight: 600; }
 .hljs-emphasis { font-style: italic; }
+
+/* A panel takes the colour of its subject (--hue, set by the Panel component): a tint of it on
+   the surface and the border, its label and its key numbers. Without a hue it stays neutral. */
+.panel { --hue-on: var(--hue, var(--muted-foreground)); background: color-mix(in oklab, var(--hue, transparent) 5%, var(--card)); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--hue, var(--border)) 22%, var(--border)); }
+.panel-label { font-family: var(--font-mono); font-size: 10.5px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--hue-on); }
+.panel-label::before { content: ''; display: inline-block; width: 7px; height: 7px; margin-right: 8px; border-radius: 2px; background: var(--hue-on); vertical-align: 1px; }
+.panel-rule { border-bottom: 1px dashed color-mix(in oklab, var(--hue, var(--border)) 30%, var(--border)); }
+
+@keyframes king-shake { 0%, 100% { transform: translateX(0) rotate(0); } 25% { transform: translateX(-3px) rotate(-6deg); } 75% { transform: translateX(3px) rotate(6deg); } }

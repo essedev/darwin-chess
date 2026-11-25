@@ -112,7 +112,7 @@ function Caption({ events, agent }: { events: AgentEvent[]; agent: Ready['agent'
   const text = italian || (thought ? plainText(String(thought.payload.text)) : '')
   return (
     <div className="mx-auto mt-1 w-full max-w-[620px] text-center">
-      <p className="font-mono text-[11px] font-medium tracking-wider text-muted-foreground uppercase">
+      <p className="font-mono text-[11px] font-medium tracking-wider text-c-gens uppercase">
         {captionLabel(i18n, agent)}
         {text && lang === 'it' && !italian && `, ${t('caption.inEnglish')}`}
         {thought && ` · ${f.time(thought.at)}`}

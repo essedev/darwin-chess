@@ -16,8 +16,8 @@ export const en: Messages = {
   // Shared states; {what} carries its article
   'state.loading': 'Loading {what}…',
   'state.error': 'Could not load {what}',
-  'state.retry': 'Try again',
-  'state.down': 'The service may be briefly down: try again in a moment.',
+  'state.retry': 'Try again now',
+  'state.down': 'The service may be updating: I will try again on my own in a few seconds.',
   'what.page': 'the page',
   'what.experiments': 'the experiments',
   'what.generations': 'the generations',
@@ -88,10 +88,10 @@ export const en: Messages = {
 
   // Live view
   'live.loading': 'Loading the live view…',
-  'live.apiDown.title': 'Cannot reach the API',
-  'live.apiDown.text': 'Check that the api service is running (make dev-be).',
-  'live.notStarted.title': 'The experiment has not started yet',
-  'live.notStarted.text': 'The ledger is empty: start the orchestrator with make run-core.',
+  'live.apiDown.title': 'The lab is not answering',
+  'live.apiDown.text': 'It may be updating: I will try again on my own in a few seconds.',
+  'live.notStarted.title': 'The game has not started yet',
+  'live.notStarted.text': 'The agent is writing the rules of chess: the first champion arrives when the referee approves them.',
   'top.generation': 'Generation {n}',
   'top.noChampion': 'no champion yet, writing the rules',
   'top.racing': 'candidate #{id} is trying to become generation {next}',

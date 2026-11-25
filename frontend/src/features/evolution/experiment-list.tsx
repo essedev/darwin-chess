@@ -65,7 +65,7 @@ export function ExperimentList() {
         <ErrorNote what={t('what.experiments')} onRetry={() => void page.refetch()} />
       ) : items.length === 0 ? (
         filter === 'all' ? (
-          <StateNote title={t('experiments.none.title')} text={t('experiments.none.text')} className={cn(panel, 'p-5')} />
+          <StateNote art="empty" title={t('experiments.none.title')} text={t('experiments.none.text')} className={cn(panel, 'p-5')} />
         ) : (
           <StateNote title={t('experiments.noneHere')} className={cn(panel, 'p-5')} />
         )
