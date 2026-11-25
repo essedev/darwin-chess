@@ -66,6 +66,9 @@ class Settings(BaseSettings):
     lichess_clock_s: int = 180
     lichess_increment_s: int = 2
     lichess_challenge_every_s: float = 120.0
+    # Opponents are sought around this rating until ours settles (Lichess starts bots at
+    # 3000). A first guess for a young engine; the anchors' Elo is a better one later.
+    lichess_start_rating: int = 1200
 
     # Disk for job outputs (data/jobs): a ceiling per job and for all of them.
     job_disk_gb: float = 10.0

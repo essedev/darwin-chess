@@ -13,6 +13,8 @@ MAX_CLOCK_S = 600
 RATING_WINDOW = 300
 WIDE_RATING_WINDOW = 600
 DEFAULT_RATING = 1500
+SETTLED_GAMES = 20  # Lichess drops the provisional mark later; this is our own bar
+CLOSEST_FALLBACK = 5
 UNFINISHED = frozenset({"created", "started"})
 ABORTED = frozenset({"aborted", "noStart"})
 
@@ -95,6 +97,17 @@ def decline_reason(challenge: Mapping[str, Any], *, busy: bool) -> str | None:
     return None
 
 
+def matchmaking_rating(account: Mapping[str, Any], speed: str, start: int) -> int:
+    """The rating to look for opponents around. Lichess starts every BOT at 3000,
+    provisional: aiming there pairs a beginner engine with the strongest bots. Until the
+    rating settles we aim at `start` instead."""
+    perf = (account.get("perfs") or {}).get(speed) or {}
+    rating = rating_of(account, speed)
+    if rating is None or perf.get("prov") or int(perf.get("games") or 0) < SETTLED_GAMES:
+        return start
+    return rating
+
+
 def rating_of(user: Mapping[str, Any], speed: str) -> int | None:
     perf = (user.get("perfs") or {}).get(speed) or {}
     rating = perf.get("rating")
@@ -124,4 +137,7 @@ def pick_opponent(
         pool = sorted(name for name, rating in rated if abs(rating - my_rating) <= window)
         if pool:
             return rng.choice(pool)
-    return None
+    # Nobody near (a weak engine is below every bot online): the closest few.
+    closest = sorted(rated, key=lambda item: (abs(item[1] - my_rating), item[0]))
+    pool = [name for name, _ in closest[:CLOSEST_FALLBACK]]
+    return rng.choice(pool) if pool else None

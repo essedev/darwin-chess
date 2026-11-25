@@ -15,6 +15,7 @@ from darwin.referee.models import EngineSpec
 
 DEPTH = 12
 MATE = 10000
+DECIDED_CP = 600  # six pawns: past this the game is decided either way
 SCORE = re.compile(r"score (cp|mate) (-?\d+)")
 
 
@@ -54,12 +55,21 @@ async def worst_move(settings: Settings, moves: list[str], our_color: str) -> di
                 evals.append(score if board.turn == ours else -score)
             if ply < len(moves):
                 board.push_uci(moves[ply])
+    return worst_drop(moves, evals, ours)
+
+
+def worst_drop(moves: list[str], evals: list[int], ours: chess.Color) -> dict[str, Any]:
+    """The move of ours that cost the most, on evaluations clamped to +-DECIDED_CP: once a
+    game is decided, sliding from "lost" to "mated" is not the mistake worth showing, the
+    move that got there is. Ties go to the earliest move."""
     board = chess.Board()
     worst: dict[str, Any] = {}
     for ply, uci_move in enumerate(moves):
         move = chess.Move.from_uci(uci_move)
         if board.turn == ours:
-            drop = evals[ply] - evals[ply + 1]
+            before = max(-DECIDED_CP, min(DECIDED_CP, evals[ply]))
+            after = max(-DECIDED_CP, min(DECIDED_CP, evals[ply + 1]))
+            drop = before - after
             if not worst or drop > worst["drop_cp"]:
                 worst = {
                     "move_number": board.fullmove_number,

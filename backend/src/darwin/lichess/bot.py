@@ -93,7 +93,9 @@ class LichessBot:
     async def _identify(self) -> None:
         account = await self.client.account()
         self.me = str(account.get("id") or account.get("username") or "").lower()
-        self.rating = rules.rating_of(account, self.speed) or rules.DEFAULT_RATING
+        self.rating = rules.matchmaking_rating(
+            account, self.speed, self.settings.lichess_start_rating
+        )
 
     # Incoming events
 

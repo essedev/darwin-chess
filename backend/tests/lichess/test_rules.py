@@ -114,7 +114,8 @@ def test_opponent_within_the_rating_window() -> None:
 
 def test_opponent_window_widens_when_nobody_is_close() -> None:
     assert pick([bot("Wide", 1050), bot("Far", 2200)]) == "Wide"
-    assert pick([bot("Far", 2200), bot("DarwinBot", 1500)]) is None
+    # Nobody even in the wide window: the closest few rather than no game at all.
+    assert pick([bot("Far", 2200), bot("DarwinBot", 1500)]) == "Far"
 
 
 def test_opponent_never_a_flagged_account() -> None:
@@ -130,3 +131,30 @@ def test_rating_of_reads_the_perf() -> None:
     assert rules.rating_of({"perfs": {"blitz": {"rating": 1612, "prov": True}}}, "blitz") == 1612
     assert rules.rating_of({"perfs": {}}, "blitz") is None
     assert rules.rating_of({}, "blitz") is None
+
+
+def test_a_provisional_rating_aims_at_the_start_rating() -> None:
+    fresh = {"perfs": {"blitz": {"rating": 3000, "games": 0, "prov": True}}}
+    settled = {"perfs": {"blitz": {"rating": 1640, "games": 40}}}
+    assert rules.matchmaking_rating(fresh, "blitz", 1200) == 1200
+    assert rules.matchmaking_rating(settled, "blitz", 1200) == 1640
+    assert rules.matchmaking_rating({}, "blitz", 1200) == 1200
+
+
+def test_a_bot_below_everyone_still_finds_the_closest_opponents() -> None:
+    bots = [
+        bot(name, rating)
+        for name, rating in [
+            ("A", 2200),
+            ("B", 2300),
+            ("C", 2400),
+            ("D", 2500),
+            ("E", 2600),
+            ("F", 2900),
+        ]
+    ]
+    picked = {
+        rules.pick_opponent(bots, me="x", my_rating=900, speed="blitz", rng=random.Random(seed))
+        for seed in range(40)
+    }
+    assert picked == {"A", "B", "C", "D", "E"}
