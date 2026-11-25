@@ -2,6 +2,7 @@
 name = "darwin"
 version = "0.1.0"
 description = "An LLM agent evolves a chess engine; a trusted referee judges every generation."
+license = "MIT"
 authors = [
     { name = "Simone Salerno", email = "doppiaesse@proton.me" }
 ]

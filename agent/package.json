@@ -1,6 +1,7 @@
 {
   "name": "darwin-agent",
   "private": true,
+  "license": "MIT",
   "description": "pi, the agent harness, pinned, plus the darwin extension that routes its tools into the sandbox.",
   "type": "module",
   "dependencies": {
