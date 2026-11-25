@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="it">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Concept C - identità</title>
+		<!--
+			Concept C: che carattere ha darwin-chess (colori, font, superfici) e come si comporta
+			quando aspetta i dati, quando qualcosa si rompe e quando non c'è ancora niente.
+			Tasti: x a b c per la variante, 1 pronto, 2 caricamento, 3 errore, 4 vuoto (anche dai
+			bottoni nella barra del mock), t tema, p nasconde la barra.
+
+			Il problema: il sito di oggi (a1 di concept B) è ordinato ma anonimo: Geist su carta
+			calda, un arancione, schede bianche. Gli stati sono frasi centrate ("Carico la
+			diretta…", "Non riesco a raggiungere l'API", "L'esperimento non è ancora partito"),
+			uguali a quelle di qualunque dashboard. Simone chiede colori, font e stati "più belli e
+			particolari", con qualche animazione ASCII.
+
+			X  oggi: Geist e Geist Mono, carta calda, accento arancione, stati come frasi.
+			A  Terminale: il sito è la console del laboratorio. Mono per titoli e numeri (JetBrains
+			   Mono) e sans tecnico per il testo (IBM Plex Sans); verde fosforo come accento;
+			   riquadri a filo con intestazioni da terminale. Caricamento: un'elica di DNA che gira;
+			   errore: un riquadro che sfarfalla; vuoto: un prompt con il cursore.
+			B  Taccuino: il quaderno da naturalista di Darwin, la storia dell'evoluzione. Serif da
+			   titolo (Instrument Serif) per titoli e numeri grandi, Geist per il testo; carta
+			   avorio, inchiostro seppia, accento ruggine. Caricamento: un albero genealogico che
+			   cresce un ramo alla volta; errore: il ramo spezzato e una foglia che cade; vuoto: un
+			   seme che germoglia. Nota: il serif editoriale era la direzione B di concept A, non
+			   scelta allora (Simone preferì lo spettacolo di C); torna perché ora la richiesta è
+			   proprio un carattere più riconoscibile.
+			C  Arcade: gli scacchi come gioco e spettacolo, un tabellone. Space Grotesk in grassetto
+			   e Space Mono per i numeri; nero profondo, viola elettrico e lime; riquadri spessi,
+			   angoli netti. Caricamento: un cavallo che salta a L lasciando la scia; errore: il re
+			   che trema sotto scacco; vuoto: i pezzi che scendono alla posizione iniziale.
+
+			Uguale in tutte: la struttura di a1 (concept B) e i contenuti. Cambiano solo pelle e
+			stati.
+
+			Mappatura sul codice di oggi (fattibilità, non piano): i token stanno in index.css
+			(:root e .dark); i font si installano da @fontsource come Geist; gli stati sono
+			StateNote, LoadingNote, ErrorNote in components/page.tsx più i Notice della Diretta:
+			un componente AsciiArt (un <pre> aggiornato da un intervallo) li sostituisce. Con
+			prefers-reduced-motion l'animazione si ferma su un fotogramma; l'arte è aria-hidden e
+			una frase per gli screen reader dice lo stato.
+
+			Dati: veri dal sito (25/11/2026, 17:40): gen-6 a 1.183 ± 142 contro Stockfish, #22 in
+			giudizio con 936 partite e LLR 1,05, spesa 0,07 $ su 2 $, ultimo pensiero tradotto.
+			La posizione sulla scacchiera è quella di concept B; pezzi cburnett dal CDN di Lichess
+			solo per il mock.
+		-->
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap"
+			rel="stylesheet"
+		/>
+		<style>
+			* { box-sizing: border-box; }
+			html, body { margin: 0; }
+			[hidden] { display: none !important; }
+			button { font: inherit; color: inherit; cursor: pointer; }
+			p, h1, h2, ol { margin: 0; }
+			ol { padding: 0; list-style: none; }
+
+			/* Concept chrome: not part of the design. */
+			.switch { position: sticky; top: 0; z-index: 100; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px 12px; background: #111; color: #aaa; font: 12px/1.4 ui-monospace, Menlo, monospace; }
+			.switch button { border: 0; padding: 5px 9px; border-radius: 6px; background: #262626; color: #eee; }
+			.switch button[aria-pressed='true'] { background: #eee; color: #111; }
+			.switch p { margin: 0 0 0 8px; flex: 1 1 240px; min-width: 0; }
+			.switch .states { display: flex; gap: 4px; padding-left: 8px; border-left: 1px solid #333; }
+			body[data-chrome='off'] .switch { display: none; }
+
+			/* Tokens per variant. X copies frontend/src/index.css. */
+			body { --bg: #f4f3ef; --fg: #1a1a1a; --card: #fff; --muted: #f2f2f1; --muted-fg: #7a7a76; --line: #e7e7e5; --accent: #c2650a; --good: #16803c; --bad: #c0362c;
+				--sans: 'Geist', system-ui, sans-serif; --mono: 'Geist Mono', ui-monospace, monospace; --display: var(--sans); --num: var(--sans);
+				--radius: 20px; --shadow: inset 0 0 0 1px var(--line), 0 1px 2px rgb(0 0 0 / 0.04), 0 14px 32px -18px rgb(30 20 0 / 0.18);
+				--h2: 500 13px var(--sans); --h2-tt: none; --h2-ls: 0; --h2-c: var(--fg); --h1: 600 24px var(--display); --big: 600 46px/1 var(--num); --big-ls: -0.035em;
+				--sq-l: #e6e1d3; --sq-d: #8b9a7c; --art: var(--accent);
+				background: var(--bg); color: var(--fg); font: 14px/1.5 var(--sans); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+			:root[data-theme='dark'] body { --bg: #0c0c0e; --fg: #f5f5f5; --card: #1e1e20; --muted: #2a2a2c; --muted-fg: #a3a3a3; --line: rgb(255 255 255 / 0.1); --accent: #f2a33a; --good: #5fd68a; --bad: #f2776b; --shadow: inset 0 0 0 1px var(--line), 0 14px 32px -18px rgb(0 0 0 / 0.7); --sq-l: #d9d3c4; --sq-d: #77876a; }
+
+			body[data-v='a'] { --bg: #f2f1ea; --fg: #17201a; --card: #fbfaf5; --muted: #e8e8df; --muted-fg: #6b746c; --line: #cfd3c8; --accent: #157a3c; --good: #157a3c; --bad: #b3261e;
+				--sans: 'IBM Plex Sans', system-ui, sans-serif; --mono: 'JetBrains Mono', ui-monospace, monospace; --display: var(--mono); --num: var(--mono);
+				--radius: 6px; --shadow: inset 0 0 0 1px var(--line); --h2: 500 11px var(--mono); --h2-tt: uppercase; --h2-ls: 0.08em; --h2-c: var(--muted-fg);
+				--h1: 700 22px var(--mono); --big: 700 42px/1 var(--mono); --big-ls: -0.04em; --sq-l: #dfe3d6; --sq-d: #7f9a84; --art: var(--accent); }
+			:root[data-theme='dark'] body[data-v='a'] { --bg: #070a08; --fg: #d7f5df; --card: #0d1310; --muted: #14201a; --muted-fg: #6f9c7d; --line: #1d3326; --accent: #4ade80; --good: #4ade80; --bad: #ff6b5e; --sq-l: #b9c9b6; --sq-d: #4f6f58; }
+
+			body[data-v='b'] { --bg: #f1e9db; --fg: #2a2018; --card: #fbf6ec; --muted: #ebe0cd; --muted-fg: #7d6a57; --line: #dccbb1; --accent: #a8461f; --good: #5b7a2a; --bad: #a33a2a;
+				--sans: 'Geist', system-ui, sans-serif; --mono: 'Geist Mono', ui-monospace, monospace; --display: 'Instrument Serif', Georgia, serif; --num: 'Instrument Serif', Georgia, serif;
+				--radius: 14px; --shadow: inset 0 0 0 1px var(--line), 0 1px 0 rgb(80 50 20 / 0.06), 0 18px 30px -24px rgb(80 50 20 / 0.35);
+				--h2: italic 400 19px var(--display); --h2-tt: none; --h2-ls: 0; --h2-c: var(--fg); --h1: 400 38px/1 var(--display); --big: 400 64px/0.9 var(--num); --big-ls: -0.01em;
+				--sq-l: #eadfca; --sq-d: #a98f6a; --art: #7d5a3c; }
+			:root[data-theme='dark'] body[data-v='b'] { --bg: #17120d; --fg: #efe5d3; --card: #211a13; --muted: #2c241b; --muted-fg: #a8957c; --line: #3a2f23; --accent: #e08a5a; --good: #a6c26a; --bad: #e2715f; --sq-l: #d8c8a8; --sq-d: #8c714d; --art: #c9a27a; }
+
+			body[data-v='c'] { --bg: #f3f2ee; --fg: #0f0f14; --card: #fff; --muted: #ecebf2; --muted-fg: #6a6878; --line: #0f0f14; --accent: #5b3df5; --good: #0d8a4a; --bad: #e0245e;
+				--sans: 'Space Grotesk', system-ui, sans-serif; --mono: 'Space Mono', ui-monospace, monospace; --display: var(--sans); --num: var(--mono);
+				--radius: 4px; --shadow: 0 0 0 2px var(--line), 5px 5px 0 0 var(--line); --h2: 700 12px var(--sans); --h2-tt: uppercase; --h2-ls: 0.1em; --h2-c: var(--fg);
+				--h1: 700 30px/1 var(--display); --big: 700 52px/1 var(--num); --big-ls: -0.05em; --sq-l: #e9e6ff; --sq-d: #8b7bf0; --art: var(--accent); --lime: #c6f135; }
+			:root[data-theme='dark'] body[data-v='c'] { --bg: #0b0b10; --fg: #f4f3ff; --card: #15151d; --muted: #20202b; --muted-fg: #9a98b0; --line: #f4f3ff; --accent: #a594ff; --good: #c6f135; --bad: #ff4d7d; --sq-l: #c9c2ff; --sq-d: #5a49d6; --shadow: 0 0 0 2px #3a3a4c, 5px 5px 0 0 #c6f135; }
+
+			/* Layout. */
+			.nav { display: flex; align-items: center; gap: 16px; padding: 0 32px; height: 52px; border-bottom: 1px solid var(--line); }
+			body[data-v='c'] .nav { border-bottom-width: 2px; }
+			.brand { font: 700 15px var(--display); letter-spacing: -0.01em; white-space: nowrap; }
+			body[data-v='a'] .brand::before { content: '> '; color: var(--accent); }
+			body[data-v='b'] .brand { font: italic 400 22px var(--display); }
+			body[data-v='c'] .brand { text-transform: uppercase; letter-spacing: 0.04em; }
+			body[data-v='c'] .brand::after { content: ''; display: inline-block; width: 8px; height: 8px; margin-left: 6px; background: var(--good); }
+			.tabs { display: flex; gap: 4px; }
+			.tabs a { padding: 15px 10px; color: var(--muted-fg); font-weight: 500; border-bottom: 2px solid transparent; }
+			.tabs a.on { color: var(--fg); border-color: var(--accent); }
+			body[data-v='a'] .tabs a { font: 500 13px var(--mono); }
+			body[data-v='a'] .tabs a.on::before { content: '['; color: var(--accent); }
+			body[data-v='a'] .tabs a.on::after { content: ']'; color: var(--accent); }
+			body[data-v='a'] .tabs a.on { border-color: transparent; }
+			body[data-v='c'] .tabs a { text-transform: uppercase; font-size: 12px; letter-spacing: 0.06em; font-weight: 700; }
+			body[data-v='c'] .tabs a.on { background: var(--fg); color: var(--bg); border-color: transparent; }
+			.lang { margin-left: auto; font: 500 12px var(--mono); color: var(--muted-fg); }
+			.lang b { color: var(--fg); font-weight: 500; }
+
+			main { max-width: 1440px; margin: 0 auto; padding: 24px 32px 48px; display: grid; grid-template-columns: 280px minmax(0, 1fr) 320px; gap: 28px 32px; }
+			.top { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+			.top h1 { font: var(--h1); letter-spacing: -0.02em; }
+			.top .sub { color: var(--muted-fg); }
+			.live { display: inline-flex; align-items: center; gap: 7px; height: 24px; padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 600; color: var(--bad); background: color-mix(in oklab, var(--bad) 14%, transparent); }
+			.live i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: pulse 1.6s infinite; }
+			body[data-v='a'] .live { border-radius: 3px; font-family: var(--mono); }
+			body[data-v='c'] .live { border-radius: 0; background: var(--bad); color: #fff; text-transform: uppercase; letter-spacing: 0.08em; }
+			.live.off { color: var(--muted-fg); background: var(--muted); }
+			@keyframes pulse { 50% { opacity: 0.3; } }
+			.phases { margin-left: auto; display: flex; gap: 14px; font-size: 12px; color: var(--muted-fg); }
+			.phases .on { color: var(--fg); font-weight: 500; }
+			.phases .on::before { content: '● '; color: var(--accent); }
+			body[data-v='a'] .phases { font-family: var(--mono); }
+			body[data-v='b'] .phases { font: italic 16px var(--display); }
+
+			.col { display: grid; align-content: start; gap: 14px; min-width: 0; }
+			.pn { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; min-width: 0; }
+			body[data-v='c'] .pn { margin: 0 5px 5px 0; }
+			.pn-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-bottom: 12px; margin-bottom: 14px; border-bottom: 1px solid var(--line); }
+			.pn-h h2 { font: var(--h2); letter-spacing: var(--h2-ls); text-transform: var(--h2-tt); color: var(--h2-c); }
+			body[data-v='a'] .pn-h { border-bottom-style: dashed; }
+			body[data-v='a'] .pn-h h2::before { content: '┌─ '; color: var(--accent); }
+			body[data-v='b'] .pn-h { border-bottom: 0; padding-bottom: 4px; margin-bottom: 10px; }
+			body[data-v='c'] .pn-h { border-bottom-width: 2px; border-bottom-color: var(--fg); }
+			.link { color: var(--accent); font-size: 12px; font-weight: 500; }
+			.big { display: flex; align-items: baseline; gap: 8px; }
+			.big b { font: var(--big); letter-spacing: var(--big-ls); font-variant-numeric: tabular-nums; }
+			.big span { font: 500 15px var(--mono); color: var(--muted-fg); white-space: nowrap; }
+			body[data-v='c'] .big b { background: var(--good); color: #0b0b10; padding: 0 6px; }
+			:root[data-theme='dark'] body[data-v='c'] .big b { color: #0b0b10; }
+			.cap { margin-top: 6px; font-size: 12px; color: var(--muted-fg); }
+			.rows li { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
+			.rows li:first-child { border-top: 0; }
+			.rows .id { font: 500 12px var(--mono); color: var(--muted-fg); }
+			.rows .now .id { color: var(--accent); }
+			.rows b { display: block; font-size: 13.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+			.rows small { display: block; font-size: 11.5px; color: var(--muted-fg); }
+			.rows .v { font: 500 13px var(--mono); text-align: right; }
+			.rows .v small { font-size: 10.5px; }
+			body[data-v='b'] .rows b { font: 400 17px/1.2 var(--display); }
+
+			.stage { display: grid; gap: 14px; align-content: start; min-width: 0; }
+			.heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; }
+			.heading .tag { font: 500 13px var(--mono); color: var(--accent); }
+			.heading h2 { font: 600 21px/1.2 var(--display); letter-spacing: -0.015em; }
+			body[data-v='a'] .heading h2 { font-weight: 700; font-size: 18px; }
+			body[data-v='b'] .heading h2 { font: 400 30px/1.05 var(--display); }
+			body[data-v='c'] .heading h2 { font-weight: 700; text-transform: uppercase; font-size: 20px; letter-spacing: 0.01em; }
+			.heading p { color: var(--muted-fg); font-size: 13px; }
+			.game { display: grid; grid-template-columns: minmax(0, 1fr) 120px; gap: 16px; }
+			.player { display: flex; align-items: center; gap: 12px; min-height: 40px; }
+			.stone { width: 14px; height: 14px; border-radius: 50%; box-shadow: 0 0 0 1.5px var(--line); }
+			.stone.w { background: #fbfaf7; } .stone.b { background: #16140f; }
+			.player b { font-size: 15px; } .player small { display: block; font-size: 12px; color: var(--muted-fg); }
+			.player .pts { margin-left: auto; font: 500 22px var(--num); }
+			body[data-v='b'] .player .pts { font-size: 30px; }
+			.player .pts span { font: 12px var(--sans); color: var(--muted-fg); margin-left: 4px; }
+			.tray { padding: 8px; border-radius: calc(var(--radius) - 4px + 8px); background: var(--card); box-shadow: var(--shadow); }
+			body[data-v='a'] .tray, body[data-v='c'] .tray { border-radius: var(--radius); }
+			body[data-v='c'] .tray { margin: 0 5px 5px 0; padding: 0; }
+			.board { display: grid; grid-template-columns: repeat(8, 1fr); aspect-ratio: 1; border-radius: max(0px, calc(var(--radius) - 8px)); overflow: hidden; }
+			body[data-v='c'] .board { border-radius: 0; }
+			.board i { position: relative; } .board i.l { background: var(--sq-l); } .board i.d { background: var(--sq-d); }
+			.board i.hl::after { content: ''; position: absolute; inset: 0; background: color-mix(in oklab, var(--accent) 38%, transparent); }
+			.board img { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; }
+			.moves { font: 12px/26px var(--mono); color: var(--fg); }
+			.moves p:first-child { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted-fg); }
+			.moves span { color: var(--muted-fg); display: inline-block; width: 24px; }
+			.moves .cur { background: color-mix(in oklab, var(--accent) 22%, transparent); padding: 2px 6px; border-radius: 4px; }
+			.caption { text-align: center; max-width: 620px; margin: 6px auto 0; }
+			.caption p:first-child { font: 500 11px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted-fg); }
+			.caption p:last-child { margin-top: 6px; font-size: 18px; line-height: 1.4; font-weight: 500; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+			body[data-v='a'] .caption p:last-child { font: 500 15px/1.5 var(--mono); }
+			body[data-v='a'] .caption p:last-child::before { content: '$ '; color: var(--accent); }
+			body[data-v='b'] .caption p:last-child { font: italic 400 24px/1.25 var(--display); }
+			.ans { font: 600 22px var(--display); letter-spacing: -0.02em; }
+			body[data-v='b'] .ans { font: 400 32px/1 var(--display); }
+			body[data-v='c'] .ans { text-transform: uppercase; font-weight: 700; }
+			.bar { position: relative; height: 8px; margin-top: 14px; border-radius: 4px; background: var(--muted); overflow: hidden; }
+			.bar i { position: absolute; top: 0; bottom: 0; left: 50%; background: var(--good); }
+			.bar b { position: absolute; top: 0; bottom: 0; left: calc(50% - 1px); width: 2px; background: var(--muted-fg); opacity: 0.6; }
+			body[data-v='a'] .bar { border-radius: 0; height: 10px; background: repeating-linear-gradient(90deg, var(--muted) 0 6px, transparent 6px 8px); }
+			body[data-v='c'] .bar { border-radius: 0; height: 12px; box-shadow: 0 0 0 2px var(--line); }
+			.bar-l { display: flex; justify-content: space-between; margin-top: 6px; font: 11px var(--mono); color: var(--muted-fg); }
+			.money b { font: var(--big); font-size: 30px; letter-spacing: var(--big-ls); }
+			body[data-v='b'] .money b { font-size: 44px; }
+			.money span { font: 13px var(--mono); color: var(--muted-fg); margin-left: 6px; }
+			.chart { width: 100%; height: auto; display: block; margin-top: 12px; overflow: visible; }
+
+			/* States: the ASCII art and what goes with it. */
+			.state { display: grid; justify-items: center; gap: 10px; padding: 14px 4px; text-align: center; }
+			.art { margin: 0; font: 13px/1.15 var(--mono); min-width: 0; color: var(--art); white-space: pre; user-select: none; }
+			body[data-v='b'] .art { font-family: 'Geist Mono', monospace; }
+			.state .t { font-weight: 600; font-size: 15px; }
+			.state .s { font-size: 12.5px; color: var(--muted-fg); max-width: 34ch; }
+			body[data-v='b'] .state .t { font: italic 400 22px/1.1 var(--display); }
+			body[data-v='a'] .state .t { font: 700 13px var(--mono); }
+			body[data-v='c'] .state .t { text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; }
+			.state.bad .t { color: var(--bad); }
+			.state.bad .art { color: var(--bad); }
+			.retry { margin-top: 2px; padding: 6px 14px; border: 0; border-radius: 999px; background: var(--fg); color: var(--bg); font-size: 12.5px; font-weight: 600; }
+			body[data-v='a'] .retry { border-radius: 3px; font-family: var(--mono); background: transparent; color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+			body[data-v='a'] .retry::before { content: '↻ '; }
+			body[data-v='b'] .retry { background: transparent; color: var(--accent); font: italic 400 17px var(--display); text-decoration: underline; text-underline-offset: 4px; }
+			body[data-v='c'] .retry { border-radius: 0; background: var(--good); color: #0b0b10; text-transform: uppercase; letter-spacing: 0.08em; box-shadow: 3px 3px 0 0 var(--fg); }
+			.mini { padding: 10px 0; font-size: 12.5px; color: var(--muted-fg); }
+			body[data-v='b'] .mini { font: italic 17px var(--display); }
+			.mini-art { padding: 10px 0; font-size: 12.5px; text-align: left; }
+			body[data-v='b'] .mini-art { font: 400 28px/1 var(--display); letter-spacing: 0.1em; }
+			.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+			.big-state { grid-column: 1 / -1; display: grid; place-items: center; min-height: 520px; }
+			.big-state .art { font-size: 15px; }
+			.tray .art { font-size: 15px; }
+			body[data-v='c'] .tray .art[data-art='error'] { font-size: 64px; line-height: 1; }
+			.shake { display: inline-block; animation: shake 0.5s infinite; }
+			@keyframes shake { 0%,100% { transform: translateX(0) rotate(0); } 25% { transform: translateX(-3px) rotate(-6deg); } 75% { transform: translateX(3px) rotate(6deg); } }
+			.x-note { color: var(--muted-fg); font-size: 15px; font-weight: 500; }
+
+			@media (max-width: 1100px) { main { grid-template-columns: minmax(0, 1fr) 300px; } .left { grid-column: 1 / -1; order: 3; } }
+			@media (max-width: 860px) {
+				.nav { padding: 0 16px; gap: 10px; } .tabs a { padding: 15px 6px; } .tabs a:nth-child(n + 2) { display: none; } .lang { white-space: nowrap; }
+				main { grid-template-columns: minmax(0, 1fr); padding: 16px 16px 40px; } .stage { order: 1; } .right { order: 2; } .left { order: 3; }
+				.game { grid-template-columns: minmax(0, 1fr); } .moves { display: none; } .phases { margin-left: 0; } .phases span:not(.on) { display: none; }
+				.big-state { min-height: 360px; }
+			}
+			@media (prefers-reduced-motion: reduce) { .shake, .live i { animation: none; } }
+		</style>
+	</head>
+	<body data-v="x" data-state="ready">
+		<div class="switch">
+			<span data-buttons></span>
+			<span class="states" data-states></span>
+			<p data-desc></p>
+			<button data-theme-toggle>t tema</button>
+		</div>
+
+		<nav class="nav">
+			<span class="brand">darwin-chess</span>
+			<span class="tabs"><a class="on">Diretta</a><a>Evoluzione</a><a>Codice</a><a>Mente</a><a>Laboratorio</a></span>
+			<span class="lang"><b>IT</b> | EN</span>
+		</nav>
+		<main data-main></main>
+
+		<script>
+			const DESC = {
+				x: 'oggi: Geist su carta calda, un arancione, stati come frasi centrate',
+				a: 'Terminale: il sito è la console del laboratorio; mono, verde fosforo, DNA che gira',
+				b: 'Taccuino: il quaderno da naturalista; serif da titolo, seppia, albero che cresce',
+				c: 'Arcade: un tabellone di gioco; grotesk in grassetto, viola e lime, cavallo che salta'
+			};
+			const STATES = { ready: '1 pronto', loading: '2 caricamento', error: '3 errore', empty: '4 vuoto' };
+			const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+			// Real data, 25/11/2026 17:40.
+			const FEN = 'r2qk2r/ppp3pp/2n1p3/8/1bpP4/BQP2N2/P4PPP/R5K1';
+			const LAST = ['d1', 'b3'];
+			function board() {
+				let html = '';
+				FEN.split('/').forEach((row, r) => { let c = 0; for (const ch of row) { if (/\d/.test(ch)) { for (let k = 0; k < +ch; k++) html += sq(r, c++, null); } else html += sq(r, c++, ch); } });
+				return `<div class="board">${html}</div>`;
+			}
+			function sq(r, c, p) {
+				const name = 'abcdefgh'[c] + (8 - r);
+				const img = p ? `<img alt="" src="https://lichess1.org/assets/piece/cburnett/${p === p.toUpperCase() ? 'w' : 'b'}${p.toUpperCase()}.svg">` : '';
+				return `<i class="${(r + c) % 2 ? 'd' : 'l'}${LAST.includes(name) ? ' hl' : ''}">${img}</i>`;
+			}
+			const chart = () => {
+				const pts = [[1193, 139], [1162, 118], [1129, 136], [1183, 142]], W = 240, H = 90, lo = 950, hi = 1380;
+				const x = (i) => 12 + (W - 24) * (i / (pts.length - 1)), y = (v) => 6 + (H - 20) * (1 - (v - lo) / (hi - lo));
+				let s = `<rect x="0" width="${W}" y="${y(1265)}" height="${y(1054) - y(1265)}" fill="var(--accent)" opacity=".1" rx="3"/>`;
+				s += `<path d="${pts.map((p, i) => `${i ? 'L' : 'M'}${x(i)},${y(p[0])}`).join(' ')}" fill="none" stroke="var(--accent)" stroke-dasharray="3 3" opacity=".7"/>`;
+				pts.forEach((p, i) => { s += `<line x1="${x(i)}" x2="${x(i)}" y1="${y(p[0] + p[1])}" y2="${y(p[0] - p[1])}" stroke="var(--accent)" opacity=".55" stroke-width="1.5"/><circle cx="${x(i)}" cy="${y(p[0])}" r="4" fill="var(--accent)"/><text x="${x(i)}" y="${H}" text-anchor="middle" font-size="9" fill="var(--muted-fg)" font-family="var(--mono)">gen-${i + 3}</text>`; });
+				return `<svg class="chart" viewBox="0 0 ${W} ${H + 4}">${s}</svg>`;
+			};
+
+			// ASCII art: each piece is a function of the tick (about 8 a second).
+			const ART = {
+				a: {
+					loading: (t) => helix(t),
+					error: (t) => glitch(['┌──────────────────────────┐', '│ ERR  connessione persa   │', '│ il registro non risponde │', '└──────────────────────────┘'], t),
+					empty: (t) => ['$ darwin status', '  generazioni: 0', '  l\'agente scrive le regole', `$ ${t % 8 < 4 ? '█' : ' '}`].join('\n')
+				},
+				b: {
+					loading: (t) => grow(TREE, t),
+					error: (t) => broken(t),
+					empty: (t) => SEED[Math.min(SEED.length - 1, Math.floor(t / 4) % (SEED.length + 4))]
+				},
+				c: {
+					loading: (t) => knight(t),
+					error: () => '♚',
+					empty: (t) => setup(t)
+				}
+			};
+			const TEXT = {
+				loading: ['Leggo il registro…', 'Arrivano partite, verdetti e pensieri dell\'agente.'],
+				error: ['Il laboratorio non risponde', 'Il servizio potrebbe essere in aggiornamento: riprovo da solo tra pochi secondi.'],
+				empty: ['Nessuna generazione ancora', 'L\'agente sta scrivendo le regole degli scacchi: il primo campione arriva quando l\'arbitro le approva.']
+			};
+			const TEXT_V = {
+				a: { loading: ['caricamento in corso', TEXT.loading[1]], error: ['errore: laboratorio irraggiungibile', TEXT.error[1]], empty: ['nessuna generazione', TEXT.empty[1]] },
+				b: { loading: ['Si ricostruisce l\'albero…', TEXT.loading[1]], error: ['Il ramo si è spezzato', TEXT.error[1]], empty: ['Il seme è piantato', TEXT.empty[1]] },
+				c: { loading: ['Caricamento', TEXT.loading[1]], error: ['Scacco al server', TEXT.error[1]], empty: ['La partita non è iniziata', TEXT.empty[1]] }
+			};
+
+			function helix(t) {
+				const rows = 9, mid = 11, amp = 8, out = [];
+				for (let r = 0; r < rows; r++) {
+					const ph = t * 0.32 + r * 0.72, s = Math.sin(ph), front = Math.cos(ph) > 0;
+					const a = Math.round(mid + amp * s), b = Math.round(mid - amp * s), line = Array(mid * 2 + 2).fill(' ');
+					if (Math.abs(a - b) > 2) for (let k = Math.min(a, b) + 1; k < Math.max(a, b); k++) line[k] = r % 2 ? '·' : '-';
+					line[a] = front ? '●' : 'o'; line[b] = front ? 'o' : '●';
+					out.push(line.join(''));
+				}
+				return out.join('\n');
+			}
+			function glitch(lines, t) {
+				const marks = '░▒▓#%&@';
+				return lines.map((l, i) => l.split('').map((ch, j) => (ch !== ' ' && ((i * 31 + j * 17 + t * 7) % 53 === 0) ? marks[(t + j) % marks.length] : ch)).join('')).join('\n');
+			}
+			const TREE = [
+				'          ┌──── gen-6',
+				'       ┌──┤',
+				'       │  └──── #19',
+				'    ┌──┤',
+				'    │  └─────── gen-4',
+				' ───┤',
+				'    │  ┌─────── gen-2',
+				'    └──┤',
+				'       └─────── #4'
+			].join('\n');
+			// The tree grows from the root outward: a column at a time, then it starts again.
+			function grow(art, t) {
+				const width = Math.max(...art.split('\n').map((l) => l.length)), shown = Math.floor(t * 0.9) % (width + 14);
+				return art.split('\n').map((l) => l.split('').map((ch, x) => (x < shown ? ch : ' ')).join('')).join('\n');
+			}
+			function broken(t) {
+				const leaf = ['❦', '❧'], fall = t % 10;
+				const base = ['       ┌──── gen-6', '    ┌──┤', '────┤  └──  ╳', '    │', '    └────', '', '', ''];
+				const rows = base.slice();
+				const r = 3 + Math.min(fall, 4), pad = 12 + (fall % 2);
+				rows[r] = (rows[r] || '').padEnd(pad, ' ') + leaf[fall % 2];
+				return rows.join('\n');
+			}
+			const SEED = ['\n\n\n    .\n ───────', '\n\n\n    ,\n ───────', '\n\n    ╷\n    │\n ───────', '\n    ‚\n   \\│\n    │\n ───────', '\n   ❦\n   \\│/\n    │\n ───────'];
+			const TOUR = [[0, 0], [1, 2], [0, 4], [2, 5], [4, 4], [5, 2], [4, 0], [2, 1], [3, 3], [1, 4], [3, 5], [5, 4], [4, 2], [5, 0], [3, 1], [1, 0]];
+			function knight(t) {
+				const k = t % TOUR.length, rows = [];
+				for (let y = 0; y < 6; y++) {
+					let line = '';
+					for (let x = 0; x < 6; x++) {
+						const back = [1, 2, 3].find((d) => { const p = TOUR[(k - d + TOUR.length) % TOUR.length]; return p[0] === x && p[1] === y; });
+						const here = TOUR[k][0] === x && TOUR[k][1] === y;
+						line += here ? ' ♞' : back === 1 ? ' •' : back ? ' ∘' : (x + y) % 2 ? ' ·' : '  ';
+					}
+					rows.push(line);
+				}
+				return rows.join('\n');
+			}
+			function setup(t) {
+				const back = '♜♞♝♛♚♝♞♜', n = Math.min(16, Math.floor(t / 2) % 24);
+				const r8 = back.split('').map((p, i) => (i < n ? p : '·')).join(' ');
+				const r7 = Array.from({ length: 8 }, (_, i) => (i + 8 < n ? '♟' : '·')).join(' ');
+				return [r8, r7, '· · · · · · · ·', '· · · · · · · ·'].join('\n');
+			}
+
+			// In a panel, a one-line indicator: the big piece of art is for the board's place only,
+			// and an error is said once, there, since the whole API is down.
+			const SMALL = {
+				a: (t) => `${'⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'[t % 10]} leggo il registro`,
+				b: (t) => ['·', '· ·', '· · ·', '· ·'][Math.floor(t / 3) % 4],
+				c: (t) => Array.from({ length: 6 }, (_, i) => (i === t % 6 ? '♞' : '·')).join(' ')
+			};
+			const stateBlock = (state, v, big) => {
+				if (!big) {
+					if (state === 'error') return `<p class="mini">${v === 'b' ? '<i>non disponibile</i>' : 'non disponibile'}</p>`;
+					if (v === 'x') return '';
+					return `<pre class="art mini-art" aria-hidden="true" data-small></pre><span class="sr">Caricamento</span>`;
+				}
+				if (v === 'x') {
+					const [t, s] = TEXT[state];
+					return `<div class="state ${state === 'error' ? 'bad' : ''}"><p class="x-note">${state === 'loading' ? 'Carico la diretta…' : t}</p>${state !== 'loading' ? `<p class="s">${s}</p>` : ''}</div>`;
+				}
+				const [t, s] = TEXT_V[v][state];
+				const art = `<pre class="art${state === 'error' && v === 'c' ? ' shake' : ''}" aria-hidden="true" data-art="${state}"></pre>`;
+				return `<div class="state ${state === 'error' ? 'bad' : ''}" role="${state === 'error' ? 'alert' : 'status'}">${art}<p class="t">${t}</p>${big || state !== 'loading' ? `<p class="s">${s}</p>` : ''}${state === 'error' ? '<button class="retry">Riprova ora</button>' : ''}</div>`;
+			};
+
+			function render() {
+				const v = document.body.dataset.v, st = document.body.dataset.state;
+				const panel = (title, body, action = '') => `<section class="pn"><header class="pn-h"><h2>${title}</h2>${action}</header>${st === 'ready' ? body : stateBlock(st, v)}</section>`;
+				const live = st === 'error' ? '<span class="live off">Connessione persa</span>' : '<span class="live"><i></i>In diretta</span>';
+				const top = `<header class="top"><h1>Generazione 6</h1><span class="sub">il candidato #22 prova a diventare la 7</span>${live}<span class="phases"><span>Genesi</span><span>Primi passi</span><span class="on">Evoluzione</span><span>Mondo</span></span></header>`;
+				const elo = panel('Forza del campione', `<p class="big"><b>1.183</b><span>± 142 Elo</span></p><p class="cap">contro Stockfish · gen-6</p>${chart()}<p class="cap">gen-3, 4, 5 e 6 stanno nello stesso margine.</p>`);
+				const gens = panel('Generazioni', `<ol class="rows"><li class="now"><span class="id">#22</span><span><b>Penalità per cavalli sulle colonne laterali</b><small>in gara contro gen-6</small></span><span class="v"></span></li><li><span class="id">gen-6</span><span><b>Bonus per torri su colonne aperte</b><small>dopo 7 tentativi</small></span><span class="v">1.183<small>± 142</small></span></li><li><span class="id">gen-5</span><span><b>Pedoni che avanzano</b><small>dopo 2 tentativi</small></span><span class="v">1.129<small>± 136</small></span></li><li><span class="id">gen-4</span><span><b>Pezzi verso il centro</b><small>al primo tentativo</small></span><span class="v">1.162<small>± 118</small></span></li></ol>`, '<a class="link">Tutte le 23 prove</a>');
+				const verdict = panel('Il candidato è più forte?', `<p class="ans">Ancora non si sa</p><div class="bar"><i style="width:${(1.051 / 2.944) * 50}%"></i><b></b></div><div class="bar-l"><span>scarta</span><span>promuove</span></div><p class="cap">936 partite · V 349 P 276 S 311 · per ora pende verso il sì</p>`);
+				const spend = panel('Speso oggi', `<p class="money"><b>0,07 $</b><span>di 2,00 $</span></p><div class="bar" style="height:6px"><i style="left:0;width:4%;background:var(--accent)"></i></div><p class="cap">23 sessioni, meno di un centesimo l'una</p>`);
+				const stage = st === 'ready'
+					? `<div class="heading"><span class="tag">#22</span><h2>Penalità per cavalli sulle colonne laterali</h2><p>contro il campione gen-6</p></div>
+						<div class="game"><div style="display:grid;gap:10px"><div class="player"><span class="stone b"></span><span><b>Campione gen-6</b><small>nero</small></span><span class="pts">311<span>vinte</span></span></div><div class="tray">${board()}</div><div class="player"><span class="stone w"></span><span><b>Candidato #22</b><small>bianco</small></span><span class="pts">349<span>vinte</span></span></div></div>
+						<div class="moves"><p>Mosse</p><p><span>10</span>Ba3 dxc4</p><p><span>11</span>Re1+ Be6</p><p><span>12</span>Rxe6+ fxe6</p><p><span>13</span><b class="cur">Qb3</b></p></div></div>
+						<div class="caption"><p>Ultimo pensiero dell'agente · 17:38</p><p>Ho inviato un candidato che aggiunge un bonus di 8cp per le torri in settima traversa alla valutazione del motore. Compila, e dalla posizione iniziale restituisce una mossa.</p></div>`
+					: `<div class="tray" style="display:grid;place-items:center;min-height:440px">${stateBlock(st, v, true)}</div>`;
+				document.querySelector('[data-main]').innerHTML = st === 'empty'
+					? `${top.replace('Generazione 6', 'Generazione 0').replace('il candidato #22 prova a diventare la 7', 'nessun campione, si scrivono le regole').replace('<span class="on">Evoluzione</span>', 'Evoluzione').replace('<span>Genesi</span>', '<span class="on">Genesi</span>')}<div class="big-state">${stateBlock('empty', v, true)}</div>`
+					: `${top}<aside class="col left">${elo}${gens}</aside><div class="stage">${stage}</div><aside class="col right">${verdict}${spend}</aside>`;
+				tick(true);
+			}
+
+			let t = 0;
+			function tick(now) {
+				const v = document.body.dataset.v;
+				if (!ART[v]) return;
+				document.querySelectorAll('[data-art]').forEach((el) => { el.textContent = ART[v][el.dataset.art](reduce ? 6 : t); });
+				document.querySelectorAll('[data-small]').forEach((el) => { el.textContent = SMALL[v](reduce ? 2 : t); });
+				if (!now) t++;
+			}
+			setInterval(() => tick(false), 125);
+
+			// Concept chrome.
+			const KEY = `concept:${location.pathname}`;
+			const root = document.documentElement, body = document.body;
+			const load = () => { try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { return {}; } };
+			const save = (s) => { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch {} };
+			document.querySelector('[data-buttons]').innerHTML = Object.keys(DESC).map((v) => `<button data-v="${v}">${v.toUpperCase()} ${DESC[v].split(':')[0]}</button>`).join(' ');
+			document.querySelector('[data-states]').innerHTML = Object.entries(STATES).map(([k, l]) => `<button data-state="${k}">${l}</button>`).join('');
+			const sync = () => {
+				document.querySelectorAll('.switch [data-v]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === body.dataset.v)));
+				document.querySelectorAll('.switch [data-state]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.state === body.dataset.state)));
+				document.querySelector('[data-desc]').textContent = DESC[body.dataset.v];
+				history.replaceState(null, '', `${location.search}#${body.dataset.v}-${body.dataset.state}`);
+				render();
+			};
+			const pick = (v) => { if (DESC[v]) { body.dataset.v = v; sync(); } };
+			const setState = (s) => { if (STATES[s]) { body.dataset.state = s; sync(); } };
+			const setTheme = (th) => { root.dataset.theme = th; save({ ...load(), theme: th }); };
+			document.querySelector('.switch').addEventListener('click', (e) => {
+				const b = e.target.closest('button'); if (!b) return;
+				if (b.dataset.v) pick(b.dataset.v); else if (b.dataset.state) setState(b.dataset.state);
+			});
+			document.querySelector('[data-theme-toggle]').addEventListener('click', () => setTheme(root.dataset.theme === 'dark' ? 'light' : 'dark'));
+			addEventListener('keydown', (e) => {
+				if (e.metaKey || e.ctrlKey || e.altKey || e.target.closest('input, textarea, select')) return;
+				const k = e.key.toLowerCase();
+				if (k === 't') setTheme(root.dataset.theme === 'dark' ? 'light' : 'dark');
+				else if (k === 'p') body.dataset.chrome = body.dataset.chrome === 'off' ? 'on' : 'off';
+				else if (['1', '2', '3', '4'].includes(k)) setState(Object.keys(STATES)[+k - 1]);
+				else pick(k);
+			});
+			const Q = new URLSearchParams(location.search);
+			root.dataset.theme = Q.get('theme') || load().theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+			if (Q.get('chrome') === 'off') body.dataset.chrome = 'off';
+			const [hv, hs] = location.hash.slice(1).split('-');
+			body.dataset.v = DESC[hv] ? hv : 'x';
+			body.dataset.state = STATES[hs] ? hs : 'ready';
+			sync();
+		</script>
+	</body>
+</html>
