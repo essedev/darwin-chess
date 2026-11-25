@@ -2,6 +2,16 @@
 
 Le novità del laboratorio, dalla più recente.
 
+## 0.2.0, 25 novembre 2026
+
+La diretta e l'evoluzione ridisegnate per leggersi in un colpo d'occhio.
+
+- **Titoli brevi**: ogni tentativo dell'agente ha un titolo di poche parole, in italiano e in inglese, al posto della sua ipotesi intera. L'ipotesi completa resta nei dettagli.
+- **Un Elo onesto**: la forza del campione si legge con il suo margine di errore, e il grafico mostra quando due generazioni non si possono ancora distinguere. Il guadagno sul campione precedente è spiegato a parte.
+- **Il giudizio in corso**: mentre l'arbitro giudica un candidato, la diretta mostra le partite giocate e da che parte pende la prova.
+- **Una diretta che non si allunga**: tre colonne della stessa altezza, gli ultimi tre risultati e il rinvio alla storia completa. Il nome del sito è sempre nella barra.
+- **Evoluzione compatta**: generazioni ed esperimenti in righe che si aprono, con i filtri per esito e dieci per pagina.
+
 ## 0.1.0, 25 novembre 2026
 
 La prima versione: un'intelligenza artificiale scrive da sola un motore di scacchi e lo migliora una generazione dopo l'altra.

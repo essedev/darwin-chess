@@ -131,3 +131,15 @@ La dashboard diventa pubblica (Cloudflare Tunnel su `darwin.esse.dev`) e bilingu
 
 I commenti leggibili su partite e verdetti li scrive Haiku a partire da dati verificati (valutazioni di Stockfish, statistiche dei match), mai interpretando la partita a occhio. Hanno un budget loro, 0,20 $ al giorno, e l'agente non li legge: un secondo modello che gli spiega le partite cambierebbe la natura dell'esperimento. Il commento dell'arbitro arriva a match finito e non a intervalli di partite, perché a metà match i numeri ballano e il testo direbbe cose che il verdetto poi smentisce.
 
+## #21 Diretta a colonne bilanciate ed Elo con il suo margine
+
+Status: attiva. Data: 2026-11-25.
+
+La revisione di Diretta ed Evoluzione segue il concept B (`docs/concepts/concept-b-revisione.html`): per la Diretta la variante a1 (Rifinita), per l'Evoluzione la A. Scartate B (la Diretta come partita più un riquadro, la storia raggruppata per generazione) e C (una colonna sola come notiziario), che cambiavano la struttura per risolvere un problema di quantità e di scrittura; scartate le versioni estetiche a2 (senza riquadri) e a3 (griglia da strumento).
+
+La Diretta non contiene niente che cresce con la storia: tre colonne che finiscono alla stessa altezza, le ultime cinque generazioni, gli ultimi tre risultati fissi con il rinvio all'Evoluzione o al profilo del bot su Lichess. "Mostra altri" sul posto è stato provato e tolto: allungava una colonna e sbilanciava di nuovo la pagina.
+
+Il numero principale della forza è l'Elo assoluto contro Stockfish con il suo margine al 95%, e il grafico mostra le barre d'errore e la fascia dove le generazioni si sovrappongono. I margini veri (± 120-140 Elo con le partite di oggi) mostravano che il calo da 1.193 a 1.129 era rumore, mentre il sito lo presentava come una discesa accanto a guadagni di +24 e +42. Il guadagno sul campione precedente resta, secondario e spiegato; la performance su Lichess si mostra da cinque partite in su.
+
+I titoli brevi degli esperimenti li scrive il worker dei commenti alla consegna, come la traduzione, non l'agente: il lavoro dell'agente non cambia e i titoli restano fuori da quello che legge.
+

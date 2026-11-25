@@ -2,6 +2,16 @@
 
 What is new in the lab, most recent first.
 
+## 0.2.0, 25 November 2026
+
+The live page and the evolution redesigned to be read at a glance.
+
+- **Short titles**: every attempt by the agent has a title of a few words, in Italian and in English, instead of its whole hypothesis. The full hypothesis stays in the details.
+- **An honest Elo**: the champion's strength comes with its margin of error, and the chart shows when two generations cannot be told apart yet. The gain over the previous champion is explained separately.
+- **The trial in progress**: while the referee judges a candidate, the live page shows the games played and which way the evidence leans.
+- **A live page that does not grow**: three columns of the same height, the last three results and a link to the full history. The site's name is always in the bar.
+- **A compact evolution**: generations and experiments in rows that open, with filters by outcome and ten per page.
+
 ## 0.1.0, 25 November 2026
 
 The first version: an artificial intelligence writes a chess engine on its own and improves it one generation after another.
