@@ -169,3 +169,11 @@ Gli stati di caricamento, errore e vuoto sono animazioni ASCII a più colori: un
 
 Scartate dopo cinque giri: A Terminale, B Taccuino, C Arcade (troppo colorate ed esagerate), D e le sue versioni (troppo monocromatiche: ogni versione era un colore solo in tante sfumature), e2 Pop ed e3 Terra.
 
+## #25 L'agente ragiona a sforzo alto; niente subagenti per ora
+
+Status: attiva. Data: 2026-11-25.
+
+L'agente girava con sforzo `low` (sotto il `medium` predefinito di Haiku 5.5) e da quattro generazioni faceva solo ritocchi piccoli alla valutazione; i cambi che valgono centinaia di Elo (quiescenza, gestione del tempo) li aveva tentati una volta e abbandonati. Passa a `high`. Il costo resta minimo: a `low` una sessione costava circa 0,003 $ e il limite al numero di sessioni è l'arbitro, non il budget, che usavamo per meno del 4%. Misura dopo le prime sessioni; si torna a `medium` se il costo sale molto senza vantaggi visibili.
+
+Scartati i subagenti a sforzo più basso per il lavoro meccanico: oggi le sessioni sono corte (6-7 chiamate al modello, un file di 500 righe), quindi non c'è contesto da proteggere né costo da risparmiare, e avrebbero aggiunto processi concorrenti sullo stesso genoma, conti di spesa e limiti per sessione. Si riapre quando le sessioni diventano lunghe (addestramento di reti, rifacimenti grossi) o arrivano ai limiti di 40 minuti, 80 azioni o 0,25 $.
+

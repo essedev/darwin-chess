@@ -38,7 +38,9 @@ class Settings(BaseSettings):
     llm_provider: str = "anthropic"
     llm_api_key: SecretStr = SecretStr("")
     llm_model: str = ""  # empty: Haiku 5.5 under the provider's own id
-    llm_thinking: str = "low"
+    # pi's reasoning level, sent to Anthropic as the effort of adaptive thinking. High: at
+    # "low" the agent kept to small safe tweaks; sessions still cost a few cents (DECISIONS #25).
+    llm_thinking: str = "high"
     daily_budget_usd: float = 2.0
     # Per agent session: the orchestrator aborts pi past any of these.
     session_max_usd: float = 0.25
