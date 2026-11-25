@@ -128,8 +128,7 @@ tar -C /genome --exclude=./target -cf - . | tar -C /jobs/{job_id}/src -xf -
             f"OMP_NUM_THREADS={int(MAX_CPUS)}",  # PyTorch and rayon see every core otherwise
             "-e",
             f"RAYON_NUM_THREADS={int(MAX_CPUS)}",
-            "--label",
-            f"{docker.RUN_LABEL}={run_id}",
+            *docker.labels(self.settings, run_id),
             "-v",
             f"{base / 'src'}:/job/src",
             "-v",

@@ -119,6 +119,7 @@ async def test_a_scripted_session_reaches_a_verdict(
         llm_provider="fake",
         llm_model="scripted",
         llm_thinking="off",
+        instance=f"test-{tmp_path.name}",  # startup cleanup must not touch anyone else
     )
     home = settings.data_dir / "agent" / "pi-home"
     home.mkdir(parents=True)

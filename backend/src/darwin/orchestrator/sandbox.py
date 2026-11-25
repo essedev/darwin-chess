@@ -52,7 +52,7 @@ async def helper(settings: Settings, script: str, *, genome_rw: bool = False,
     argv = [
         settings.docker_bin, "run", "--rm", "--network", "none", "--user", "1000:1000",
         "--read-only", "--tmpfs", "/tmp:exec,size=2g", "-e", "HOME=/tmp",
-        "--label", f"{docker.RUN_LABEL}={run_id}",
+        *docker.labels(settings, run_id),
         *[arg for mount in mounts for arg in ("-v", mount)],
         settings.lab_image, "sh", "-ec", script,
     ]  # fmt: skip
@@ -143,7 +143,7 @@ class Sandbox:
             "-e", "HOME=/tmp", "-e", "CARGO_HOME=/tmp/cargo",
             "-e", f"OMP_NUM_THREADS={int(s.build_cpus)}",
             "-e", f"RAYON_NUM_THREADS={int(s.build_cpus)}",
-            "--label", f"{docker.RUN_LABEL}={self.run_id}",
+            *docker.labels(s, self.run_id),
             "-v", f"{s.genome_dir}:/genome", "-v", f"{s.mirror_dir}:/mirror:ro",
             "-v", f"{s.data_dir / 'jobs'}:/jobs:ro", "-v", f"{memory}:/memory",
             "-w", "/genome",

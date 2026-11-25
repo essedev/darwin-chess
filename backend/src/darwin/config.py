@@ -47,6 +47,8 @@ class Settings(BaseSettings):
     agent_dir: Path = Path("../agent")
     tools_port: int = 4732
 
+    # Tags every container this process starts; at startup it removes its leftovers.
+    instance: str = "dev"
     docker_bin: str = "docker"
     docker_socket: str = "/var/run/docker.sock"
     lab_image: str = "darwin-lab"

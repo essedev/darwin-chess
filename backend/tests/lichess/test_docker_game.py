@@ -16,7 +16,7 @@ from darwin.ledger.store import Ledger
 from darwin.lichess import game
 from darwin.lichess.bot import LichessBot
 from darwin.lichess.client import LichessClient
-from darwin.referee import docker, engines
+from darwin.referee import analysis, docker, engines
 from darwin.referee.models import EngineSpec
 
 from .conftest import bot_settings, running_bot
@@ -87,7 +87,10 @@ async def test_a_lost_game_is_recorded_and_analysed(
     assert moves == [move.uci() for move in fake.board.move_stack]
     assert len(moves) == fake.game_plies
     worst = row.analysis
-    assert worst["drop_cp"] == worst["eval_before_cp"] - worst["eval_after_cp"]
+    clamp = analysis.DECIDED_CP  # the drop is measured on evaluations clamped there
+    before = max(-clamp, min(clamp, worst["eval_before_cp"]))
+    after = max(-clamp, min(clamp, worst["eval_after_cp"]))
+    assert worst["drop_cp"] == before - after
     assert {"move_number", "move", "fen_before"} <= worst.keys()
 
     live = json.loads((settings.data_dir / "lichess" / "current.json").read_text())

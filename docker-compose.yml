@@ -4,10 +4,14 @@
 # as on the host so the containers core starts resolve the same bind mounts.
 
 x-darwin-env: &darwin-env
+  DARWIN_INSTANCE: prod
   DARWIN_DATA_DIR: ${DARWIN_HOME:?set DARWIN_HOME in .env to the absolute repository path}/data
   DARWIN_GENOME_DIR: ${DARWIN_HOME}/genome
   DARWIN_MIRROR_DIR: ${DARWIN_HOME}/data/mirror.git
-  DARWIN_LEDGER_URL: sqlite+aiosqlite:///${DARWIN_HOME}/data/ledger.sqlite
+  # The ledger lives in a Docker volume, not in the bind-mounted data/: SQLite in WAL mode
+  # shares memory between connections, which Docker Desktop's file sharing does not keep
+  # coherent (connections saw each other's rows late or not at all).
+  DARWIN_LEDGER_URL: sqlite+aiosqlite:////ledger/ledger.sqlite
 
 services:
   core:
@@ -22,6 +26,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${DARWIN_HOME}/data:${DARWIN_HOME}/data
       - ${DARWIN_HOME}/genome:${DARWIN_HOME}/genome
+      - ledger:/ledger
     restart: unless-stopped
 
   api:
@@ -30,9 +35,13 @@ services:
     command: ["uvicorn", "darwin.api.app:app", "--host", "0.0.0.0", "--port", "4730"]
     environment: *darwin-env
     volumes:
+      - ${DARWIN_HOME}/data:${DARWIN_HOME}/data:ro
       # Not :ro: SQLite readers in WAL mode write the shared-memory index. The API code
       # never writes the ledger.
-      - ${DARWIN_HOME}/data:${DARWIN_HOME}/data
+      - ledger:/ledger
     ports:
       - "4730:4730"
     restart: unless-stopped
+
+volumes:
+  ledger:

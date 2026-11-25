@@ -24,7 +24,7 @@ from darwin.orchestrator import budget, sandbox
 from darwin.orchestrator.jobs import Jobs
 from darwin.orchestrator.session import SessionRunner
 from darwin.orchestrator.tools import ToolRouter
-from darwin.referee import engines
+from darwin.referee import docker, engines
 from darwin.referee.build import build_gate
 from darwin.referee.errors import RefereeError
 from darwin.referee.judge import Phase, judge
@@ -56,6 +56,9 @@ class Orchestrator:
     # Setup
 
     async def prepare(self) -> None:
+        leftovers = await docker.remove_instance_containers(self.settings)
+        if leftovers:
+            log.info("removed %d containers left by a previous run", leftovers)
         gen0 = await sandbox.init_mirror(self.settings)
         await self.ledger.seed(gen0)
         memory = self.settings.data_dir / "agent" / "memory"

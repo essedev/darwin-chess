@@ -67,7 +67,7 @@ def _options(spec: EngineSpec) -> list[str]:
 def arena_argv(settings: Settings, plan: MatchPlan, run_id: str, workdir: Path) -> list[str]:
     return [
         settings.docker_bin, "run", "--rm", "--name", f"darwin-arena-{run_id}",
-        "--label", f"{docker.RUN_LABEL}={run_id}",
+        *docker.labels(settings, run_id),
         "-v", f"{settings.docker_socket}:/var/run/docker.sock",
         "-v", f"{workdir}:{workdir}", "-w", str(workdir),
         settings.arena_image,

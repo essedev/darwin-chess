@@ -114,3 +114,11 @@ Niente GPU: Docker su Mac non vede la GPU Apple, e usarla vorrebbe dire eseguire
 
 I job scrivono sul disco interno di server (120 GB liberi) con una quota di 10 GB per job e 40 GB in tutto: un job oltre la quota viene fermato, uno nuovo viene rifiutato a quota piena, e l'agente cancella da sé gli output vecchi. Scartato il disco esterno: è condiviso con la libreria di other services, quasi pieno, e collegato via cavo, quindi può sparire sotto `core`.
 
+
+## #19 In Compose il registro sta in un volume Docker; ogni container porta l'istanza
+
+Status: attiva. Data: 2026-11-25.
+
+Il primo avvio su server ha mostrato connessioni SQLite che non vedevano righe appena scritte da un'altra connessione dello stesso processo, con errori di chiave esterna e `core` riavviato. La causa è la cartella condivisa di Docker Desktop: la memoria condivisa del WAL non vi resta coerente, il caso dei filesystem di rete che SQLite sconsiglia. Il registro passa a un volume Docker, dentro la macchina virtuale; il resto di `data/` resta in cartella perché va montato nei container dei motori allo stesso path. Scartato il journal classico senza WAL: si appoggia ai lock dei file, che sulla stessa condivisione non danno più garanzie.
+
+Fermare `core` lasciava accesi arena, motori e sandbox. Ogni container porta ora l'etichetta dell'istanza (`prod` in Compose, `dev` in sviluppo, una propria per i test) e all'avvio `core` rimuove quelli della sua istanza, senza toccare gli altri.

@@ -17,6 +17,11 @@ from darwin.referee.models import EngineSpec
 log = logging.getLogger(__name__)
 
 RUN_LABEL = "darwin.run"
+INSTANCE_LABEL = "darwin.instance"  # which core started it: a restart cleans up its own
+
+
+def labels(settings: Settings, run_id: str) -> list[str]:
+    return ["--label", f"{RUN_LABEL}={run_id}", "--label", f"{INSTANCE_LABEL}={settings.instance}"]
 
 
 def new_run_id() -> str:
@@ -34,7 +39,7 @@ def engine_argv(settings: Settings, spec: EngineSpec, run_id: str) -> list[str]:
         "--read-only", "--tmpfs", "/tmp:size=64m",
         "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
         "--user", "1000:1000",
-        "--label", f"{RUN_LABEL}={run_id}",
+        *labels(settings, run_id),
     ]  # fmt: skip
     for mount in spec.mounts:
         argv += ["-v", f"{mount.host}:{mount.container}:ro"]
@@ -81,3 +86,21 @@ async def remove_run_containers(settings: Settings, run_id: str) -> None:
     if removed.returncode != 0:
         raise RefereeError(f"docker rm failed: {removed.stderr.strip()}")
     log.info("removed %d leftover containers of run %s", len(ids), run_id)
+
+
+async def remove_instance_containers(settings: Settings) -> int:
+    """Everything a previous run of this instance left behind (it crashed or was stopped
+    mid-match): arenas, engines, sandboxes, builds. Returns how many were removed."""
+    listed = await run(
+        [settings.docker_bin, "ps", "-aq", "--filter",
+         f"label={INSTANCE_LABEL}={settings.instance}"],
+        30,
+    )  # fmt: skip
+    if listed.returncode != 0:
+        raise RefereeError(f"docker ps failed: {listed.stderr.strip()}")
+    ids = listed.stdout.split()
+    if ids:
+        removed = await run([settings.docker_bin, "rm", "-f", *ids], 120)
+        if removed.returncode != 0:
+            raise RefereeError(f"docker rm failed: {removed.stderr.strip()}")
+    return len(ids)

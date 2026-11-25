@@ -39,7 +39,7 @@ def build_argv(settings: Settings, commit: str, out: Binary, run_id: str) -> lis
         "--read-only", "--tmpfs", "/tmp:exec,size=4g",
         "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
         "--user", "1000:1000",
-        "--label", f"{docker.RUN_LABEL}={run_id}",
+        *docker.labels(settings, run_id),
         "-e", "CARGO_HOME=/tmp/cargo", "-e", "CARGO_TARGET_DIR=/tmp/target",
         "-v", f"{settings.mirror_dir}:/src:ro",
         "-v", f"{out.dir}:/out",

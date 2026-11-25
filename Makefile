@@ -73,6 +73,10 @@ up: ## Produzione: costruisce le immagini e avvia core e api (serve .env con DAR
 	$(MAKE) images
 	docker compose --profile run up -d --build
 
+ledger-to-volume: ## Copia data/ledger.sqlite nel volume del registro (una volta, con core e api fermi)
+	sqlite3 data/ledger.sqlite "pragma wal_checkpoint(TRUNCATE)"
+	docker run --rm -v darwin-chess_ledger:/ledger -v "$(CURDIR)/data:/src:ro" alpine sh -c 'test ! -e /ledger/ledger.sqlite && cp /src/ledger.sqlite /ledger/'
+
 down: ## Ferma core e api
 	docker compose --profile run down
 
