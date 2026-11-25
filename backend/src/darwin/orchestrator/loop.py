@@ -38,6 +38,8 @@ from darwin.referee.rating import LADDER, rate
 
 log = logging.getLogger(__name__)
 
+STARTED = {"games": 0, "wins": 0, "draws": 0, "losses": 0, "llr": 0.0, "bounds": None}
+
 SEED_MEMORY = Path(__file__).resolve().parents[4] / "seed"
 RETRY_AFTER_FAILURE_S = 120.0
 MAX_WAITING = 1
@@ -254,6 +256,8 @@ class Orchestrator:
         await self.ledger.add_event(
             experiment_id, "status", {"state": "judging", "phase": state.phase.value}
         )
+        # An empty progress marks the experiment the referee is on; queued ones have none.
+        await self.ledger.set_progress(experiment_id, STARTED)
 
         async def on_batch(progress: dict[str, Any]) -> None:
             await self.ledger.set_progress(experiment_id, progress)

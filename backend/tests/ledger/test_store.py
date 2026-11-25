@@ -122,3 +122,19 @@ async def test_match_progress_is_kept_on_the_experiment(ledger: Ledger) -> None:
     await ledger.set_progress(exp, progress)
     view = await queries.experiment_view(ledger, await ledger.experiment(exp))
     assert (view["progress"], view["title"]) == (progress, None)
+
+
+async def test_on_trial_is_the_judging_experiment_with_progress(ledger: Ledger) -> None:
+    await ledger.seed("a" * 40)
+    ids = []
+    for _ in range(2):
+        exp = await ledger.start_experiment(
+            kind="iteration", phase=Phase.EVOLUTION, base_commit="a" * 40,
+            base_generation_id=0, trigger="start",
+        )  # fmt: skip
+        await ledger.set_submission(exp, "idea", f"{exp:040d}", {"files": 1})
+        ids.append(exp)
+    assert await queries.on_trial(ledger) is None  # both queued
+    await ledger.set_progress(ids[0], {"games": 0})
+    trial = await queries.on_trial(ledger)
+    assert trial is not None and trial.id == ids[0]

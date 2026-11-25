@@ -89,6 +89,7 @@ async def overview(request: Request) -> dict[str, Any]:
     current = [await queries.experiment_view(ledger, row) for row in latest]
     previous = await queries.latest_experiments(ledger, 2)
     spent = await queries.spend(ledger, day_start(now))
+    trial = await queries.on_trial(ledger)
     running = bool(latest) and latest[0].status in {"running", "judging"}
     quota = allowance(now, settings.daily_budget_usd)
     paused = spent["usd"] + settings.session_max_usd > quota
@@ -99,6 +100,7 @@ async def overview(request: Request) -> dict[str, Any]:
         "generations": await queries.generations_with_story(ledger),
         "experiments": await queries.experiment_counts(ledger),
         "current": current[0] if current else None,
+        "on_trial": None if trial is None else await queries.experiment_view(ledger, trial),
         "previous": await queries.experiment_view(ledger, previous[1])
         if len(previous) > 1
         else None,

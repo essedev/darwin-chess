@@ -67,6 +67,16 @@ async def experiment_counts(ledger: Ledger) -> dict[str, int]:
     return {"total": sum(counts.values()), **counts}
 
 
+async def on_trial(ledger: Ledger) -> m.Experiment | None:
+    """The experiment the referee is judging now: queued ones are "judging" too, but have no
+    progress until the referee takes them."""
+    async with ledger.session() as s:
+        query = select(m.Experiment).where(
+            m.Experiment.status == "judging", m.Experiment.progress.is_not(None)
+        )
+        return await s.scalar(query.order_by(m.Experiment.id.desc()).limit(1))
+
+
 async def latest_experiments(ledger: Ledger, limit: int) -> Sequence[m.Experiment]:
     async with ledger.session() as s:
         query = select(m.Experiment).where(m.Experiment.kind == "iteration")
