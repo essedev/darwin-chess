@@ -73,6 +73,16 @@
 			   d8 Terracotta: terracotta e oliva (Geist).
 			   d9 Notte: indaco e ambra, pensata anche per il tema scuro (Space Grotesk).
 
+			Giro 5: anche d6-d9 sono "troppo monocromatici": ogni versione era un colore solo in tante
+			   sfumature. Simone vuole colori diversi insieme. Aggiunta E (tasti e, poi 2 e 3): le
+			   finiture di D su fondo neutro, ma ogni cosa ha il suo colore: la forza in blu, le
+			   generazioni in viola, il verdetto in verde, la spesa in ambra, la diretta e il
+			   candidato in gara in corallo; i riquadri appena tinti del loro colore, i numeri grandi
+			   nel loro colore, le animazioni ASCII a più colori.
+			   e Tavolozza: blu, viola, corallo, verde, ambra, scacchiera verde (Geist).
+			   e2 Pop: più accesi, rosa e blu elettrico, scacchiera blu (Space Grotesk).
+			   e3 Terra: petrolio, prugna, mattone, oliva, ocra (IBM Plex).
+
 			Dati: veri dal sito (25/11/2026, 17:40): gen-6 a 1.183 ± 142 contro Stockfish, #22 in
 			giudizio con 936 partite e LLR 1,05, spesa 0,07 $ su 2 $, ultimo pensiero tradotto.
 			La posizione sulla scacchiera è quella di concept B; pezzi cburnett dal CDN di Lichess
@@ -210,6 +220,50 @@
 			body[data-color='on'] .retry { background: var(--accent); color: var(--card); box-shadow: none; }
 			body[data-color='on'] .link { color: var(--accent); }
 			body[data-color='on'] .stone.b { box-shadow: 0 0 0 1.5px var(--accent); }
+
+			/* Giro 5: E, several colours together. */
+			body[data-v='e'] { --bg: #f7f6f2; --fg: #18181a; --card: #fdfdfb; --muted: #efede8; --muted-fg: #7d7b76; --line: #e6e3dc;
+				--c1: #2f6fde; --c2: #7a4fd8; --c3: #e2553f; --c4: #1e9a5a; --c5: #d9960f; --accent: var(--c3); --good: var(--c4); --bad: #d23b3b;
+				--sq-l: #ece6d2; --sq-d: #7d9c63; }
+			:root[data-theme='dark'] body[data-v='e'] { --bg: #101012; --fg: #ececed; --card: #17171a; --muted: #212125; --muted-fg: #8c8c92; --line: #29292e;
+				--c1: #6ea0ff; --c2: #a98bff; --c3: #ff7c66; --c4: #4fd08a; --c5: #f2bd4a; --accent: var(--c3); --good: var(--c4); --bad: #ff6b6b; --sq-l: #d6d0bb; --sq-d: #5f7d4a; }
+			body[data-v='e2'] { --bg: #fbfaf7; --fg: #141418; --card: #ffffff; --muted: #f1f0ec; --muted-fg: #77757f; --line: #e7e5e0;
+				--c1: #3a5bff; --c2: #ff4f9a; --c3: #ff6a1a; --c4: #11b386; --c5: #f5b400; --accent: var(--c2); --good: var(--c4); --bad: #f0384d;
+				--sans: 'Space Grotesk', system-ui, sans-serif; --mono: 'Space Mono', ui-monospace, monospace; --big: 400 44px/1 var(--mono); --sq-l: #eef0ff; --sq-d: #7b8cf0; }
+			:root[data-theme='dark'] body[data-v='e2'] { --bg: #0d0d12; --fg: #f0f0f5; --card: #15151c; --muted: #1f1f29; --muted-fg: #9090a0; --line: #2a2a36;
+				--c1: #7d93ff; --c2: #ff73b0; --c3: #ff8f4d; --c4: #3fe0a8; --c5: #ffd24d; --accent: var(--c2); --good: var(--c4); --bad: #ff5c6e; --sq-l: #cfd5ff; --sq-d: #4e5fc8; }
+			body[data-v='e3'] { --bg: #f6f1ea; --fg: #1f1a16; --card: #fdfaf5; --muted: #ede6dc; --muted-fg: #857a6e; --line: #e2d8ca;
+				--c1: #1f7a85; --c2: #8a4d7a; --c3: #c4532f; --c4: #6d8a2a; --c5: #d0921f; --accent: var(--c3); --good: var(--c4); --bad: #b8382e;
+				--sans: 'IBM Plex Sans', system-ui, sans-serif; --mono: 'IBM Plex Mono', ui-monospace, monospace; --sq-l: #efe3cf; --sq-d: #9f8a63; }
+			:root[data-theme='dark'] body[data-v='e3'] { --bg: #14110e; --fg: #efe7dc; --card: #1c1814; --muted: #27211b; --muted-fg: #9c9183; --line: #332b23;
+				--c1: #5cbcc6; --c2: #c98bb8; --c3: #ee8a64; --c4: #aec76a; --c5: #ecbd5c; --accent: var(--c3); --good: var(--c4); --bad: #f07f72; --sq-l: #d8c8ac; --sq-d: #7f6b48; }
+			body[data-poly='on'] .k-strength { --hue: var(--c1); --accent: var(--c1); }
+			body[data-poly='on'] .k-gens { --hue: var(--c2); }
+			body[data-poly='on'] .k-verdict { --hue: var(--c4); }
+			body[data-poly='on'] .k-spend { --hue: var(--c5); }
+			body[data-poly='on'] .pn { background: color-mix(in oklab, var(--hue, var(--line)) 5%, var(--card)); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--hue, var(--line)) 22%, var(--line)); }
+			body[data-poly='on'] .pn-h { border-bottom: 1px dashed color-mix(in oklab, var(--hue) 30%, var(--line)); }
+			body[data-poly='on'] .pn-h h2 { color: var(--hue); display: flex; align-items: center; gap: 8px; }
+			body[data-poly='on'] .pn-h h2::before { content: ''; width: 7px; height: 7px; border-radius: 2px; background: var(--hue); }
+			body[data-poly='on'] .big b, body[data-poly='on'] .money b, body[data-poly='on'] .ans { color: var(--hue); }
+			body[data-poly='on'] .bar i { background: var(--hue); }
+			body[data-poly='on'] .k-spend .bar i { background: var(--c5) !important; }
+			body[data-poly='on'] .link { color: var(--hue, var(--c2)); }
+			body[data-poly='on'] .live { color: var(--c3); }
+			body[data-poly='on'] .live i { background: var(--c3); }
+			body[data-poly='on'] .phases .on::before { color: var(--c4); }
+			body[data-poly='on'] .tabs a.on { border-color: var(--c3); border-bottom-width: 2px; }
+			body[data-poly='on'] .brand::before { color: var(--c4); }
+			body[data-poly='on'] .heading .tag, body[data-poly='on'] .rows .now .id { color: var(--c3); }
+			body[data-poly='on'] .rows .now { background: color-mix(in oklab, var(--c3) 9%, transparent); margin: 0 -10px; padding: 8px 10px; border-radius: 8px; border-top-color: transparent; }
+			body[data-poly='on'] .rows .now + li { border-top-color: transparent; }
+			body[data-poly='on'] .rows .v { color: var(--c1); }
+			body[data-poly='on'] .moves .cur { color: var(--c3); }
+			body[data-poly='on'] .board i.hl::after { background: color-mix(in oklab, var(--c5) 45%, transparent); }
+			body[data-poly='on'] .player .pts { color: var(--fg); }
+			body[data-poly='on'] .caption p:first-child { color: var(--c2); }
+			body[data-poly='on'] .retry { background: var(--c3); color: #fff; box-shadow: none; }
+			body[data-poly='on'] .state.bad .t { color: var(--c3); }
 
 			/* Layout. */
 			.nav { display: flex; align-items: center; gap: 16px; padding: 0 32px; height: 52px; border-bottom: 1px solid var(--line); }
@@ -389,7 +443,10 @@
 				d6: 'Bosco: D a colori, verde bosco e ambra, IBM Plex',
 				d7: 'Mare: D a colori, petrolio e corallo, Inter e JetBrains Mono',
 				d8: 'Terracotta: D a colori, terracotta e oliva, Geist',
-				d9: 'Notte: D a colori, indaco e ambra, Space Grotesk e Space Mono'
+				d9: 'Notte: D a colori, indaco e ambra, Space Grotesk e Space Mono',
+				e: 'Tavolozza: ogni cosa il suo colore, blu viola corallo verde ambra, su fondo neutro',
+				e2: 'Pop: la tavolozza più accesa, rosa e blu elettrico, Space Grotesk',
+				e3: 'Terra: petrolio, prugna, mattone, oliva e ocra, IBM Plex'
 			};
 			const STATES = { ready: 'q pronto', loading: 'w caricamento', error: 'e errore', empty: 'r vuoto' };
 			const base = (v) => v.replace(/\d+$/, '');
@@ -436,6 +493,7 @@
 				}
 			};
 			ART.d = ART.c;
+			ART.e = ART.c;
 			const TEXT = {
 				loading: ['Leggo il registro…', 'Arrivano partite, verdetti e pensieri dell\'agente.'],
 				error: ['Il laboratorio non risponde', 'Il servizio potrebbe essere in aggiornamento: riprovo da solo tra pochi secondi.'],
@@ -445,7 +503,8 @@
 				a: { loading: ['caricamento in corso', TEXT.loading[1]], error: ['errore: laboratorio irraggiungibile', TEXT.error[1]], empty: ['nessuna generazione', TEXT.empty[1]] },
 				b: { loading: ['Si ricostruisce l\'albero…', TEXT.loading[1]], error: ['Il ramo si è spezzato', TEXT.error[1]], empty: ['Il seme è piantato', TEXT.empty[1]] },
 				c: { loading: ['Caricamento', TEXT.loading[1]], error: ['Scacco al server', TEXT.error[1]], empty: ['La partita non è iniziata', TEXT.empty[1]] },
-				d: { loading: ['Carico la diretta', TEXT.loading[1]], error: ['Il laboratorio non risponde', TEXT.error[1]], empty: ['La partita non è ancora cominciata', TEXT.empty[1]] }
+				d: { loading: ['Carico la diretta', TEXT.loading[1]], error: ['Il laboratorio non risponde', TEXT.error[1]], empty: ['La partita non è ancora cominciata', TEXT.empty[1]] },
+				e: { loading: ['Carico la diretta', TEXT.loading[1]], error: ['Il laboratorio non risponde', TEXT.error[1]], empty: ['La partita non è ancora cominciata', TEXT.empty[1]] }
 			};
 
 			function helix(t) {
@@ -517,6 +576,7 @@
 				c: (t) => Array.from({ length: 6 }, (_, i) => (i === t % 6 ? '♞' : '·')).join(' ')
 			};
 			SMALL.d = SMALL.c;
+			SMALL.e = SMALL.c;
 			const stateBlock = (state, v, big) => {
 				if (!big) {
 					if (state === 'error') return `<p class="mini">${v === 'b' ? '<i>non disponibile</i>' : 'non disponibile'}</p>`;
@@ -528,19 +588,19 @@
 					return `<div class="state ${state === 'error' ? 'bad' : ''}"><p class="x-note">${state === 'loading' ? 'Carico la diretta…' : t}</p>${state !== 'loading' ? `<p class="s">${s}</p>` : ''}</div>`;
 				}
 				const [t, s] = TEXT_V[v][state];
-				const art = `<pre class="art${state === 'error' && (v === 'c' || v === 'd') ? ' shake' : ''}" aria-hidden="true" data-art="${state}"></pre>`;
+				const art = `<pre class="art${state === 'error' && ['c', 'd', 'e'].includes(v) ? ' shake' : ''}" aria-hidden="true" data-art="${state}"></pre>`;
 				return `<div class="state ${state === 'error' ? 'bad' : ''}" role="${state === 'error' ? 'alert' : 'status'}">${art}<p class="t">${t}</p>${big || state !== 'loading' ? `<p class="s">${s}</p>` : ''}${state === 'error' ? '<button class="retry">Riprova ora</button>' : ''}</div>`;
 			};
 
 			function render() {
 				const v = base(document.body.dataset.v), st = document.body.dataset.state;
-				const panel = (title, body, action = '') => `<section class="pn"><header class="pn-h"><h2>${title}</h2>${action}</header>${st === 'ready' ? body : stateBlock(st, v)}</section>`;
+				const panel = (title, body, action = '', kind = '') => `<section class="pn ${kind}"><header class="pn-h"><h2>${title}</h2>${action}</header>${st === 'ready' ? body : stateBlock(st, v)}</section>`;
 				const live = st === 'error' ? '<span class="live off">Connessione persa</span>' : '<span class="live"><i></i>In diretta</span>';
 				const top = `<header class="top"><h1>Generazione 6</h1><span class="sub">il candidato #22 prova a diventare la 7</span>${live}<span class="phases"><span>Genesi</span><span>Primi passi</span><span class="on">Evoluzione</span><span>Mondo</span></span></header>`;
-				const elo = panel('Forza del campione', `<p class="big"><b>1.183</b><span>± 142 Elo</span></p><p class="cap">contro Stockfish · gen-6</p>${chart()}<p class="cap">gen-3, 4, 5 e 6 stanno nello stesso margine.</p>`);
-				const gens = panel('Generazioni', `<ol class="rows"><li class="now"><span class="id">#22</span><span><b>Penalità per cavalli sulle colonne laterali</b><small>in gara contro gen-6</small></span><span class="v"></span></li><li><span class="id">gen-6</span><span><b>Bonus per torri su colonne aperte</b><small>dopo 7 tentativi</small></span><span class="v">1.183<small>± 142</small></span></li><li><span class="id">gen-5</span><span><b>Pedoni che avanzano</b><small>dopo 2 tentativi</small></span><span class="v">1.129<small>± 136</small></span></li><li><span class="id">gen-4</span><span><b>Pezzi verso il centro</b><small>al primo tentativo</small></span><span class="v">1.162<small>± 118</small></span></li></ol>`, '<a class="link">Tutte le 23 prove</a>');
-				const verdict = panel('Il candidato è più forte?', `<p class="ans">Ancora non si sa</p><div class="bar"><i style="width:${(1.051 / 2.944) * 50}%"></i><b></b></div><div class="bar-l"><span>scarta</span><span>promuove</span></div><p class="cap">936 partite · V 349 P 276 S 311 · per ora pende verso il sì</p>`);
-				const spend = panel('Speso oggi', `<p class="money"><b>0,07 $</b><span>di 2,00 $</span></p><div class="bar" style="height:6px"><i style="left:0;width:4%;background:var(--accent)"></i></div><p class="cap">23 sessioni, meno di un centesimo l'una</p>`);
+				const elo = panel('Forza del campione', `<p class="big"><b>1.183</b><span>± 142 Elo</span></p><p class="cap">contro Stockfish · gen-6</p>${chart()}<p class="cap">gen-3, 4, 5 e 6 stanno nello stesso margine.</p>`, '', 'k-strength');
+				const gens = panel('Generazioni', `<ol class="rows"><li class="now"><span class="id">#22</span><span><b>Penalità per cavalli sulle colonne laterali</b><small>in gara contro gen-6</small></span><span class="v"></span></li><li><span class="id">gen-6</span><span><b>Bonus per torri su colonne aperte</b><small>dopo 7 tentativi</small></span><span class="v">1.183<small>± 142</small></span></li><li><span class="id">gen-5</span><span><b>Pedoni che avanzano</b><small>dopo 2 tentativi</small></span><span class="v">1.129<small>± 136</small></span></li><li><span class="id">gen-4</span><span><b>Pezzi verso il centro</b><small>al primo tentativo</small></span><span class="v">1.162<small>± 118</small></span></li></ol>`, '<a class="link">Tutte le 23 prove</a>', 'k-gens');
+				const verdict = panel('Il candidato è più forte?', `<p class="ans">Ancora non si sa</p><div class="bar"><i style="width:${(1.051 / 2.944) * 50}%"></i><b></b></div><div class="bar-l"><span>scarta</span><span>promuove</span></div><p class="cap">936 partite · V 349 P 276 S 311 · per ora pende verso il sì</p>`, '', 'k-verdict');
+				const spend = panel('Speso oggi', `<p class="money"><b>0,07 $</b><span>di 2,00 $</span></p><div class="bar" style="height:6px"><i style="left:0;width:4%;background:var(--accent)"></i></div><p class="cap">23 sessioni, meno di un centesimo l'una</p>`, '', 'k-spend');
 				const stage = st === 'ready'
 					? `<div class="heading"><span class="tag">#22</span><h2>Penalità per cavalli sulle colonne laterali</h2><p>contro il campione gen-6</p></div>
 						<div class="game"><div style="display:grid;gap:10px"><div class="player"><span class="stone b"></span><span><b>Campione gen-6</b><small>nero</small></span><span class="pts">311<span>vinte</span></span></div><div class="tray">${board()}</div><div class="player"><span class="stone w"></span><span><b>Candidato #22</b><small>bianco</small></span><span class="pts">349<span>vinte</span></span></div></div>
@@ -553,12 +613,23 @@
 				tick(true);
 			}
 
+			// E: each character of the art takes one of the five colours, drifting slowly.
+			function colorize(text, t) {
+				return text.split('\n').map((line, y) => line.split('').map((ch, x) => {
+					if (ch === ' ') return ' ';
+					const c = ch === '♞' || ch === '♚' ? 3 : 1 + ((x + y * 2 + Math.floor(t / 3)) % 5);
+					return `<span style="color:var(--c${c})">${ch.replace('&', '&amp;').replace('<', '&lt;')}</span>`;
+				}).join('')).join('\n');
+			}
+
 			let t = 0;
 			function tick(now) {
 				const v = base(document.body.dataset.v);
 				if (!ART[v]) return;
-				document.querySelectorAll('[data-art]').forEach((el) => { el.textContent = ART[v][el.dataset.art](reduce ? 6 : t); });
-				document.querySelectorAll('[data-small]').forEach((el) => { el.textContent = SMALL[v](reduce ? 2 : t); });
+				const poly = body.dataset.poly === 'on';
+				const put = (el, text) => { if (poly) el.innerHTML = colorize(text, reduce ? 0 : t); else el.textContent = text; };
+				document.querySelectorAll('[data-art]').forEach((el) => put(el, ART[v][el.dataset.art](reduce ? 6 : t)));
+				document.querySelectorAll('[data-small]').forEach((el) => put(el, SMALL[v](reduce ? 2 : t)));
 				if (!now) t++;
 			}
 			setInterval(() => tick(false), 125);
@@ -571,7 +642,8 @@
 			document.querySelector('[data-buttons]').innerHTML = Object.keys(DESC).map((v) => `<button data-v="${v}">${/\d$/.test(v) ? `${v.slice(-1)} D` : v.toUpperCase()} ${DESC[v].split(':')[0]}</button>`).join(' ');
 			document.querySelector('[data-states]').innerHTML = Object.entries(STATES).map(([k, l]) => `<button data-state="${k}">${l}</button>`).join('');
 			const sync = () => {
-				body.dataset.base = base(body.dataset.v);
+				body.dataset.base = base(body.dataset.v) === 'e' ? 'd' : base(body.dataset.v);
+				body.dataset.poly = base(body.dataset.v) === 'e' ? 'on' : '';
 				body.dataset.color = ['d6', 'd7', 'd8', 'd9'].includes(body.dataset.v) ? 'on' : '';
 				document.querySelectorAll('.switch [data-v]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === body.dataset.v)));
 				document.querySelectorAll('.switch [data-state]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.state === body.dataset.state)));
