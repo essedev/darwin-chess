@@ -1,4 +1,5 @@
-import { type ReactNode, useEffect, useRef } from 'react'
+import { type ReactNode, useEffect, useRef, useState } from 'react'
+import { cn } from '@/lib/utils'
 import { Board } from './board'
 
 export const START = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
@@ -61,23 +62,39 @@ export function Points({ value }: { value: number }) {
 
 function Moves({ san, startPly }: { san: string[]; startPly: number }) {
   const box = useRef<HTMLDivElement>(null)
+  const [hidden, setHidden] = useState(false)
   useEffect(() => {
-    box.current?.scrollTo({ top: box.current.scrollHeight, left: box.current.scrollWidth })
+    const el = box.current
+    if (!el) return
+    el.scrollTo({ top: el.scrollHeight, left: el.scrollWidth })
+    setHidden(el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1)
   }, [san.length])
   const plies = startPly % 2 === 1 ? ['…', ...san] : san
   const rows = []
   for (let i = 0; i < plies.length; i += 2) rows.push([plies[i], plies[i + 1]])
   const firstMove = Math.floor(startPly / 2) + 1
   return (
-    <div ref={box} className="flex min-w-0 gap-0.5 overflow-x-auto font-mono text-xs tabular-nums [scrollbar-width:none] lg:block lg:max-h-[calc(100vh-340px)] lg:overflow-y-auto lg:py-5">
-      {rows.length === 0 && <span className="text-muted-foreground">nessuna mossa</span>}
-      {rows.map(([white, black], i) => (
-        <div key={i} className="grid h-[26px] flex-none grid-cols-[26px_1fr_1fr] items-center">
-          <span className="text-[11px] text-muted-foreground">{firstMove + i}</span>
-          <span className={`rounded-md px-1.5 py-1 ${i === rows.length - 1 && !black ? 'bg-live/22 font-medium' : ''}`}>{white}</span>
-          <span className={`rounded-md px-1.5 py-1 ${i === rows.length - 1 && black ? 'bg-live/22 font-medium' : ''}`}>{black ?? ''}</span>
-        </div>
-      ))}
+    // On wide screens the list never sizes the row: it fills the board's height and scrolls,
+    // so a long game does not push the layout around.
+    <div className="relative min-w-0 lg:min-h-0">
+      <div
+        ref={box}
+        className={cn(
+          'flex gap-0.5 overflow-x-auto font-mono text-xs tabular-nums [scrollbar-width:none]',
+          'lg:absolute lg:inset-0 lg:block lg:overflow-x-hidden lg:overflow-y-auto',
+          hidden &&
+            '[mask-image:linear-gradient(to_right,transparent,#000_32px)] lg:[mask-image:linear-gradient(to_bottom,transparent,#000_56px)]',
+        )}
+      >
+        {rows.length === 0 && <span className="text-muted-foreground">nessuna mossa</span>}
+        {rows.map(([white, black], i) => (
+          <div key={i} className="grid h-[26px] flex-none grid-cols-[26px_1fr_1fr] items-center">
+            <span className="text-[11px] text-muted-foreground">{firstMove + i}</span>
+            <span className={cn('rounded-md px-1.5 py-1', i === rows.length - 1 && !black && 'bg-live/22 font-medium')}>{white}</span>
+            <span className={cn('rounded-md px-1.5 py-1', i === rows.length - 1 && black && 'bg-live/22 font-medium')}>{black ?? ''}</span>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
