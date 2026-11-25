@@ -3,20 +3,10 @@ from collections.abc import AsyncIterator
 from pathlib import Path
 
 import pytest
-from alembic import command
-from alembic.config import Config
 
 from darwin.config import Settings
+from darwin.ledger.migrate import migrate
 from darwin.ledger.store import Ledger
-
-BACKEND = Path(__file__).resolve().parents[1]
-
-
-def migrate(url: str) -> None:
-    config = Config(str(BACKEND / "alembic.ini"))
-    config.set_main_option("script_location", str(BACKEND / "alembic"))
-    config.set_main_option("sqlalchemy.url", url)
-    command.upgrade(config, "head")
 
 
 @pytest.fixture

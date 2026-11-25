@@ -18,6 +18,7 @@ Un agente LLM (Haiku 5.5 via OpenRouter) scrive da zero un motore di scacchi in 
 - `make install`, `make dev` (API + dashboard), `make check` (format, lint, typecheck, test)
 - `make db-migrate`, `make db-revision msg='...'`
 - `make run-core` (esperimento), `make run-sessions n=3` (sessioni di prova): servono `DARWIN_LLM_API_KEY` e `make genome-init`
+- `make up` / `make down`: produzione in Compose (`core` + `api`), con `.env` da `.env.example`
 - `make lab-build`, `make genome-init` (crea `gen-0` da `seed/`, rifiuta se `genome/` esiste)
 - `make images` (sandbox, arena, ancore, motori di test): serve prima di `make test`, che gira anche i test con container veri (marker `docker`, circa un minuto); `make test-unit` li salta
 
@@ -39,4 +40,5 @@ Un agente LLM (Haiku 5.5 via OpenRouter) scrive da zero un motore di scacchi in 
 - pi risolve i percorsi relativi sulla propria cartella dell'host: l'estensione (`agent/darwin-extension.ts`) li traduce in `/genome` prima di ogni `docker exec`. pi va sempre avviato con i flag di `orchestrator/pi.py` (niente caricamento automatico).
 - Il test `tests/orchestrator/test_docker_session.py` gira pi vero contro un modello finto: rompe se cambia il protocollo RPC o l'API delle estensioni di pi, ed è il primo controllo da fare quando si aggiorna pi.
 - fastchess aspetta 60 secondi fissi un motore che ignora `quit`: per questo ogni motore passa da `arena/engine_shim.py`, che dopo 2 secondi elimina il container. L'immagine arena ha solo `python3-minimal` (niente `uuid`, per esempio).
+- L'API monta `data/` in scrittura anche se non scrive: SQLite in WAL scrive l'indice condiviso anche per leggere.
 - I container dei motori sopravvivono al loro client: ogni run porta l'etichetta `darwin.run=<id>` e si ripulisce per etichetta, anche quando fallisce.

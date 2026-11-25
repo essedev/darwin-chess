@@ -13,6 +13,7 @@ from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse
+from fastapi.staticfiles import StaticFiles
 
 from darwin.api.live import read_live_game
 from darwin.config import get_settings
@@ -75,6 +76,12 @@ async def live() -> dict[str, Any] | None:
     return await asyncio.to_thread(read_live_game, get_settings().data_dir / "matches")
 
 
+def _serve_dashboard() -> None:
+    dist = get_settings().frontend_dist
+    if dist is not None and dist.is_dir():
+        app.mount("/", StaticFiles(directory=dist, html=True), name="dashboard")
+
+
 @app.get("/api/stream")
 async def stream(request: Request) -> StreamingResponse:
     ledger: Ledger = request.app.state.ledger
@@ -97,3 +104,6 @@ async def stream(request: Request) -> StreamingResponse:
     return StreamingResponse(
         events(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"}
     )
+
+
+_serve_dashboard()  # after the API routes, so /api/* wins

@@ -67,7 +67,14 @@ db-revision: ## Nuova migrazione (msg=)
 	cd backend && uv run alembic revision --autogenerate -m "$(msg)"
 
 lab-build: ## Costruisce l'immagine del sandbox
-	docker compose build lab
+	docker build -t darwin-lab lab
+
+up: ## Produzione: costruisce le immagini e avvia core e api (serve .env con DARWIN_HOME e la chiave)
+	$(MAKE) images
+	docker compose --profile run up -d --build
+
+down: ## Ferma core e api
+	docker compose --profile run down
 
 images: lab-build ## Costruisce tutte le immagini: sandbox, arena, ancore, motori di test
 	docker build -t darwin-arena arena
@@ -77,7 +84,7 @@ images: lab-build ## Costruisce tutte le immagini: sandbox, arena, ancore, motor
 genome-init: lab-build ## Crea il genoma vuoto (gen-0) da seed/
 	@test ! -e genome || (echo "genome/ esiste già: non lo sovrascrivo" && exit 1)
 	mkdir genome
-	docker compose run --rm --no-deps lab sh -c '\
+	docker run --rm --network none --user 1000:1000 -e HOME=/tmp -v "$(CURDIR)/genome:/genome" -w /genome darwin-lab sh -c '\
 		cargo init --name genome --vcs git . && \
 		git config user.name darwin-agent && git config user.email agent@darwin.local'
 	cp seed/CONTRACT.md genome/

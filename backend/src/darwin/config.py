@@ -46,6 +46,8 @@ class Settings(BaseSettings):
     match_concurrency: int = 3
 
     api_port: int = 4730
+    # Built dashboard served by the API in production; in development Vite serves it.
+    frontend_dist: Path | None = None
 
     @field_validator("genome_dir", "data_dir", "mirror_dir", "agent_dir")
     @classmethod
