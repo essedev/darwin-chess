@@ -134,3 +134,24 @@ class Job(Timestamped, Base):
     exit_code: Mapped[int | None]
     log_tail: Mapped[str | None] = mapped_column(Text)
     finished_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
+
+
+class LichessGame(Timestamped, Base):
+    """A game the bot played on Lichess with the champion of the time."""
+
+    __tablename__ = "lichess_games"
+
+    lichess_id: Mapped[str] = mapped_column(String(16), unique=True)
+    generation_id: Mapped[int] = mapped_column(ForeignKey("generations.id"), index=True)
+    color: Mapped[str] = mapped_column(String(5))
+    opponent: Mapped[str] = mapped_column(String(64))
+    opponent_rating: Mapped[int | None]
+    opponent_title: Mapped[str | None] = mapped_column(String(8))
+    rated: Mapped[bool]
+    time_control: Mapped[str] = mapped_column(String(16))
+    status: Mapped[str] = mapped_column(String(16), default="started")
+    result: Mapped[str | None] = mapped_column(String(8))  # win, loss, draw, aborted
+    moves: Mapped[str] = mapped_column(Text, default="")  # UCI, space separated
+    rating_after: Mapped[int | None]  # the bot's own rating once the game is over
+    analysis: Mapped[dict[str, Any] | None] = mapped_column(JSON)  # losses only
+    finished_at: Mapped[datetime | None] = mapped_column(UtcDateTime())

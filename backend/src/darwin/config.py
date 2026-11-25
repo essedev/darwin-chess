@@ -54,6 +54,14 @@ class Settings(BaseSettings):
     build_timeout_s: float = 900.0
     match_concurrency: int = 3
 
+    # Lichess bot (account converted to BOT). Off unless enabled: it plays rated games.
+    lichess_enabled: bool = False
+    lichess_token: SecretStr = SecretStr("")
+    lichess_url: str = "https://lichess.org"
+    lichess_clock_s: int = 180
+    lichess_increment_s: int = 2
+    lichess_challenge_every_s: float = 120.0
+
     api_port: int = 4730
     # Built dashboard served by the API in production; in development Vite serves it.
     frontend_dist: Path | None = None

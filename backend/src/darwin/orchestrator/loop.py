@@ -5,6 +5,7 @@
 - The referee judges candidates one by one. A candidate whose base was overtaken by a new
   champion is replayed on top of it first; if that conflicts it is stale.
 - Every few iterations, the session is a reflection instead.
+- When enabled, the Lichess bot plays the champion of the time alongside all of this.
 """
 
 import asyncio
@@ -17,6 +18,8 @@ import uvicorn
 
 from darwin.config import Settings
 from darwin.ledger.store import Ledger
+from darwin.lichess.bot import LichessBot
+from darwin.lichess.client import LichessClient
 from darwin.orchestrator import budget, sandbox
 from darwin.orchestrator.jobs import Jobs
 from darwin.orchestrator.session import SessionRunner
@@ -25,7 +28,7 @@ from darwin.referee import engines
 from darwin.referee.build import build_gate
 from darwin.referee.errors import RefereeError
 from darwin.referee.judge import Phase, judge
-from darwin.referee.models import Binary
+from darwin.referee.models import Binary, EngineSpec
 from darwin.referee.rating import rate
 
 log = logging.getLogger(__name__)
@@ -73,6 +76,28 @@ class Orchestrator:
         )
         return uvicorn.Server(config)
 
+    def lichess_client(self) -> LichessClient | None:
+        s = self.settings
+        if not s.lichess_enabled:
+            return None
+        token = s.lichess_token.get_secret_value()
+        if not token:
+            log.warning("lichess: enabled but DARWIN_LICHESS_TOKEN is not set, bot off")
+            return None
+        return LichessClient(s.lichess_url, token)
+
+    async def champion_engine(self) -> tuple[int, EngineSpec] | None:
+        """The engine the Lichess bot plays: the champion, built (cached by commit) on demand.
+        None while gen-0, the empty seed, is the champion."""
+        champion = (await self.ledger.state()).champion
+        if champion.id < 1:
+            return None
+        gate, binary = await build_gate(self.settings, champion.commit_sha)
+        if binary is None:
+            log.error("lichess: gen-%d does not build: %s", champion.id, gate.detail)
+            return None
+        return champion.id, engines.candidate(self.settings, binary, name=f"gen-{champion.id}")
+
     # Events
 
     async def _job_done(self, job_id: int) -> None:
@@ -89,14 +114,23 @@ class Orchestrator:
         tools = self.tools_server()
         serving = asyncio.create_task(tools.serve())
         judging = asyncio.create_task(self.judge_loop())
+        lichess = self.lichess_client()
+        playing = None
+        if lichess is not None:
+            bot = LichessBot(self.settings, self.ledger, lichess, self.champion_engine)
+            playing = asyncio.create_task(bot.run())
         try:
             await self.agent_loop(max_sessions)
             if max_sessions is not None:  # test runs: wait for the last verdict
                 await self.queue.join()
         finally:
-            judging.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await judging
+            for task in (judging, playing):
+                if task is not None:
+                    task.cancel()
+                    with contextlib.suppress(asyncio.CancelledError):
+                        await task
+            if lichess is not None:
+                await lichess.close()
             tools.should_exit = True  # orderly stop: cancelling it logs a bogus traceback
             await serving
 
