@@ -6,12 +6,12 @@ import logging
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
 
 from darwin.config import Settings
 from darwin.ledger import lichess
 from darwin.ledger.commentary import THOUGHT
 from darwin.ledger.store import LabState, Ledger
+from darwin.orchestrator import events as payloads
 from darwin.orchestrator import prompts, sandbox
 from darwin.orchestrator.jobs import Jobs
 from darwin.orchestrator.pi import PiError, PiProcess
@@ -20,7 +20,6 @@ from darwin.orchestrator.tools import SessionTools, ToolRouter
 
 log = logging.getLogger(__name__)
 
-TEXT_LIMIT = 2000
 LOSSES_COUNTED = 1000  # a cap on the count, far above what one session's gap can hold
 
 
@@ -34,18 +33,6 @@ class Outcome:
 
 class Ceiling(Exception):
     """A per-session limit was hit; the message says which."""
-
-
-def _text_of(message: dict[str, Any]) -> str:
-    content = message.get("content")
-    if isinstance(content, str):
-        return content
-    return "".join(b.get("text", "") for b in content or [] if b.get("type") == "text")
-
-
-def _short(value: Any) -> Any:
-    text = str(value)
-    return text if len(text) <= TEXT_LIMIT else text[:TEXT_LIMIT] + "..."
 
 
 class SessionRunner:
@@ -195,9 +182,16 @@ class SessionRunner:
                     output_tokens=int(usage.get("output") or 0),
                     cost_usd=call_cost,
                 )
-                if text := _text_of(message).strip():
+                # Its reasoning first: the model thinks, then writes, then calls its tools.
+                # Stored for the site only, never translated (cost) and never shown to the
+                # agent or the referee.
+                if reasoning := payloads.reasoning_of(message):
+                    await self.ledger.add_event(
+                        experiment_id, "reasoning", payloads.message_text(reasoning)
+                    )
+                if text := payloads.text_of(message).strip():
                     event_id = await self.ledger.add_event(
-                        experiment_id, "thought", {"text": _short(text)}
+                        experiment_id, "thought", payloads.message_text(text)
                     )
                     if self.router.notify is not None:  # its Italian, for the live page
                         self.router.notify(THOUGHT, event_id)
@@ -205,29 +199,21 @@ class SessionRunner:
                     await self.ledger.add_event(
                         experiment_id,
                         "status",
-                        {"state": "provider_error", "error": _short(message.get("errorMessage"))},
+                        {
+                            "state": "provider_error",
+                            "error": payloads.short(message.get("errorMessage")),
+                        },
                     )
                 if cost > s.session_max_usd:
                     raise Ceiling(f"session cost {cost:.3f} $ over {s.session_max_usd} $")
             elif kind == "tool_execution_start":
                 tool_calls += 1
-                await self.ledger.add_event(
-                    experiment_id,
-                    "tool_call",
-                    {"tool": event.get("toolName"), "args": _short(event.get("args"))},
-                )
+                await self.ledger.add_event(experiment_id, "tool_call", payloads.tool_call(event))
                 if tool_calls > s.session_max_tool_calls:
                     raise Ceiling(f"more than {s.session_max_tool_calls} tool calls")
             elif kind == "tool_execution_end":
-                result = event.get("result") or {}
                 await self.ledger.add_event(
-                    experiment_id,
-                    "tool_result",
-                    {
-                        "tool": event.get("toolName"),
-                        "error": bool(event.get("isError")),
-                        "text": _short(_text_of(result)),
-                    },
+                    experiment_id, "tool_result", payloads.tool_result(event)
                 )
             elif kind == "agent_settled":
                 log.info(

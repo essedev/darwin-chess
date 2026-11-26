@@ -215,8 +215,13 @@ async def test_a_scripted_session_reaches_a_verdict(
     assert experiment.rejected_at_gate == "perft"  # it builds, but it does not speak UCI
     assert experiment.hypothesis and experiment.hypothesis.startswith("Add a notes file")
     assert experiment.diff_stat is not None and experiment.diff_stat["files"] == 2  # + Cargo.lock
-    tools = [e.payload["tool"] for e in events if e.kind == "tool_call"]
+    tool_calls = [e.payload for e in events if e.kind == "tool_call"]
+    tools = [c["tool"] for c in tool_calls]
     assert tools == ["bash", "submit", "bash", "perft_check", "write", "bash", "bash", "submit"]
+    # Arguments as JSON objects, and every result tied to its call by pi's call id.
+    assert tool_calls[4]["args"] == {"path": "src/notes.txt", "content": "my first change\n"}
+    answered = [e.payload["call_id"] for e in events if e.kind == "tool_result"]
+    assert answered == [c["call_id"] for c in tool_calls] and all(answered), trace
     refused = next(
         e.payload for e in events if e.kind == "tool_result" and e.payload["tool"] == "submit"
     )

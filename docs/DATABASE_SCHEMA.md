@@ -122,9 +122,21 @@ The stream shown on the dashboard.
 |---|---|---|
 | id | INTEGER | PK |
 | experiment_id | INTEGER | FK |
-| kind | TEXT | `thought`, `tool_call`, `tool_result`, `note` |
-| payload | JSON | |
+| kind | TEXT | `status`, `reasoning`, `thought`, `tool_call`, `tool_result` |
+| payload | JSON | by `kind`, below |
 | created_at | DATETIME | |
+
+Payloads. Every text is capped at 2,000 characters, cut with a trailing `...`; `cut` says whether it was.
+
+| kind | payload |
+|---|---|
+| `status` | `state` (`started`, `judging`, `stopped`, `provider_error`) and its context: `kind` and `trigger`, `phase`, `reason`, `error` |
+| `reasoning` | `text`, `cut`: the model's summarized thinking for one reply, as the provider returns it. Kept for the site only: never translated, never shown to the agent or the referee |
+| `thought` | `text`, `cut`: what the agent writes between tool calls; translated into Italian by the commentary worker |
+| `tool_call` | `tool`, `call_id` (pi's `toolCallId`), `args` (the arguments as a JSON object, each string inside cut on its own, lists kept to 20 items), `cut` |
+| `tool_result` | `tool`, `call_id` (the call it answers), `error`, `text`, `cut` |
+
+Rows written before 2026-11-26 have no `call_id` and no `cut`, and their `args` is a string: Python's repr of the arguments, cut at 2,000 characters as a whole. Readers handle both: a string `args` is the old repr, and a result without `call_id` pairs with the oldest open call of the same tool.
 
 ### jobs
 
