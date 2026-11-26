@@ -98,7 +98,7 @@ The champion's absolute Elo estimated against the anchors, or its Lichess rating
 | generation_id | INTEGER | FK `generations.id` |
 | source | TEXT | `anchors` (Stockfish ladder), `anchors_below` (below the ladder: marks the champion as measured, `elo` is the lowest rung and must not be shown), `lichess` |
 | elo / elo_error | REAL | |
-| detail | JSON | results per anchor |
+| detail | JSON | `below_scale` and `anchors`, one entry per rung played: its `elo`, the champion's `score`, `elo_diff` and `error` (95%), and `games`. Rungs recorded before 2026-11-26 have no `games`: they are 40 (20 pairs) |
 | created_at | DATETIME | |
 
 ### llm_calls

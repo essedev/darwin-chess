@@ -21,7 +21,9 @@ import uvicorn
 
 from darwin.commentary.worker import CommentaryWorker
 from darwin.config import Settings
+from darwin.ledger import strength
 from darwin.ledger.commentary import LICHESS_GAME
+from darwin.ledger.elo_fit import FitError
 from darwin.ledger.store import Ledger
 from darwin.lichess.bot import LichessBot
 from darwin.lichess.client import LichessClient
@@ -318,7 +320,14 @@ class Orchestrator:
         is logged and never undoes the promotion."""
         spec = engines.candidate(self.settings, binary, name=f"gen-{generation_id}")
         try:
-            rating = await rate(self.settings, spec, pairs=RATING_PAIRS, tc=RATING_TC, seed=seed)
+            expected = await strength.expected_elo(self.ledger, generation_id)
+        except FitError:
+            log.exception("gen-%d: no expected Elo, the ladder starts at the bottom", generation_id)
+            expected = None
+        try:
+            rating = await rate(
+                self.settings, spec, pairs=RATING_PAIRS, tc=RATING_TC, seed=seed, expected=expected
+            )
         except RefereeError:
             log.exception("rating gen-%d failed", generation_id)
             return

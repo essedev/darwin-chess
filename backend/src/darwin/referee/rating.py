@@ -1,11 +1,14 @@
 """Absolute Elo of a champion, from matches against Stockfish at limited strength.
 
-The ladder starts at the weakest anchor and climbs while the champion wins too clearly for
-a match to measure anything. Every anchor whose score is informative (neither a whitewash
-nor a rout) gives an estimate; they are combined weighting each by its precision.
+With an expected Elo (the previous champion's plus the gain that promoted the new one) the
+ladder starts at the rungs just below and just above it; without one, at the weakest anchor.
+It then climbs while the highest rung played is still a whitewash and steps down while the
+lowest is a rout. Every anchor whose score is informative (neither a whitewash nor a rout)
+gives an estimate; they are combined weighting each by its precision.
 """
 
 import math
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -25,6 +28,7 @@ class AnchorResult:
     score: float
     elo_diff: float
     error: float  # 95% half-width of elo_diff
+    games: int
 
     @property
     def informative(self) -> bool:
@@ -47,6 +51,7 @@ class Rating:
                     "score": round(a.score, 3),
                     "elo_diff": round(a.elo_diff, 1),
                     "error": round(a.error, 1),
+                    "games": a.games,
                 }
                 for a in self.anchors
             ],
@@ -63,11 +68,43 @@ def combine(results: list[AnchorResult]) -> Rating:
     return Rating(elo / sum(weights), 1 / math.sqrt(sum(weights)), False, results)
 
 
+def first_rungs(expected: float | None) -> list[int]:
+    """The rungs just below and just above the expected Elo (one at either end of the
+    ladder), or the weakest anchor when nothing is expected."""
+    if expected is None:
+        return [LADDER[0]]
+    below = [anchor for anchor in LADDER if anchor <= expected][-1:]
+    above = [anchor for anchor in LADDER if anchor > expected][:1]
+    return below + above
+
+
+def next_rung(results: list[AnchorResult]) -> int | None:
+    """One rung up while the highest played is a whitewash, one down while the lowest is a
+    rout; None when both ends measure something or the ladder ends."""
+    played = sorted(results, key=lambda r: r.anchor_elo)
+    top, bottom = played[-1], played[0]
+    if top.score >= INFORMATIVE[1] and top.anchor_elo != LADDER[-1]:
+        return LADDER[LADDER.index(top.anchor_elo) + 1]
+    if bottom.score <= INFORMATIVE[0] and bottom.anchor_elo != LADDER[0]:
+        return LADDER[LADDER.index(bottom.anchor_elo) - 1]
+    return None
+
+
+async def climb(
+    expected: float | None, play: Callable[[int], Awaitable[AnchorResult]]
+) -> list[AnchorResult]:
+    """Every rung the ladder plays, lowest first."""
+    results = [await play(anchor) for anchor in first_rungs(expected)]
+    while (anchor := next_rung(results)) is not None:
+        results.append(await play(anchor))
+    return sorted(results, key=lambda r: r.anchor_elo)
+
+
 async def rate(
-    settings: Settings, champion: EngineSpec, *, pairs: int, tc: str, seed: int
-) -> Rating:
-    results: list[AnchorResult] = []
-    for anchor in LADDER:
+    settings: Settings, champion: EngineSpec, *, pairs: int, tc: str, seed: int,
+    expected: float | None = None,
+) -> Rating:  # fmt: skip
+    async def play(anchor: int) -> AnchorResult:
         games = await fixed_match(
             settings,
             champion,
@@ -78,8 +115,6 @@ async def rate(
         )
         scores = pair_scores(games, champion.name)
         diff, error = elo_estimate(pentanomial(scores))
-        result = AnchorResult(anchor, sum(scores) / (2 * len(scores)), diff, error)
-        results.append(result)
-        if result.score < INFORMATIVE[1]:
-            break  # this anchor is strong enough: no need to climb further
-    return combine(results)
+        return AnchorResult(anchor, sum(scores) / (2 * len(scores)), diff, error, 2 * len(scores))
+
+    return combine(await climb(expected, play))
