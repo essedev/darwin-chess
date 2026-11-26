@@ -1,6 +1,7 @@
-The chess piece images in frontend/public/pieces/cburnett/ are by Colin M.L. Burnett and
-are licensed under GPLv2 or later (see frontend/public/pieces/cburnett/LICENSE.txt). They
-are not covered by the MIT License below.
+The chess piece images in frontend/public/pieces/cburnett/, and the favicon
+frontend/public/favicon.svg drawn from one of them, are by Colin M.L. Burnett and are
+licensed under GPLv2 or later (see frontend/public/pieces/cburnett/LICENSE.txt). They are
+not covered by the MIT License below.
 
 MIT License
 
