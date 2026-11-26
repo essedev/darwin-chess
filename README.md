@@ -12,11 +12,12 @@ How far does a cheap, autonomous LLM agent get at building a chess engine when e
 
 ## Short answer
 
-Results as of 2026-11-25, after the first day:
+Results as of 2026-11-26, after about 27 hours:
 
-- The champion is **gen-8**, at about **1,488 ± 115** absolute Elo against limited-strength Stockfish (95% margin).
-- gen-8 came from **iterative deepening with MVV-LVA move ordering**, worth **+416 ± 149** Elo over gen-7. Each evaluation tweak before it had added between 17 and 42 Elo.
-- The agent is Claude Haiku 5.5 running in pi at effort `high`. A session costs about 0.01-0.02 $; the first 29 sessions cost 0.14 $ in all. The bottleneck is the referee's CPU, not the budget.
+- The champion is **gen-15**, at about **2,079 ± 75** absolute Elo against limited-strength Stockfish (95% margin, joint estimate).
+- The climb from gen-8 (1,487 ± 81) to gen-15 took one night: seven generations, each a textbook search or evaluation technique (quiescence, transposition table, null-move pruning, late move reductions, history heuristic, tapered piece-square tables, repetition draws). Before gen-8 the agent had spent four generations on evaluation tweaks worth 17 to 42 Elo each.
+- The agent is Claude Haiku 5.5 running in pi at effort `high`. An iteration costs about 0.01-0.03 $; the first 44 sessions cost 0.35 $ in all. The bottleneck is the referee's CPU, not the budget.
+- No training job has run yet: the evaluation is still written by the agent by hand, not learned by the network the design calls for.
 
 ## Hardware and setup
 
@@ -33,7 +34,7 @@ Results as of 2026-11-25, after the first day:
 - **Sandbox**: the agent's commands run in a Docker container with the Rust toolchain, a few vendored crates and PyTorch CPU, with no network, no Stockfish and no referee code.
 - **Referee**: trusted code outside the sandbox. A candidate goes through the gates in order of cost: clean build, perft on random positions (standard counts are known and could be hardcoded), smoke games, then the match. Against the champion the match is a pentanomial SPRT (elo0 0, elo1 10, alpha and beta 0.05) at 8+0.08, played in batches; the referee re-reads every PGN with python-chess and computes the SPRT itself. Every engine process runs in its own container (no network, 1 CPU, read-only binary).
 - **Anchors**: every new champion plays a ladder of Stockfish 17 at `UCI_Elo` 1320, 1600, 2000, 2400 and 2800, starting from the rungs around its expected Elo. The absolute Elo with its 95% margin is one maximum-likelihood fit over all the evidence: every rung played by every champion and the match in which each champion beat the one before.
-- **Orchestrator**: wakes the agent on events (a verdict, a finished job, a batch of Lichess losses). Every iteration starts from a fresh context; state lives in the genome's git history and in the ledger. Every 10 iterations the agent rereads the whole history and rewrites its own strategy.
+- **Orchestrator**: wakes the agent on events (a verdict, a finished job, a batch of Lichess losses). Every iteration starts from a fresh context; state lives in the genome's git history and in the ledger. A session has 40 minutes, 80 tool calls and 0.25 $, and the agent is told so; work it does not submit is kept, never judged. Every 10 iterations the agent rereads the whole history and rewrites its own strategy.
 - **Lichess**: a bot plays the reigning champion around the clock. Lichess never judges candidates; Stockfish analyses every loss and the agent receives it as a lesson.
 - Division of roles, by design: the LLM builds and optimizes the machine, and chess knowledge in the evaluation is meant to come from a network trained on the engine's self-play, not from the LLM's memory.
 
@@ -41,12 +42,25 @@ Details in [Architecture](docs/ARCHITECTURE.md), [Decisions](docs/DECISIONS.md),
 
 ## Results
 
-| Date | Champion | Absolute Elo | Note |
-|---|---|---|---|
-| 2026-11-25 | gen-3 to gen-7 | between 1,129 and 1,259 | small evaluation tweaks, +17 to +42 Elo each, margins of ± 120-140 |
-| 2026-11-25 | gen-8 | 1,488 ± 115 | iterative deepening with MVV-LVA ordering, +416 ± 149 over gen-7 |
+Absolute Elo is the joint estimate the site shows (DECISIONS #29); the gain is the match that promoted the champion over its parent.
 
-The agent spent four generations on small evaluation tweaks. Two changes came just before the jump: reasoning effort raised to `high` (DECISIONS #25), and the periodic reflection counted from the ledger: its in-memory counter reset at every restart, so the agent had never reflected. The first real reflection (experiment 25) was followed by iterative deepening (experiment 26), which became gen-8.
+| Date | Champion | Absolute Elo | Change | Gain over parent |
+|---|---|---|---|---|
+| 2026-11-25 | gen-3 to gen-7 | between 1,117 and 1,213, ± 52-56 | small evaluation tweaks | +17 to +42 each |
+| 2026-11-25 | gen-8 | 1,487 ± 81 | iterative deepening with MVV-LVA ordering | +416 ± 149 |
+| 2026-11-25 | gen-9 | 1,685 ± 64 | quiescence search | +470 ± 1,047 (near-whitewash match) |
+| 2026-11-26 | gen-10 | 1,764 ± 53 | transposition table | +94 ± 36 |
+| 2026-11-26 | gen-11 | 1,818 ± 50 | null-move pruning | +61 ± 28 |
+| 2026-11-26 | gen-12 | 1,832 ± 50 | late move reductions | +16 ± 11 |
+| 2026-11-26 | gen-13 | 1,881 ± 52 | history heuristic for move ordering | +51 ± 24 |
+| 2026-11-26 | gen-14 | 2,006 ± 57 | tapered piece-square tables | +119 ± 37 |
+| 2026-11-26 | gen-15 | 2,079 ± 75 | repetitions scored as draws in the search | +84 ± 34 |
+
+The agent spent four generations on small evaluation tweaks. Two changes came just before the jump: reasoning effort raised to `high` (DECISIONS #25), and the periodic reflection counted from the ledger: its in-memory counter reset at every restart, so the agent had never reflected. The first real reflection (experiment 25) was followed by iterative deepening (experiment 26), which became gen-8; the next seven champions came overnight, one classic technique each.
+
+Since gen-8 the referee has rejected no candidate it judged; the work lost is the work that went stale. 6 of the 17 iterations since then prepared their candidate while another was on trial, and their change no longer applied once that one became champion.
+
+Each champion is also rated on its own against the Stockfish ladder; the site shows that number next to the joint estimate. gen-15 alone scores 1,919 ± 166, below gen-14 alone (2,108 ± 130), although it beat gen-14 by +84 ± 34: with 40 games per rung the single ratings are noisy, and the joint fit borrows the hundreds of games of the matches between champions.
 
 The full history, generation by generation, is on the [live site](https://darwin.esse.dev) and in [CYCLES](docs/CYCLES.md).
 
@@ -69,7 +83,7 @@ make dev                       # API on :4730, dashboard on :4731
 ## Limits
 
 - One run, one model, one machine: the results are a single trajectory, not a distribution.
-- The absolute Elo is measured against Stockfish at limited strength, with margins above ± 100; it is not a FIDE or Lichess rating.
+- The absolute Elo is measured against Stockfish at limited strength; it is not a FIDE or Lichess rating. Its margins of ± 50-80 come from a joint fit that takes a gain over the parent to be worth the same against Stockfish: self-play gains often shrink against other opponents, and an SPRT stopped early overstates its gain, so the margins leave that error out.
 - Matches use a short time control (8+0.08): gains there may not carry over to slower games.
 - Haiku knows engine techniques from its training: what the experiment measures is how well an agent applies known ideas under a strict referee, not discovery.
 - The opening book is generated by the referee (random moves at equal material), not yet filtered by Stockfish.
@@ -77,4 +91,4 @@ make dev                       # API on :4730, dashboard on :4731
 
 ## License
 
-[MIT](LICENSE), except the cburnett chess piece images in `frontend/public/pieces/cburnett/`, which keep their GPLv2+ license.
+[MIT](LICENSE), except the cburnett chess piece images in `frontend/public/pieces/cburnett/` and the favicon drawn from one of them, which keep their GPLv2+ license.

@@ -48,7 +48,7 @@ Rule: only what the sandbox cannot do on its own becomes a tool. The agent has n
 ## The life of a generation
 
 1. **Observe**: the orchestrator resets the genome to the base (the last accepted commit) and builds the context: phase, champion, last verdict with the gate details, latest experiments, jobs, `STRATEGY.md` and the tail of `NOTES.md` (read through the sandbox: they are the agent's files).
-2. **Implement**: the agent works with its tools within a cap of calls and tokens per iteration; the orchestrator counts tokens from pi's events and stops it if it goes over.
+2. **Implement**: the agent works with its tools within the session's limits (40 minutes, 80 tool calls, 0.25 $), which the session prompt states with the start time (DECISIONS #27); the orchestrator counts them from pi's events and stops the session when one runs out. A session that ends without a submission leaves its changes as `refs/darwin/wip-<id>` in the mirror.
 3. **Submit**: `submit` commits the working tree in the sandbox, copies the commit into the mirror and queues it for the referee, which runs it through the gates in order of cost: build, perft, smoke (blitz games with no illegal moves, crashes or timeouts), the phase's match. If a new champion was born in the meantime, the candidate is first reapplied on top of it; if that conflicts, the experiment is `stale`.
 4. **Learn**: the outcome goes into the ledger. If it wins it becomes `refs/darwin/gen-N` in the mirror. The next session receives the verdict and records the lesson with `lesson_for_previous`.
 
@@ -62,7 +62,7 @@ What makes the system look alive must not cost money: the CPU works all the time
 2. **Event-driven wake-ups**: the agent starts when a verdict arrives, a `run_job` ends or a batch of Lichess losses comes in, not on a timer. In evolution, while the referee judges candidate N, the agent prepares N+1, with at most one candidate queued; in genesis and first steps it waits for the verdict, because there a candidate usually passes and moves the base, and work started on the old base would be lost.
 3. **Periodic reflection**: every 10 iterations, counted from the ledger so that a restart does not reset the count, the agent rereads the whole history (experiments, code of past attempts, Lichess losses) and rewrites `STRATEGY.md`, choosing its next direction on its own.
 
-The daily spend is spread over the hours (2 $ a day, about 8 cents an hour): when the hour's share is used up the agent sleeps and the machine keeps playing. Measured in operation: with Haiku 5.5 and caching a session costs 0.2 cents at effort `low` and 0.7-1.8 cents at `high`. The bottleneck is the referee's CPU, not the budget.
+The daily spend is spread over the hours (2 $ a day, about 8 cents an hour): when the hour's share is used up the agent sleeps and the machine keeps playing. Measured in operation: with Haiku 5.5 and caching a session costs 0.2 cents at effort `low`; at `high` an iteration costs 1-3 cents and a reflection about 3. The bottleneck is the referee's CPU, not the budget.
 
 ## Phases
 

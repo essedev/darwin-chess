@@ -2,6 +2,22 @@
 
 One cycle per closed unit of work, most recent first. It keeps the last ~15 cycles; older ones move to `docs/archive/`.
 
+## Cycle 5: an agent that knows its limits, the session on the site, one Elo for all (2026-11-26)
+
+**Goal**: free the agent from the habit of one small change per session, let visitors see what it does between thoughts, and give the champions an Elo the games support.
+
+**Done**:
+- Agent: the system prompt invites it to work on what it thinks matters most, with no hint about where, and lets a session end without a submission (#26); the session prompt states the start time and the three limits, the system prompt explains what a job sees and that its end wakes a session, and unsubmitted work is kept as `refs/darwin/wip-<id>` (#27). It followed session 30, which slept 15 minutes inside the session waiting for its own test match.
+- Session page (#28): the orchestrator stores the model's summarized reasoning, tool arguments as JSON and pi's call id; `/api/sessions/{id}` and `#/sessione?id=N`, one line per tool call phrased by fixed rules, linked from Live, Evolution, Code and Mind. Site changelog 0.5.0.
+- Live page: every session counted (reflections included) and the running one's current action, a whole commentary readable in place, the spend card with model, effort, today's tokens and cost per session. The ledger records the tokens written to the prompt cache, recovered from the cost for past calls: the cache share drops from a false 100% to 90%. The logo's knight as favicon, excluded from MIT with the pieces.
+- Lichess: the bot stays under the daily caps (200 challenges sent, 100 bot games): challenges recorded in the ledger, stop at 150 and 90 over 24 hours, three attempts per round. Games resumed: gen-15 has won its first 11.
+- Elo (#29): one maximum-likelihood fit over every anchor rung and every promotion match replaces the per-generation rating; the ladder starts at the rungs around the expected Elo instead of climbing from 1320.
+- Outcome: seven champions overnight, gen-9 to gen-15, each a textbook technique (quiescence, transposition table, null move, late move reductions, history heuristic, tapered piece-square tables, repetition draws). gen-15 at 2,079 ± 75 joint Elo (1,919 ± 166 against the anchors alone), gen-8 at 1,487 ± 81. Since gen-8, of 17 iterations: 7 accepted, 6 stale, 1 error, 1 abandoned, 2 under judgement, none rejected. 44 sessions for 0.35 $ since the start; at `high` an iteration costs 1-3 cents. No job has run yet: the evaluation is still hand-written.
+
+**Decisions**: #26-#29 (curiosity with no hints, limits in the prompt and work kept in `wip`, a page per session as a log, joint Elo and a ladder from the expected rung).
+
+**Next step**: judge #25-#27 on the next reflections (jobs, tools, variety of changes; whether the network of #1 ever starts); look at the stale rate, now the main source of lost work; check the joint fit as the chain grows (#29).
+
 ## Cycle 4: visual identity, updates without interruptions, an agent that thinks harder (2026-11-25)
 
 **Goal**: make the site readable and recognizable, update the server without losing work, and get the agent out of the small tweaks it had been stuck on for four generations.
