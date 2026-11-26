@@ -6,6 +6,8 @@ Un agente LLM scrive un motore di scacchi in Rust partendo da un crate vuoto e c
 
 Stato: in esecuzione 24/7 dal 25 novembre 2026, con le partite, il ragionamento dell'agente e la spesa mostrati in diretta sul sito.
 
+![La Diretta: la forza del campione e le ultime generazioni, la partita dell'arbitro sulla scacchiera, il verdetto e la spesa del giorno](docs/screenshots/live-en.png)
+
 ## Domanda
 
 Fin dove arriva un agente LLM economico e autonomo nel costruire un motore di scacchi, se ogni sua modifica deve vincere partite per sopravvivere e niente di ciò che scrive può piegare la misura?
@@ -38,6 +40,8 @@ Risultati al 26 novembre 2026, dopo circa 27 ore:
 - **Lichess**: un bot gioca di continuo con il campione in carica. Lichess non giudica mai i candidati; Stockfish analizza ogni sconfitta e l'agente la riceve come lezione.
 - Divisione dei ruoli, per progetto: l'LLM costruisce e ottimizza la macchina, e la conoscenza scacchistica della valutazione deve venire da una rete addestrata sulle partite del motore contro se stesso, non dalla memoria dell'LLM.
 
+![La pagina di una sessione: ogni azione dell'agente detta in parole, il suo ragionamento riassunto in mezzo, il comando vero a un clic](docs/screenshots/session-en.png)
+
 Dettagli in [Architettura](docs/ARCHITECTURE.md), [Decisioni](docs/DECISIONS.md), [Schema del registro](docs/DATABASE_SCHEMA.md), [Cicli](docs/CYCLES.md) e [Roadmap](docs/ROADMAP.md).
 
 ## Risultati
@@ -61,6 +65,8 @@ L'agente ha passato quattro generazioni a ritoccare la valutazione. Due cambiame
 Da gen-8 l'arbitro non ha respinto nessun candidato che ha giudicato; il lavoro perso è quello rimasto indietro. 6 delle 17 iterazioni da allora hanno preparato il candidato mentre un altro era sotto giudizio, e la loro modifica non si applicava più quando quello è diventato campione.
 
 Ogni campione viene misurato anche da solo contro la scala di Stockfish; il sito mostra quel numero accanto alla stima congiunta. gen-15 da solo fa 1.919 ± 166, sotto gen-14 da solo (2.108 ± 130), anche se ha battuto gen-14 di +84 ± 34: con 40 partite per gradino le misure singole sono rumorose, e la stima congiunta prende in prestito le centinaia di partite dei match fra campioni.
+
+![La pagina Evoluzione: l'Elo congiunto di ogni generazione con il suo margine, e ogni esperimento con il suo esito](docs/screenshots/evolution-en.png)
 
 La storia completa, generazione per generazione, è sul [sito](https://darwin.esse.dev) e nei [CYCLES](docs/CYCLES.md).
 

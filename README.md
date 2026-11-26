@@ -6,6 +6,8 @@ An LLM agent writes a chess engine in Rust from an empty crate and keeps evolvin
 
 Status: running 24/7 since 2026-11-25, with the games, the agent's reasoning and the spend shown live on the site.
 
+![The live page: the champion's strength and the latest generations, the referee's match on the board, the verdict and the day's spend](docs/screenshots/live-en.png)
+
 ## Question
 
 How far does a cheap, autonomous LLM agent get at building a chess engine when every change it makes has to win games to survive, and nothing it writes can bend the measurement?
@@ -38,6 +40,8 @@ Results as of 2026-11-26, after about 27 hours:
 - **Lichess**: a bot plays the reigning champion around the clock. Lichess never judges candidates; Stockfish analyses every loss and the agent receives it as a lesson.
 - Division of roles, by design: the LLM builds and optimizes the machine, and chess knowledge in the evaluation is meant to come from a network trained on the engine's self-play, not from the LLM's memory.
 
+![A session page: every action of the agent phrased in words, its summarized reasoning in between, the real command one click away](docs/screenshots/session-en.png)
+
 Details in [Architecture](docs/ARCHITECTURE.md), [Decisions](docs/DECISIONS.md), [Ledger schema](docs/DATABASE_SCHEMA.md), [Cycles](docs/CYCLES.md) and [Roadmap](docs/ROADMAP.md).
 
 ## Results
@@ -61,6 +65,8 @@ The agent spent four generations on small evaluation tweaks. Two changes came ju
 Since gen-8 the referee has rejected no candidate it judged; the work lost is the work that went stale. 6 of the 17 iterations since then prepared their candidate while another was on trial, and their change no longer applied once that one became champion.
 
 Each champion is also rated on its own against the Stockfish ladder; the site shows that number next to the joint estimate. gen-15 alone scores 1,919 ± 166, below gen-14 alone (2,108 ± 130), although it beat gen-14 by +84 ± 34: with 40 games per rung the single ratings are noisy, and the joint fit borrows the hundreds of games of the matches between champions.
+
+![The Evolution page: the joint Elo of every generation with its margin, and every experiment with its outcome](docs/screenshots/evolution-en.png)
 
 The full history, generation by generation, is on the [live site](https://darwin.esse.dev) and in [CYCLES](docs/CYCLES.md).
 
