@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from darwin.ledger import models as m
 from darwin.ledger.store import Ledger
@@ -104,3 +104,31 @@ def performance(rows: Sequence[m.LichessGame]) -> dict[int, dict[str, Any]]:
             "performance": round(avg + 400 * (wins - losses_) / len(played)),
         }
     return out
+
+
+async def record_challenge(ledger: Ledger, opponent: str, outcome: str) -> None:
+    async with ledger.session() as s:
+        s.add(m.LichessChallenge(opponent=opponent, outcome=outcome))
+
+
+async def challenges_since(ledger: Ledger, since: datetime) -> Sequence[datetime]:
+    """When each challenge Lichess counted was sent, oldest first. A challenge answered 429
+    was not accepted, so it is left out."""
+    async with ledger.session() as s:
+        rows = await s.scalars(
+            select(m.LichessChallenge.created_at)
+            .where(m.LichessChallenge.created_at >= since)
+            .where(m.LichessChallenge.outcome != "rate_limited")
+            .order_by(m.LichessChallenge.created_at)
+        )
+        return rows.all()
+
+
+async def bot_games_since(ledger: Ledger, since: datetime) -> int:
+    async with ledger.session() as s:
+        count = await s.scalar(
+            select(func.count(m.LichessGame.id))
+            .where(m.LichessGame.created_at >= since)
+            .where(m.LichessGame.opponent_title == "BOT")
+        )
+        return int(count or 0)

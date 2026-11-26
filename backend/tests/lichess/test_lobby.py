@@ -8,6 +8,7 @@ from typing import Any
 
 import pytest
 
+from darwin.ledger import lichess
 from darwin.ledger.store import Ledger
 from darwin.lichess import bot as bot_module
 from darwin.lichess import rules
@@ -177,3 +178,35 @@ async def test_rate_limits_without_a_wait_back_off_more_each_time(
     first, second = (b - a for a, b in itertools.pairwise(fake.challenged_at[:3]))
     assert first >= 0.5
     assert second >= 1.0  # doubled
+
+
+async def test_challenges_stop_at_the_daily_cap_refused_ones_included(
+    tmp_path: Path, fake: FakeLichess, lichess_url: str, ledger: Ledger
+) -> None:
+    fake.bots += [blitz_user(f"Busy{i}", 1600) for i in range(4)]
+    fake.refusing |= {f"Busy{i}" for i in range(4)}  # Lichess still counts a refused one
+    settings = bot_settings(tmp_path, lichess_url, challenge_every_s=0.2).model_copy(
+        update={"lichess_challenges_per_day": 2}
+    )
+    async with running_bot(settings, ledger, champion):
+        await until(lambda: len(fake.challenged) >= 2, 10)
+        await asyncio.sleep(1.5)  # several more rounds
+    assert len(fake.challenged) == 2
+
+
+async def test_no_challenge_after_the_daily_bot_games(
+    tmp_path: Path, fake: FakeLichess, lichess_url: str, ledger: Ledger
+) -> None:
+    fake.bots.append(blitz_user("Near", 1600))
+    await ledger.seed("a" * 40)
+    for i in range(2):
+        await lichess.start_game(
+            ledger, lichess_id=f"g{i}", generation_id=0, color="white", opponent="Near",
+            opponent_rating=1600, opponent_title="BOT", rated=True, time_control="180+2",
+        )  # fmt: skip
+    settings = bot_settings(tmp_path, lichess_url, challenge_every_s=0.2).model_copy(
+        update={"lichess_bot_games_per_day": 2}
+    )
+    async with running_bot(settings, ledger, champion):
+        await asyncio.sleep(1.5)
+    assert fake.challenged == []

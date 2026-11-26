@@ -85,6 +85,10 @@ class Settings(BaseSettings):
     lichess_clock_s: int = 180
     lichess_increment_s: int = 2
     lichess_challenge_every_s: float = 120.0
+    # Below Lichess's own caps (lila: 200 challenges sent a day per account, 100 games a day
+    # against other bots), so the bot never runs into them and stays blocked for hours.
+    lichess_challenges_per_day: int = 150
+    lichess_bot_games_per_day: int = 90
     # Opponents are sought around this rating until ours settles (Lichess starts bots at
     # 3000). A first guess for a young engine; the anchors' Elo is a better one later.
     lichess_start_rating: int = 1200

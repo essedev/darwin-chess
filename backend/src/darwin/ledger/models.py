@@ -162,6 +162,16 @@ class LichessGame(Timestamped, Base):
     finished_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
 
 
+class LichessChallenge(Timestamped, Base):
+    """A challenge the bot sent to another bot. Lichess caps the challenges an account sends
+    in a day, so matchmaking counts them here, where a restart does not lose them."""
+
+    __tablename__ = "lichess_challenges"
+
+    opponent: Mapped[str] = mapped_column(String(64))
+    outcome: Mapped[str] = mapped_column(String(16))  # created, refused, rate_limited
+
+
 class Commentary(Timestamped, Base):
     """A short text for the visitors of the public site, in Italian and English. Never shown
     to the agent. For `hypothesis` and `lesson` the English is the agent's own text."""

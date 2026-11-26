@@ -10,9 +10,11 @@ import logging
 import random
 import time
 from collections.abc import Awaitable, Callable
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from darwin.config import Settings
+from darwin.ledger import lichess
 from darwin.ledger.store import Ledger
 from darwin.lichess import rules
 from darwin.lichess.client import LichessClient, LichessError, RateLimited
@@ -32,7 +34,8 @@ MAX_CHALLENGE_BACKOFF_S = 4 * 3600.0
 PENDING_TTL_S = 60.0
 
 
-CHALLENGE_ATTEMPTS = 5
+CHALLENGE_ATTEMPTS = 3  # every attempt counts toward the daily cap, refused ones too
+DAY = timedelta(days=1)
 MIN_CHALLENGE_GAP_S = 5.0  # between two matchmaking rounds, even when a decline wakes it
 
 
@@ -62,6 +65,7 @@ class LichessBot:
         # A challenge we sent or accepted whose game has not started yet.
         self.pending_id: str | None = None
         self.challenge_backoff_s = RATE_LIMIT_S  # grows while challenges are rate limited
+        self.capped = False  # the daily cap on challenges or bot games is reached
         self.pending_since: float | None = None
         # Trial runs stop after a number of games; the service plays forever.
         self.max_games = max_games
@@ -205,6 +209,8 @@ class LichessBot:
             return
         if self.busy() or await self.engine_for() is None:
             return
+        if await self._daily_cap_reached():  # no Lichess call at all while capped
+            return
         await self._identify()
         bots = [
             b
@@ -214,6 +220,8 @@ class LichessBot:
         # Lichess refuses some challenges outright (an opponent's daily cap, its own rules):
         # try another bot at once instead of losing a matchmaking round.
         for _attempt in range(CHALLENGE_ATTEMPTS):
+            if await self._daily_cap_reached():  # before every attempt: each one counts
+                return
             name = rules.pick_opponent(
                 bots, me=self.me, my_rating=self.rating, speed=self.speed, rng=self.rng
             )
@@ -227,15 +235,37 @@ class LichessBot:
                 )
             except RateLimited:
                 self._clear_pending()
+                await lichess.record_challenge(self.ledger, name, "rate_limited")
                 raise
             except LichessError as refused:
                 self._clear_pending()
+                await lichess.record_challenge(self.ledger, name, "refused")
                 log.info("lichess: %s refused at once (%s), trying another", name, refused)
                 bots = [b for b in bots if str(b.get("username") or b.get("id") or "") != name]
                 continue
+            await lichess.record_challenge(self.ledger, name, "created")
             log.info("lichess: challenged %s", name)
             self.challenge_backoff_s = RATE_LIMIT_S
             return
+
+    async def _daily_cap_reached(self) -> bool:
+        """True while the last 24 hours hold as many challenges or bot games as the settings
+        allow; logged once when the cap is reached and once when it lifts."""
+        since = datetime.now(UTC) - DAY
+        sent = await lichess.challenges_since(self.ledger, since)
+        games = await lichess.bot_games_since(self.ledger, since)
+        s = self.settings
+        capped = len(sent) >= s.lichess_challenges_per_day or games >= s.lichess_bot_games_per_day
+        if capped and not self.capped:
+            reopens = sent[0] + DAY if len(sent) >= s.lichess_challenges_per_day else None
+            log.info(
+                "lichess: daily cap reached (%d challenges, %d bot games in 24 h)%s",
+                len(sent), games, f", challenges again from {reopens:%H:%M} UTC" if reopens else "",
+            )  # fmt: skip
+        elif self.capped and not capped:
+            log.info("lichess: daily cap lifted, challenging again")
+        self.capped = capped
+        return capped
 
     def _challenge_pause(self, limited: RateLimited) -> float:
         """How long to stop challenging: what Lichess asked for when it says, otherwise a

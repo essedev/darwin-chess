@@ -1,0 +1,1649 @@
+<!doctype html>
+<html lang="it">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Concept D - lavoro</title>
+		<!--
+			Concept D: come il visitatore vede cosa sta facendo l’agente quando sulla scacchiera non
+			c’è una partita, e dove legge il flusso completo di una sessione.
+			Tasti: x a b c per la variante; r riavvia il replay, f salta alla fine (adesso); t tema,
+			p nasconde la barra. Anche dai bottoni nella barra del mock.
+
+			Il problema: la Diretta mostra dell’agente solo i "pensieri", cioè il testo che scrive fra
+			una chiamata e l’altra. Haiku a effort alto (DECISIONS #25) ne scrive quasi nessuno: la
+			sessione #30 ha 0 pensieri e 21 chiamate a strumenti. Con l’arbitro fermo la colonna
+			centrale è una scacchiera alla posizione iniziale con "In attesa di una partita", e sotto
+			"L’agente pensa" con l’ultimo pensiero che c’è fra gli ultimi 30 eventi: per i primi 25
+			eventi della #30 è quello di fine sessione #29, scritto quattro ore e mezza prima (19:21);
+			poi "Ancora nessun pensiero da mostrare.". Intanto l’agente ha riletto il codice, l’ha
+			confrontato con il tentativo #29, ha modificato main.rs (null-move pruning), si è scritto
+			uno strumento per giocare partite in locale (/memory/match.py), ha giocato 60 partite di
+			prova (la versione nuova ne vince 29, quella di partenza 24, 7 patte), ne ha avviate altre
+			due serie da 100 in parallelo, ha riletto le sconfitte su Lichess e aspetta 15 minuti.
+			Tutto questo è già nel registro (agent_events: status, thought, tool_call, tool_result con
+			il payload) e passa già nel flusso SSE della Diretta: il frontend lo scarta.
+
+			X  oggi: la colonna centrale com’è senza partita (stage.tsx, arena-game.tsx, la Caption).
+			   Nessuna pagina della sessione: non esiste.
+			A  Registro: la verità prima della leggibilità. Una riga per chiamata, in ordine, scritta
+			   per una persona ("legge main.rs, righe 360-520", "compila", "aspetta 15 minuti"), con il
+			   comando e la risposta veri a un clic e i pensieri in mezzo, come in un terminale. In
+			   Diretta la scheda è la coda del registro: l’azione in corso e le ultime sei righe.
+			B  Racconto: per chi non sa cos’è cargo. La sessione divisa in passi (capisce, modifica,
+			   prova, aspetta, consegna), ognuno con una frase e i conteggi; le azioni sono chiuse dentro
+			   il passo. In Diretta una frase grande su cosa sta facendo, la fila dei cinque passi con
+			   quello in corso, gli ultimi tre passi.
+			C  Due colonne: come un debugger. A sinistra la cronologia dei passi con le azioni, a
+			   destra il dettaglio di quella scelta (modifica al codice, comando, risposta); segue
+			   l’ultima azione finché non ne scegli una. Sotto i 960 px il dettaglio si apre sotto la
+			   voce. In Diretta i passi in colonna e, accanto, il comando in corso e la coda dell’ultima
+			   risposta.
+
+			Uguale in tutte: barra in alto, colonne laterali, linguaggio visivo E (DECISIONS #24), le
+			stesse regole per le frasi e lo stesso replay. Cambia solo la colonna centrale senza
+			partita e la pagina della sessione. Quando una partita c’è, in A, B e C la scacchiera
+			torna al suo posto e la scheda scende dove oggi c’è la Caption, ridotta all’azione in corso
+			e al link (non mostrato qui).
+
+			Dove sta la pagina della sessione: una pagina sua, #/sessione?id=30, fuori dalla barra di
+			navigazione (le cinque voci restano). Ci si arriva dalla scheda della Diretta ("Segui la
+			sessione"), da ogni tentativo in Evoluzione ("Guarda la sessione": sessione ed esperimento
+			sono la stessa cosa, uno per sessione) e da un link in Mente. Non dentro Mente: Mente è
+			quello che l’agente sa (strategia, appunti, istruzioni: testi lenti, versionati), la
+			sessione è quello che fa, minuto per minuto, ed è legata a un esperimento; quaranta minuti
+			di azioni sotto la strategia allungherebbero Mente e mescolerebbero due orologi.
+
+			Mappatura sul codice di oggi (fattibilità, non piano):
+			- Dati: agent_events ha già tutto. useLiveStream (lib/api.ts) riceve ogni evento "agent"
+			  e ne tiene 200; Stage legge solo kind thought. L’overview porta gli ultimi 30 eventi di
+			  tutte le sessioni, che bastano per la scheda in Diretta ma non per la pagina.
+			- Nuovo nel backend: GET /api/sessions/{experiment_id}/events (tutti gli eventi della
+			  sessione in ordine di id, con un cursore after), per la pagina e per le sessioni passate;
+			  la sessione in corso poi si aggiorna dal flusso SSE filtrando per experiment_id.
+			- Nuovo nel backend, consigliato: session.py salva args come str(dict), cioè il repr Python,
+			  tagliato a 2.000 caratteri. Il mock lo legge con un parser tollerante; nel prodotto va
+			  salvato come oggetto JSON (la colonna payload è già JSON), tagliando i singoli campi
+			  (command, content, edits) e non la stringa intera: oggi una modifica lunga arriva a metà
+			  (eventi 532 e 575).
+			- Nuovo nel backend, consigliato: nessun id lega una risposta alla sua chiamata. Il mock le
+			  accoppia per ordine dentro lo stesso strumento, e regge anche le chiamate in parallelo
+			  (553 e 554 rispondono in ordine inverso: 555 experiments prima di 556 bash); pi manda un
+			  id della chiamata in tool_execution_start/end (da verificare il nome del campo): va salvato.
+			- Limite che resta: le risposte sono tagliate a 2.000 caratteri (TEXT_LIMIT). "Mostra tutto"
+			  mostra quei 2.000 e lo dice; l’output completo non esiste da nessuna parte.
+			- Nuovo nel frontend: features/session/describe.ts (le regole sotto, funzioni pure, frasi
+			  nei dizionari it/en, test sui payload veri delle sessioni 29 e 30), la pagina, la scheda
+			  in Stage quando game è null, una tinta "live" in lib/hue.ts (oggi le tinte sono quattro).
+			- Costo: zero. Le frasi vengono da regole fisse, nessun modello; comando e risposta restano
+			  come sono, perché sono codice (DECISIONS #23).
+			- Le regole (sul nome dello strumento, poi sul comando bash spezzato su && ; | & e a capo,
+			  rispettando virgolette e heredoc; i filtri dopo una pipe come head, tail, grep si ignorano;
+			  cd, echo, printf, rm, sleep sotto i 30 s si tacciono):
+			  read                       -> "legge main.rs, righe 360-619" (offset, limit)
+			  edit                       -> "modifica main.rs: +17 righe" (diff riga per riga fra oldText e newText)
+			  write in /memory/*.py      -> "scrive un suo strumento: match.py"; in /genome "scrive <file>"
+			  experiments                -> "cerca fra i tentativi passati: «quiescence»" o "rilegge gli ultimi N tentativi"
+			  lichess_losses             -> "rilegge le ultime N sconfitte su Lichess"
+			  perft_check                -> "controlla le regole: perft a profondità N"
+			  submit / run_job           -> "consegna il candidato all’arbitro" / "avvia un lavoro lungo"
+			  sed -n A,Bp FILE           -> "legge FILE, righe A-B" (più intervalli: "righe 14-30 e 228-292")
+			  cat|head|tail NOTES.md     -> "rilegge gli appunti" (STRATEGY.md la strategia, CONTRACT.md il contratto)
+			  cat|tail di un .log        -> "guarda come va il match di prova" se il log è l’uscita di un match
+			  grep "fn ..." FILE         -> "elenca le funzioni di FILE"; altro grep "cerca «x» in FILE"
+			  git log|status             -> "guarda la storia del codice"; git show-ref "elenca le versioni salvate"
+			  git diff ... exp-N         -> "confronta con il tentativo #N"
+			  git worktree add DIR HEAD  -> "mette da parte la versione di partenza" (DIR diventa "partenza")
+			  ls / wc -l / which, nproc  -> "guarda i file" / "conta le righe del codice" / "controlla gli strumenti a disposizione"
+			  cargo build | cargo test   -> "compila" | "lancia i test"
+			  .../target/release/genome  -> "prova il motore su N posizioni" (N: voci del for o "position" nel comando)
+			  python3 -c "import X"      -> "controlla se c’è il modulo Python X"
+			  python3 - <<EOF che scrive -> "aggiorna gli appunti" (NOTES.md) o "modifica il suo strumento X.py"
+			  python3 - <<EOF con import da /memory -> "prova a mano il suo strumento X.py"
+			  python3 /memory/match.py A B N -> "gioca un match di prova: N partite"; con & "avvia in sottofondo"; due insieme "2 match ... ciascuno"
+			  sleep N (N >= 30)          -> "aspetta 15 minuti"; seguito da una lettura: ", poi guarda ..."
+			  nient’altro               -> "esegue <comando>"; più di tre frasi: "e altre N cose"
+			  Risposte: "final A vs B: W D L" -> "nuova 29 · partenza 24 · patte 7" (un motore sotto
+			  /genome è la versione nuova, uno nella cartella del worktree quella di partenza); "game
+			  N: ..." -> "dopo N partite: ..."; perft OK -> "mosse corrette su 8 posizioni"; bestmove e
+			  real -> "3 mosse scelte in 1,4 s"; "command not found" -> "manca il comando bc";
+			  ModuleNotFoundError -> "il modulo chess non c’è"; errori di cargo -> "non compila";
+			  letture -> "N righe"; altrimenti la prima riga della risposta, in mono.
+			  Passi (B e C): ogni chiamata ha una categoria (aspetta se comincia con sleep; prova se
+			  compila, prova il motore, gioca o scrive uno strumento; modifica se cambia /genome;
+			  consegna per submit e appunti; capisce il resto); chiamate consecutive della stessa
+			  categoria fanno un passo.
+			  Fragilità dichiarata: le regole su match.py leggono l’uscita di uno strumento scritto
+			  dall’agente. Se lo rinomina o cambia formato si torna a "lancia il suo strumento X" e alla
+			  prima riga della risposta, mai a una frase sbagliata.
+
+			Dati: veri, dal registro (eventi 519-593, sessioni #29 e #30, con i payload come sono) e
+			dall’API pubblica del 26/11 alle 00:11 (gen-9 a 1.679 ± 272 contro Stockfish, spesa
+			0,16 USD su 2 USD, 30 sessioni oggi, gli ultimi tre verdetti con il commento). Gli orari
+			sono quelli di Roma. Inventato o semplificato: la traduzione italiana del pensiero 548 (è
+			mia; quella vera la scrive Haiku); il replay assume l’arbitro fermo per tutta la sessione,
+			mentre fino alle 23:53:45 giocava le ultime partite di #29; barra in alto e colonne laterali
+			restano ferme allo stato di adesso (Generazione 9); il grafico dell’Elo è semplificato;
+			niente partita su Lichess. Il replay va a 8x, i silenzi lunghi (le attese dell’agente)
+			durano 2,5 s, dopo l’ultimo evento si arriva alle 00:11:02 e da lì il tempo è reale.
+
+			Giro 1: prima versione, X A B C. Le frasi delle regole sono state controllate su tutte le 35
+			   chiamate delle sessioni 29 e 30; verificata nel browser a 1440, 1280 e 390 px, temi chiaro e scuro.
+		-->
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+		<style>
+			/* Tokens copied from frontend/src/index.css (:root and .dark). */
+			:root {
+				--live: #e2553f; --good: #1e9a5a; --bad: #d23b3b; --sq-light: #ece6d2; --sq-dark: #7d9c63;
+				--code-keyword: #a3263f; --code-string: #2f6f3a; --code-number: #9a5b00; --code-comment: #8a8578;
+				--background: #f7f6f2; --foreground: #18181a; --card: #fdfdfb; --muted: #efede8; --muted-foreground: #7d7b76; --border: #e6e3dc;
+				--c-strength: #2f6fde; --c-gens: #7a4fd8; --c-verdict: #1e9a5a; --c-spend: #d9960f;
+				--panel-shadow: inset 0 0 0 1px var(--border);
+				--sans: 'Geist', system-ui, sans-serif; --mono: 'Geist Mono', ui-monospace, monospace;
+				color-scheme: light;
+			}
+			:root[data-theme='dark'] {
+				--live: #ff7c66; --good: #4fd08a; --bad: #ff6b6b; --sq-light: #d6d0bb; --sq-dark: #5f7d4a;
+				--code-keyword: #f2869a; --code-string: #9bd39a; --code-number: #f2b866; --code-comment: #8b8b8b;
+				--background: #101012; --foreground: #ececed; --card: #17171a; --muted: #212125; --muted-foreground: #8c8c92; --border: #29292e;
+				--c-strength: #6ea0ff; --c-gens: #a98bff; --c-verdict: #4fd08a; --c-spend: #f2bd4a;
+				color-scheme: dark;
+			}
+			* { box-sizing: border-box; }
+			html, body { margin: 0; }
+			body { min-height: 100vh; background: var(--background); color: var(--foreground); font: 14px/1.5 var(--sans); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+			[hidden] { display: none !important; }
+			button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: inherit; }
+			p, h1, h2, h3, ol, ul, pre { margin: 0; }
+			ol, ul { padding: 0; list-style: none; }
+			a { color: inherit; text-decoration: none; }
+			.mono { font-family: var(--mono); }
+			.muted { color: var(--muted-foreground); }
+			.num { font-variant-numeric: tabular-nums; }
+			:focus-visible { outline: 2px solid color-mix(in oklab, var(--foreground) 40%, transparent); outline-offset: 2px; border-radius: 6px; }
+
+			/* Concept chrome: the variant bar, the replay controls, the shot labels. Not part of the design. */
+			.switch { position: sticky; top: 0; z-index: 100; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px 12px; background: #111; color: #aaa; font: 12px/1.4 ui-monospace, Menlo, monospace; }
+			.switch button { border: 0; padding: 5px 9px; border-radius: 6px; background: #262626; color: #eee; }
+			.switch button[aria-pressed='true'] { background: #eee; color: #111; }
+			.switch p { margin: 0 0 0 8px; flex: 1 1 240px; min-width: 0; }
+			.switch .replay { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; padding-left: 8px; border-left: 1px solid #333; }
+			.switch .vclock { color: #ddd; padding: 0 4px; font-variant-numeric: tabular-nums; }
+			body[data-chrome='off'] .switch, body[data-chrome='off'] .shot { display: none; }
+			.shot { max-width: 1440px; margin: 0 auto; padding: 28px 16px 10px; font: 12px/1.5 ui-monospace, Menlo, monospace; color: var(--muted-foreground); }
+			.shot b { color: var(--foreground); font-weight: 600; }
+			@media (min-width: 640px) { .shot { padding: 32px 32px 10px; } }
+			.screen { border-top: 1px dashed color-mix(in oklab, var(--foreground) 25%, transparent); border-bottom: 1px dashed color-mix(in oklab, var(--foreground) 25%, transparent); }
+			.nothing { max-width: 1440px; margin: 0 auto; padding: 32px 16px 48px; }
+			.nothing div { border: 1px dashed color-mix(in oklab, var(--foreground) 25%, transparent); border-radius: 12px; padding: 20px; font: 13px/1.6 ui-monospace, Menlo, monospace; color: var(--muted-foreground); max-width: 720px; }
+			@media (min-width: 640px) { .nothing { padding: 40px 32px 56px; } }
+
+			/* The site: navigation (components/nav.tsx). */
+			.nav { display: flex; align-items: center; gap: 16px; border-bottom: 1px solid var(--border); background: color-mix(in oklab, var(--background) 90%, transparent); padding: 0 16px; }
+			@media (min-width: 640px) { .nav { padding: 0 32px; } }
+			.brand { flex: none; font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+			.brand span { margin-right: 8px; font-weight: 400; color: var(--c-verdict); }
+			.tabsnav { display: flex; gap: 4px; min-width: 0; overflow-x: auto; scrollbar-width: none; margin-bottom: -1px; }
+			.tabsnav::-webkit-scrollbar { display: none; }
+			.tabsnav a { display: inline-flex; height: 44px; align-items: center; padding: 0 10px; border-bottom: 2px solid transparent; font-size: 14px; font-weight: 500; white-space: nowrap; color: var(--muted-foreground); }
+			.tabsnav a[aria-current='page'] { border-color: var(--live); color: var(--foreground); }
+			.lang { margin-left: auto; flex: none; font: 500 12px var(--mono); display: flex; align-items: center; }
+			.lang span { padding: 0 2px; color: var(--border); }
+			.lang b { font-weight: 500; padding: 0 6px; }
+
+			/* Panels (index.css): a tint of the subject on surface and border, label, dashed rule. */
+			.panel { --hue-on: var(--hue, var(--muted-foreground)); background: color-mix(in oklab, var(--hue, transparent) 5%, var(--card)); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--hue, var(--border)) 22%, var(--border)); border-radius: 12px; padding: 20px; min-width: 0; }
+			.panel-label { font-family: var(--mono); font-size: 10.5px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--hue-on); display: flex; align-items: center; gap: 6px; line-height: 1.4; }
+			.panel-label::before { content: ''; flex: none; display: inline-block; width: 7px; height: 7px; margin-right: 2px; border-radius: 2px; background: var(--hue-on); }
+			.panel-rule { border-bottom: 1px dashed color-mix(in oklab, var(--hue, var(--border)) 30%, var(--border)); }
+			.phead { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 12px; margin-bottom: 14px; }
+			.phead .aside { flex: none; font: 500 12px var(--mono); color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+			.help { display: inline-flex; width: 16px; height: 16px; align-items: center; justify-content: center; border-radius: 999px; background: var(--muted); font: 600 10px var(--sans); color: var(--muted-foreground); letter-spacing: 0; }
+			.pfoot { margin-top: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-top: 1px dashed var(--border); padding-top: 12px; font-size: 12px; color: var(--muted-foreground); }
+			.golink { font-weight: 500; color: var(--live); font-size: 13px; white-space: nowrap; }
+			.golink:hover { text-decoration: underline; text-underline-offset: 4px; }
+			.hue-live { --hue: var(--live); }
+			.hue-strength { --hue: var(--c-strength); }
+			.hue-gens { --hue: var(--c-gens); }
+			.hue-verdict { --hue: var(--c-verdict); }
+			.hue-spend { --hue: var(--c-spend); }
+
+			/* The live page grid (live-view.tsx). */
+			.live { max-width: 1440px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; column-gap: 32px; row-gap: 28px; padding: 16px 16px 40px; }
+			@media (min-width: 640px) { .live { padding: 24px 32px 40px; } }
+			@media (min-width: 1024px) { .live { grid-template-columns: minmax(0, 1fr) 300px; } }
+			@media (min-width: 1280px) { .live { grid-template-columns: 280px minmax(0, 1fr) 320px; } }
+			.col { display: grid; gap: 14px; align-content: start; min-width: 0; }
+			.col-left { order: 3; }
+			.col-stage { order: 1; }
+			.col-side { order: 2; }
+			@media (min-width: 1024px) { .col-left { grid-column: 1 / -1; grid-template-columns: 1fr 1fr; } }
+			@media (min-width: 1280px) { .col-left { order: 0; grid-column: auto; grid-template-columns: minmax(0, 1fr); } .col-stage, .col-side { order: 0; } }
+
+			/* Top bar (top-bar.tsx). */
+			.topbar { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; column-gap: 16px; row-gap: 10px; }
+			.topbar .gen { display: flex; flex-direction: column; gap: 2px; }
+			@media (min-width: 640px) { .topbar .gen { flex-direction: row; align-items: baseline; gap: 12px; } }
+			.topbar h1 { font-size: 24px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.25; }
+			.topbar .gen p { font-size: 14px; color: var(--muted-foreground); }
+			.onair { display: inline-flex; height: 24px; align-items: center; gap: 7px; font-size: 13px; font-weight: 500; color: var(--live); }
+			.onair i, .dot-live { width: 7px; height: 7px; border-radius: 999px; background: currentColor; animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; display: inline-block; flex: none; }
+			.phases { display: flex; align-items: center; font: 11px var(--mono); letter-spacing: 0.04em; color: var(--muted-foreground); }
+			.phases li { display: none; align-items: center; gap: 6px; white-space: nowrap; }
+			.phases li[aria-current] { display: flex; font-weight: 500; color: var(--foreground); }
+			.phases li i { width: 6px; height: 6px; border-radius: 999px; background: var(--border); }
+			.phases li.done i { background: var(--muted-foreground); }
+			.phases li[aria-current] i { background: var(--c-verdict); }
+			@media (min-width: 640px) { .phases { margin-left: auto; } .phases li { display: flex; } .phases li + li::before { content: ''; width: 14px; height: 1px; background: var(--border); margin: 0 8px; } }
+			@keyframes pulse { 50% { opacity: 0.5; } }
+
+			/* Left and right columns (history.tsx, side-cards.tsx), static. */
+			.big { display: flex; align-items: baseline; gap: 8px; }
+			.big b { font: 500 44px/1 var(--mono); letter-spacing: -0.06em; color: var(--hue); font-variant-numeric: tabular-nums; }
+			.big .err { font: 500 16px var(--mono); color: var(--muted-foreground); }
+			.big .unit { font: 500 12px var(--mono); color: var(--muted-foreground); }
+			.small { font-size: 12px; }
+			.gens { margin: 0 -10px; display: grid; gap: 2px; }
+			.gens li { display: grid; grid-template-columns: 50px minmax(0, 1fr) auto; align-items: center; gap: 10px; border-radius: 10px; padding: 9px 10px; }
+			.gens li.now { background: color-mix(in oklab, var(--live) 10%, transparent); }
+			.gens .tag { font: 500 12px var(--mono); color: var(--muted-foreground); }
+			.gens li.now .tag { color: var(--live); }
+			.gens b { display: block; font-size: 13.5px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+			.gens span.sub { display: block; font-size: 11.5px; color: var(--muted-foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+			.gens .val { text-align: right; font: 500 13px var(--mono); color: var(--c-strength); font-variant-numeric: tabular-nums; }
+			.gens .val small { display: block; font-size: 10.5px; font-weight: 400; color: var(--muted-foreground); }
+			.plink { font-size: 12px; font-weight: 500; color: var(--hue); }
+			.verdict-word { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; color: var(--good); }
+			.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+			.spend b { font: 500 30px/1 var(--mono); letter-spacing: -0.05em; color: var(--hue); }
+			.meter { margin-top: 12px; height: 6px; border-radius: 999px; background: var(--muted); }
+			.meter i { display: block; height: 6px; border-radius: 999px; background: var(--hue); }
+			.judged { display: grid; }
+			.judged li { display: grid; gap: 4px; padding: 12px 0; border-top: 1px solid var(--border); }
+			.judged li:first-child { padding-top: 0; border-top: 0; }
+			.judged li:last-child { padding-bottom: 0; }
+			.judged .line { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+			.judged .line b { min-width: 0; font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+			.pill { margin-left: auto; flex: none; border-radius: 999px; padding: 1px 8px; font-size: 12px; font-weight: 600; }
+			.pill.good { background: color-mix(in oklab, var(--good) 12%, transparent); color: var(--good); }
+			.clamp2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+			.textbtn { margin-top: 4px; font-size: 12px; font-weight: 500; color: color-mix(in oklab, var(--foreground) 80%, transparent); }
+			.textbtn:hover { text-decoration: underline; text-underline-offset: 4px; }
+
+			/* Stage of today (stage.tsx, arena-game.tsx, game-parts.tsx). */
+			.stagebar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
+			.gtabs { display: inline-flex; border-radius: 999px; background: var(--muted); padding: 3px; }
+			.gtabs button { display: inline-flex; height: 28px; align-items: center; border-radius: 999px; padding: 0 14px; font-size: 13px; font-weight: 500; color: var(--muted-foreground); }
+			.gtabs button[aria-selected='true'] { background: var(--card); color: var(--foreground); box-shadow: 0 1px 2px rgb(0 0 0 / 0.12); }
+			.frame { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+			@media (min-width: 1024px) { .frame { grid-template-columns: minmax(0, 1fr) 132px; } .frame .moves { padding: 52px 0; } }
+			.frame > div { display: grid; gap: 10px; min-width: 0; align-content: start; }
+			.player { display: flex; min-height: 42px; align-items: center; gap: 12px; padding: 0 2px; }
+			.player .disc { width: 14px; height: 14px; flex: none; border-radius: 999px; box-shadow: 0 0 0 1.5px var(--border); }
+			.player b { font-size: 15px; font-weight: 600; }
+			.tray { border-radius: 16px; background: var(--card); padding: 8px; box-shadow: var(--panel-shadow); }
+			.board { display: grid; grid-template-columns: repeat(8, 1fr); aspect-ratio: 1; border-radius: 8px; overflow: hidden; }
+			.board div { position: relative; }
+			.board img { position: absolute; inset: 0; width: 100%; height: 100%; }
+			.board .f, .board .r { position: absolute; font: 600 10px var(--sans); user-select: none; }
+			.board .f { bottom: 2px; right: 4px; }
+			.board .r { top: 3px; left: 4px; }
+			.moves .label { display: none; font: 500 11px var(--mono); letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted-foreground); }
+			@media (min-width: 1024px) { .moves .label { display: block; } }
+			.caption { margin: 4px auto 0; width: 100%; max-width: 620px; text-align: center; }
+			.caption .k { font: 500 11px var(--mono); letter-spacing: 0.05em; text-transform: uppercase; color: var(--c-gens); }
+			.caption p + p { margin-top: 6px; font-size: 17px; line-height: 1.375; font-weight: 500; text-wrap: balance; }
+			@media (min-width: 1024px) { .caption p + p { font-size: 18px; } }
+
+			/* Shared pieces of the new work card and the session page. */
+			.nowline { font-size: 20px; line-height: 1.3; font-weight: 600; letter-spacing: -0.015em; text-wrap: balance; }
+			.nowline::first-letter { text-transform: uppercase; }
+			.bar { margin-top: 10px; height: 6px; border-radius: 999px; background: var(--muted); overflow: hidden; }
+			.bar i { display: block; height: 6px; border-radius: 999px; background: var(--live); width: 0; }
+			.sub { margin-top: 8px; font-size: 12px; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+			.tone-good { color: var(--good); }
+			.tone-bad { color: var(--bad); }
+			.tone-warn { color: var(--c-spend); }
+			.tone-live { color: var(--live); }
+			.cap::first-letter { text-transform: uppercase; }
+			.ascii { font: 12.5px/1.15 var(--mono); white-space: pre; user-select: none; }
+
+			/* A: the tail of the log in the card, and the log page. */
+			.tail { margin-top: 16px; border-radius: 10px; background: color-mix(in oklab, var(--muted) 70%, transparent); padding: 10px 12px; display: grid; gap: 2px; font-family: var(--mono); font-size: 12.5px; }
+			.tail li { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 10px; padding: 3px 0; }
+			.tail .t { color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+			.tail .o { color: var(--muted-foreground); }
+			.tail li.pending .w { color: var(--live); }
+			.tail li.thought .w { font-family: var(--sans); color: var(--c-gens); }
+
+			.page { max-width: 1440px; margin: 0 auto; padding: 20px 16px 48px; display: grid; gap: 24px; align-content: start; }
+			@media (min-width: 640px) { .page { padding: 28px 32px 56px; } }
+			.page-head { display: grid; gap: 6px; }
+			.page-head h1 { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.2; }
+			@media (min-width: 640px) { .page-head h1 { font-size: 30px; } }
+			.page-head .intro { font-size: 15px; line-height: 1.625; color: var(--muted-foreground); max-width: 72ch; text-wrap: pretty; }
+			.page-head .how { font-size: 13px; color: var(--muted-foreground); max-width: 72ch; }
+			.sessnav { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+			.sessnav button { height: 28px; padding: 0 12px; border-radius: 999px; background: var(--muted); font: 500 12px var(--mono); color: var(--muted-foreground); display: inline-flex; align-items: center; gap: 6px; }
+			.sessnav button[aria-pressed='true'] { background: var(--card); color: var(--foreground); box-shadow: inset 0 0 0 1px var(--border); }
+			.meta { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 6px; font-size: 13px; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+			.meta .state { display: inline-flex; align-items: center; gap: 7px; font-weight: 500; }
+
+			.log { padding: 8px; }
+			.logl { display: grid; }
+			.row { width: 100%; display: grid; grid-template-columns: 64px minmax(0, 1fr) 16px; gap: 12px; align-items: baseline; padding: 8px 10px; border-radius: 10px; font-size: 14px; }
+			button.row:hover { background: color-mix(in oklab, var(--muted) 70%, transparent); }
+			.row[aria-expanded='true'] { background: var(--muted); border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+			.row .t { font: 12px var(--mono); color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+			.row .w { min-width: 0; }
+			.row .w .o { display: block; font-size: 12.5px; color: var(--muted-foreground); }
+			@media (min-width: 720px) { .row .w .o { display: inline; margin-left: 10px; } }
+			.row .o.mono { font-size: 12px; }
+			.row .chev { width: 16px; height: 16px; align-self: center; color: var(--muted-foreground); transition: transform 0.15s; }
+			.row[aria-expanded='true'] .chev { transform: rotate(90deg); }
+			.row.pending .w > span:first-child { color: var(--live); }
+			.raw { background: var(--muted); border-radius: 0 0 10px 10px; padding: 4px 12px 14px; margin-bottom: 6px; display: grid; gap: 8px; min-width: 0; }
+			.raw .lab { font: 500 10.5px var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted-foreground); margin-top: 6px; }
+			.code { font: 12px/1.55 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; background: var(--card); border-radius: 8px; padding: 10px 12px; box-shadow: inset 0 0 0 1px var(--border); max-width: 100%; }
+			.code.bad { color: var(--bad); }
+			.note { font-size: 12px; color: var(--muted-foreground); }
+			.more { justify-self: start; font-size: 12px; font-weight: 500; color: var(--live); }
+			.more:hover { text-decoration: underline; text-underline-offset: 4px; }
+			.diff { font: 12px/1.55 var(--mono); background: var(--card); border-radius: 8px; box-shadow: inset 0 0 0 1px var(--border); padding: 8px 0; overflow: hidden; }
+			.diff div { white-space: pre-wrap; overflow-wrap: anywhere; padding: 0 12px 0 28px; text-indent: -16px; }
+			.diff .add { background: color-mix(in oklab, var(--good) 12%, transparent); color: var(--code-string); }
+			.diff .del { background: color-mix(in oklab, var(--bad) 10%, transparent); color: var(--code-keyword); }
+			.diff .ctx { color: var(--muted-foreground); }
+			.sepl { display: flex; align-items: center; gap: 12px; padding: 10px; font: 12px var(--mono); color: var(--muted-foreground); }
+			.sepl::before, .sepl::after { content: ''; flex: 1; border-top: 1px dashed var(--border); }
+			.thought { padding: 10px 10px 12px 86px; display: grid; gap: 6px; }
+			@media (max-width: 559px) { .thought { padding-left: 10px; } }
+			.thought .k { font: 500 10.5px var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--c-gens); }
+			.md { display: grid; gap: 8px; font-size: 14.5px; line-height: 1.6; max-width: 72ch; }
+			.md ul { display: grid; gap: 4px; padding-left: 18px; list-style: disc; }
+			.md code { font: 12.5px var(--mono); background: var(--muted); border-radius: 4px; padding: 1px 4px; }
+			.cursor { padding: 8px 10px; display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 12px; font: 12px var(--mono); color: var(--muted-foreground); }
+			.cursor b { color: var(--live); font-weight: 600; animation: blink 1.1s steps(1) infinite; }
+			@keyframes blink { 50% { opacity: 0; } }
+
+			/* B: the step track and the step cards. */
+			.track { margin-top: 18px; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+			.track li { display: grid; gap: 6px; font-size: 12px; color: var(--muted-foreground); min-width: 0; }
+			.track li i { display: block; height: 4px; border-radius: 999px; background: var(--border); }
+			.track li.done i { background: color-mix(in oklab, var(--foreground) 35%, transparent); }
+			.track li.done { color: var(--foreground); }
+			.track li.cur i { background: var(--live); }
+			.track li.cur { color: var(--live); font-weight: 600; }
+			.track li > span { display: flex; align-items: center; gap: 6px; min-width: 0; }
+			.track .ascii { font-size: 10px; letter-spacing: -0.05em; }
+			.recent { margin-top: 18px; display: grid; gap: 12px; }
+			.recent li { display: grid; gap: 2px; }
+			.recent .k { font: 500 10.5px var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted-foreground); }
+			.recent p { font-size: 14px; }
+			.steps { display: grid; gap: 12px; max-width: 880px; }
+			.step { display: grid; gap: 6px; }
+			.step .shead { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+			.step .shead .aside { font: 12px var(--mono); color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+			.step h3 { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.35; text-wrap: balance; }
+			.step h3::first-letter { text-transform: uppercase; }
+			.step .facts { font-size: 13px; color: var(--muted-foreground); }
+			.step .res { font-size: 14px; }
+			.step .quote { margin-top: 6px; border-radius: 10px; background: color-mix(in oklab, var(--c-gens) 7%, transparent); padding: 12px 14px; display: grid; gap: 6px; }
+			.step .quote .k { font: 500 10.5px var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--c-gens); }
+			.step .open { justify-self: start; margin-top: 6px; font-size: 13px; font-weight: 500; color: var(--foreground); display: inline-flex; gap: 6px; align-items: center; }
+			.step .open svg { transition: transform 0.15s; }
+			.step .open[aria-expanded='true'] svg { transform: rotate(90deg); }
+			.step .logl { margin: 6px -10px 0; }
+
+			/* C: two columns, timeline and detail. */
+			.cgrid { display: grid; gap: 16px; align-items: start; }
+			@media (min-width: 960px) { .cgrid { grid-template-columns: minmax(300px, 400px) minmax(0, 1fr); } }
+			.tl { padding: 10px; }
+			.tl .sh { display: flex; justify-content: space-between; gap: 10px; padding: 12px 10px 6px; font: 500 10.5px var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted-foreground); }
+			.tl .sh:first-child { padding-top: 4px; }
+			.tl .sh.cur { color: var(--live); }
+			.tl .sh span:last-child { letter-spacing: 0; text-transform: none; font-variant-numeric: tabular-nums; }
+			.tl button.it { width: 100%; display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 10px; padding: 7px 10px; border-radius: 8px; font-size: 13.5px; align-items: baseline; }
+			.tl button.it:hover { background: color-mix(in oklab, var(--muted) 60%, transparent); }
+			.tl button.it[aria-current='true'] { background: var(--muted); font-weight: 500; }
+			.tl button.it .t { font: 11.5px var(--mono); color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+			.tl button.it .w { min-width: 0; }
+			.tl button.it.pending .w { color: var(--live); }
+			.tl button.it.th .w { color: var(--c-gens); }
+			.detail { display: grid; gap: 10px; min-width: 0; }
+			@media (min-width: 960px) { .detail.side { position: sticky; top: 56px; } }
+			.detail h3 { font-size: 18px; font-weight: 600; line-height: 1.35; letter-spacing: -0.01em; }
+			.detail h3::first-letter { text-transform: uppercase; }
+			.detail .raw { background: none; padding: 0; margin: 0; }
+			.inline-detail { margin: 4px 0 8px; padding: 14px; border-radius: 10px; background: var(--muted); }
+			.inline-detail .code, .inline-detail .diff { background: var(--card); }
+			.follow { font-size: 12px; font-weight: 500; color: var(--live); }
+			.cardc { display: grid; gap: 16px; }
+			@media (min-width: 600px) { .cardc { grid-template-columns: 180px minmax(0, 1fr); } }
+			.mini { display: grid; gap: 2px; align-content: start; }
+			.mini li { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 5px 8px; border-radius: 8px; font-size: 13px; }
+			.mini li i { width: 7px; height: 7px; border-radius: 999px; background: color-mix(in oklab, var(--foreground) 35%, transparent); }
+			.mini li.cur { background: color-mix(in oklab, var(--live) 10%, transparent); color: var(--live); font-weight: 500; }
+			.mini li.cur i { background: var(--live); }
+			.mini li span:last-child { font: 11px var(--mono); color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+			.klab { font: 500 10.5px var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted-foreground); }
+			.code.clamp { max-height: calc(1.55em * 3 + 20px); overflow: hidden; }
+			.code.tailbox { max-height: calc(1.55em * 4 + 20px); overflow: hidden; }
+
+			@media (prefers-reduced-motion: reduce) { .onair i, .dot-live, .cursor b { animation: none; } }
+		</style>
+	</head>
+	<body data-v="x">
+		<div class="switch">
+			<span data-buttons></span>
+			<p data-desc></p>
+			<span class="replay">
+				<button data-replay="restart">r riavvia</button>
+				<button data-replay="pause">pausa</button>
+				<button data-replay="end">f fine</button>
+				<span class="vclock" data-vclock></span>
+			</span>
+			<button data-theme-toggle>t tema</button>
+		</div>
+
+		<p class="shot"><b>1 · Diretta</b>, quando sulla scacchiera non c’è una partita (#/diretta)</p>
+		<div class="screen">
+			<nav class="nav" aria-label="Sezioni">
+				<a class="brand" href="#" onclick="return false"><span aria-hidden="true">♞</span>darwin-chess</a>
+				<div class="tabsnav">
+					<a href="#" onclick="return false" aria-current="page">Diretta</a>
+					<a href="#" onclick="return false">Evoluzione</a>
+					<a href="#" onclick="return false">Codice</a>
+					<a href="#" onclick="return false">Mente</a>
+					<a href="#" onclick="return false">Laboratorio</a>
+				</div>
+				<div class="lang"><b>IT</b><span>|</span><b class="muted">EN</b></div>
+			</nav>
+			<main class="live">
+				<header class="topbar">
+					<div class="gen">
+						<h1>Generazione 9</h1>
+						<p>il candidato #30 prova a diventare la 10</p>
+					</div>
+					<span class="onair"><i></i>In diretta</span>
+					<ol class="phases" aria-label="Fasi del laboratorio">
+						<li class="done"><i></i>Genesi</li>
+						<li class="done"><i></i>Primi passi</li>
+						<li aria-current="step"><i></i>Evoluzione</li>
+						<li><i></i>Mondo</li>
+					</ol>
+				</header>
+
+				<aside class="col col-left">
+					<section class="panel hue-strength">
+						<header class="phead panel-rule"><h2 class="panel-label">Forza del campione <span class="help">?</span></h2></header>
+						<p class="big"><b>1.679</b><span class="err">± 272</span><span class="unit">Elo</span></p>
+						<p class="small muted" style="margin-top: 6px">contro Stockfish · gen-9</p>
+						<div style="margin-top: 12px" data-elo></div>
+						<p class="small muted" style="margin-top: 8px">Ogni punto è una misura con il suo margine al 95%.</p>
+					</section>
+					<section class="panel hue-gens">
+						<header class="phead panel-rule"><h2 class="panel-label">Generazioni</h2><a class="plink" href="#" onclick="return false">Tutte le 29 prove</a></header>
+						<ol class="gens">
+							<li class="now"><span class="tag">#30</span><span style="min-width: 0"><b>L’agente sta lavorando</b><span class="sub">L’agente sta lavorando</span></span><span class="val"></span></li>
+							<li><span class="tag">gen-9</span><span style="min-width: 0"><b>Smette di perdere pezzi in vista del traguardo</b><span class="sub">dopo 3 tentativi</span></span><span class="val">1.679<small>± 272</small></span></li>
+							<li><span class="tag">gen-8</span><span style="min-width: 0"><b>Il motore pensa più a fondo</b><span class="sub">al primo tentativo</span></span><span class="val">1.488<small>± 115</small></span></li>
+							<li><span class="tag">gen-7</span><span style="min-width: 0"><b>Bonus per cavalli ben sviluppati</b><span class="sub">dopo 4 tentativi</span></span><span class="val">1.259<small>± 119</small></span></li>
+							<li><span class="tag">gen-6</span><span style="min-width: 0"><b>Bonus per torri su colonne aperte</b><span class="sub">dopo 5 tentativi</span></span><span class="val">1.183<small>± 142</small></span></li>
+							<li><span class="tag">gen-5</span><span style="min-width: 0"><b>Valorizza i pedoni che avanzano verso la promozione</b><span class="sub">dopo 2 tentativi</span></span><span class="val">1.129<small>± 136</small></span></li>
+						</ol>
+					</section>
+				</aside>
+
+				<div class="col col-stage" data-stage></div>
+
+				<aside class="col col-side">
+					<section class="panel hue-verdict">
+						<header class="phead panel-rule"><h2 class="panel-label">Ultimo verdetto</h2></header>
+						<p class="verdict-word">promosso</p>
+						<p class="truncate" style="margin-top: 4px; font-size: 13px"><span class="mono muted">#29</span> Smette di perdere pezzi in vista del traguardo</p>
+					</section>
+					<section class="panel hue-spend spend">
+						<header class="phead panel-rule"><h2 class="panel-label">Speso oggi</h2></header>
+						<p class="big" style="gap: 8px"><b>0,16 USD</b><span class="mono muted" style="font-size: 13px">di 2,00 USD</span></p>
+						<div class="meter"><i style="width: 8%"></i></div>
+						<p class="small muted" style="margin-top: 10px">30 sessioni oggi</p>
+					</section>
+					<section class="panel">
+						<header class="phead panel-rule"><h2 class="panel-label">Ultimi verdetti dell’arbitro</h2></header>
+						<ol class="judged">
+							<li>
+								<p class="line"><span class="mono muted small">#29</span><b>Smette di perdere pezzi in vista del traguardo</b><span class="pill good">promosso</span></p>
+								<p class="small muted num">24 partite · +470 ± 1.047 sul campione · 23:53</p>
+								<div><p class="clamp2 muted" style="font-size: 13px">La modifica del motore, una ricerca di quiescenza alla fine delle varianti, ha funzionato: il nuovo motore ha vinto 22 partite su 24 contro il campione in carica, con una patta e una sconfitta, e l'arbitro lo ha accettato come nuovo campione. Quasi tutte le partite si sono chiuse con uno scacco matto, con una durata mediana di 78 semimosse (circa 39 mosse), e solo 2 partite su 24 sono state decise entro la 20ª mossa. La stima del vantaggio è di +470 Elo, ma con un margine di incertezza molto ampio, pari a ±1047.</p><button class="textbtn" data-clamp>Leggi tutto</button></div>
+							</li>
+							<li>
+								<p class="line"><span class="mono muted small">#26</span><b>Il motore pensa più a fondo</b><span class="pill good">promosso</span></p>
+								<p class="small muted num">48 partite · +416 ± 149 sul campione · 19:14</p>
+								<div><p class="clamp2 muted" style="font-size: 13px">La nuova versione del motore ha vinto 41 partite su 48, pareggiandone 6 e perdendone solo 1, e l'arbitro l'ha quindi promossa a nuovo campione. Quasi tutte le partite si sono concluse con uno scacco matto, mentre le sei patte sono arrivate per ripetizione; la partita mediana è durata circa 34 mosse.</p><button class="textbtn" data-clamp>Leggi tutto</button></div>
+							</li>
+							<li>
+								<p class="line"><span class="mono muted small">#24</span><b>Bonus per cavalli ben sviluppati</b><span class="pill good">promosso</span></p>
+								<p class="small muted num">2.016 partite · +17 ± 12 sul campione · 19:09</p>
+								<div><p class="clamp2 muted" style="font-size: 13px">Il cambiamento ha funzionato: la nuova versione del motore ha vinto 801 partite, ne ha pareggiate 512 e ne ha perse 703 contro il campione in carica, in 2016 partite giocate a coppie con i colori invertiti. L'arbitro ha accettato il risultato con un test statistico che ha confermato la superiorità, con un vantaggio stimato di +17 Elo (±12), e il nuovo motore è diventato il campione. La maggior parte delle partite si è chiusa con uno scacco matto, mentre le patte sono arrivate soprattutto per ripetizione di posizione, e la partita mediana è durata circa 43 mosse.</p><button class="textbtn" data-clamp>Leggi tutto</button></div>
+							</li>
+						</ol>
+						<div class="pfoot"><span></span><a class="golink" href="#" onclick="return false">Tutti in Evoluzione</a></div>
+					</section>
+				</aside>
+			</main>
+		</div>
+
+		<p class="shot" id="sessione"><b>2 · La sessione</b>: pagina sua (#/sessione?id=30), fuori dalla barra; ci si arriva dalla Diretta, da ogni tentativo in Evoluzione e da Mente</p>
+		<div class="screen">
+			<nav class="nav" aria-label="Sezioni">
+				<a class="brand" href="#" onclick="return false"><span aria-hidden="true">♞</span>darwin-chess</a>
+				<div class="tabsnav">
+					<a href="#" onclick="return false">Diretta</a>
+					<a href="#" onclick="return false">Evoluzione</a>
+					<a href="#" onclick="return false">Codice</a>
+					<a href="#" onclick="return false">Mente</a>
+					<a href="#" onclick="return false">Laboratorio</a>
+				</div>
+				<div class="lang"><b>IT</b><span>|</span><b class="muted">EN</b></div>
+			</nav>
+			<div class="nothing" data-only="x">
+				<div>Oggi questa pagina non esiste. Gli eventi tool_call e tool_result arrivano già nel flusso della Diretta (il sito ne tiene 200 in memoria) e stanno nel registro, ma il sito li scarta: una sessione, in corso o passata, non si può rileggere da nessuna parte. Dell’agente si vedono solo i pensieri, e la #30 non ne ha.</div>
+			</div>
+			<div data-only="a b c" data-page></div>
+		</div>
+
+		<script type="application/json" id="data">{"experiments":[{"id":29,"status":"accepted","base_generation_id":8,"trigger":"verdict:27","kind":"iteration","created_at":"2026-11-25T18:20:13.301Z","finished_at":"2026-11-25T22:53:45.390Z"},{"id":30,"status":"running","base_generation_id":8,"trigger":"start","kind":"iteration","created_at":"2026-11-25T22:51:23.760Z","finished_at":null}],"events":[{"id":519,"at":"2026-11-25T18:20:13.532Z","kind":"status","payload":{"state":"started","kind":"iteration","trigger":"verdict:27"}},{"id":520,"at":"2026-11-25T18:20:16.741Z","kind":"tool_call","payload":{"tool":"bash","args":"{'command': 'cd /genome \u0026\u0026 git log --oneline | head -5 \u0026\u0026 git status --short \u0026\u0026 ls src \u0026\u0026 wc -l src/*.rs \u0026\u0026 cat /memory/NOTES.md | head -20', 'timeout': 30}"}},{"id":521,"at":"2026-11-25T18:20:16.742Z","kind":"tool_call","payload":{"tool":"experiments","args":"{'limit': 5}"}},{"id":522,"at":"2026-11-25T18:20:16.749Z","kind":"tool_result","payload":{"tool":"experiments","error":false,"text":"#29 [evolution] running: (no submission)\n#28 [evolution] judging: Mate scores depend on ply: a mate found at ply n scores MATE-n (MATE=100000), so the mover prefers faster mates and delays mates it must suffer. Ply is threaded through the negamax (root children at ply 1). Movegen untouched; perft3 OK on 8 positions; finds mate-in-1 in test positions. Expect a small gain from converting won positions and fewer mates after long games (Lichess loss pattern).\n#27 [evolution] stale: Add quiescence search at the leaves of the go mover's depth-3 negamax: captures only (MVV-LVA ordered, stand-pat, all evasions when in check, capture depth capped at 6), so hanging pieces and recaptures at the horizon are seen, which targets the Lichess loss pattern. Movegen untouched, perft3 OK; worst local middlegame go time about 0.76 s (Kiwipete), 35-130 ms on others. Expect a clear gain.\n  lesson: #27 quiescence was still judging, so I took the strategy's mate-by-ply item (#7 retry), which is a one-line search change that does not touch the quiescence code.\n#26 [evolution] accepted: Replace the fixed depth-3 root search with iterative deepening: depths 1-3 always complete as before, and from depth 4 the search continues under a clock budget (wtime/30 + winc/2, capped at a quarter of the clock; movetime*0.8 if given), max depth 8, with an abort flag that discards an unfinished iteration. Adds MVV-LVA capture ordering (promotions first) and previous-best-move ordering to make the deeper search fast. Movegen untouched, so perft is unchanged; the clock is respected (about 1 s on a 30 s clock). Expect a clear gain from depth 4-5 in the middlegame.\n  gates: build ok {'cached': False}; perft ok {'positions': 8, 'depth': 3}; smoke ok {'games': 6}; match ok {'opponent': 'champion', 'games': 48, 'pentanomial': [0, 0, 1, 6, 17], 'elo': 416.4, 'elo_error': 149.4, 'llr': 7.382, 'bounds': [-2.944, 2.944], 'elo_bounds': [0, 10], 'verdict': 'h1'}\n  lesson: #24 was accepted with +16.9 Elo; #26 (iterative..."}},{"id":523,"at":"2026-11-25T18:20:16.782Z","kind":"tool_result","payload":{"tool":"bash","error":false,"text":"f147497 exp-26: Replace the fixed depth-3 root search with iterative deepening: depths 1-3 always complete as before, and from depth 4 the search continues under a clock budget (wtime/30 + winc/2, capped at a quarter of the clock; movetime*0.8 if given), max depth 8, with an abort flag that discards an unfinished iteration. Adds MVV-LVA capture ordering (promotions first) and previous-best-move ordering to make the deeper search fast. Movegen untouched, so perft is unchanged; the clock is respected (abo\n07987d3 exp-24: Add a +6cp eval bonus for knights on c3, f3, c6, f6 (classical development squares) in the go mover's material eval, so it develops knights sensibly. Movegen untouched so perft is unaffected; builds and returns a move from startpos. Distinct from pending rook-7th and knight-rim terms.\n56fa4c4 exp-20: Add a +12cp bonus for rooks on open files (no pawns of either colour) in the go mover's material eval, so it activates rooks. Distinct from pending tempo term; movegen untouched, perft3 OK; expected small strength gain.\nca46afd exp-15: Add a small eval bonus of 2cp per rank for pawns advanced toward promotion (both colours) in the go mover's material eval, so it values pawn pushes and passed-pawn progress. Movegen untouched so perft unaffected; builds and returns a move from startpos.\na0ed873 exp-13: Add a +10 centipawn centre bonus for knights and bishops on d4, e4, d5, e5 in the material eval used by the go mover's depth-2 search, so it develops pieces toward the centre instead of making neutral moves. Perft unaffected (movegen untouched); expected small positive strength gain.\nmain.rs\n620 src/main.rs\n# Notes\n\nLong-term memory. One line per lesson, newest first. Compacted in session 17.\n\n- Session 19: submitted mate-by-ply (MATE-ply, ply threaded through search, #7 retry) on gen-8; #27 quiescence still judging. Perft3 OK, mate-in-1 found.\n- Session 18: submitted iterative deepening (depths 1-3 fixed, clock budget wtime/30+inc/2 from depth 4, max 8) with..."}},{"id":524,"at":"2026-11-25T18:20:20.177Z","kind":"tool_call","payload":{"tool":"bash","args":"{'command': 'cd /genome \u0026\u0026 cat CONTRACT.md | head -40; grep -n \"fn \\\\|MATE\\\\|depth\" src/main.rs | head -120', 'timeout': 30}"}},{"id":525,"at":"2026-11-25T18:20:20.206Z","kind":"tool_result","payload":{"tool":"bash","error":false,"text":"# Contract\n\nYou own this repository. It must build a chess engine that the referee can play against.\n\n## What the referee requires\n\n1. `cargo build --release` produces the binary `target/release/genome`.\n2. The binary speaks UCI on stdin/stdout. At minimum: `uci` -\u003e `uciok`, `isready` -\u003e `readyok`,\n   `ucinewgame`, `position startpos|fen \u003cfen\u003e [moves ...]`, `go wtime \u003cms\u003e btime \u003cms\u003e winc \u003cms\u003e binc \u003cms\u003e`\n   -\u003e `bestmove \u003cmove\u003e`, `quit`.\n3. A `perft \u003cdepth\u003e` command on the current position prints, for each legal move,\n   `\u003cmove\u003e: \u003ccount\u003e` and then `total: \u003ccount\u003e`. The referee uses it to verify your move generator\n   on random positions.\n\n## How you are judged\n\nEvery candidate passes the gates in order and stops at the first failure:\n\n1. **build**: the release build succeeds.\n2. **perft**: counts match the reference on random positions.\n3. **smoke**: fast games without illegal moves, crashes or timeouts.\n4. **sprt**: a statistical match against the current champion.\n\nAn illegal move, a crash or a timeout loses the game. You cannot see or change the referee.\n\n## Resources\n\n- No network. Use the standard library or crates already vendored in this repository.\n- Each engine process gets one CPU core during matches.\n30:fn on(f: i32, r: i32) -\u003e Option\u003cusize\u003e {\n38:fn attacked(b: \u0026[i8; 64], s: usize, by_white: bool) -\u003e bool {\n83:fn push_promos(out: \u0026mut Vec\u003cMv\u003e, from: usize, to: usize, promo_rank: usize) {\n93:fn gen_moves(p: \u0026Pos, out: \u0026mut Vec\u003cMv\u003e) {\n216:fn castle_mask(s: usize) -\u003e u8 {\n228:fn make(p: \u0026Pos, m: Mv) -\u003e Pos {\n260:fn in_check_after(q: \u0026Pos, mover_white: bool) -\u003e bool {\n268:fn legal_moves(p: \u0026Pos) -\u003e Vec\u003c(Mv, Pos)\u003e {\n281:fn perft(p: \u0026Pos, depth: u32) -\u003e u64 {\n282:    if depth == 0 {\n286:    if depth == 1 {\n289:    moves.iter().map(|(_, q)| perft(q, depth - 1)).sum()\n292:fn sq_name(s: u8) -\u003e String {\n297:fn mv_str(m: Mv) -\u003e String {\n305:fn parse_fen(fen: \u0026str) -\u003e Option\u003cPos\u003e {\n348:fn parse_move(p: \u0026Pos, s: \u0026str) -\u003e Option\u003cMv\u003e {\n366:fn value(kind: i8) -\u003e i32 {\n379:..."}},{"id":526,"at":"2026-11-25T18:20:22.014Z","kind":"tool_call","payload":{"tool":"read","args":"{'path': '/genome/src/main.rs', 'offset': 360, 'limit': 260}"}},{"id":527,"at":"2026-11-25T18:20:22.070Z","kind":"tool_result","payload":{"tool":"read","error":false,"text":"    legal_moves(p)\n        .into_iter()\n        .map(|(m, _)| m)\n        .find(|m| m.from as usize == from \u0026\u0026 m.to as usize == to \u0026\u0026 m.promo == promo)\n}\n\nfn value(kind: i8) -\u003e i32 {\n    match kind {\n        1 =\u003e 100,\n        2 =\u003e 320,\n        3 =\u003e 330,\n        4 =\u003e 500,\n        5 =\u003e 900,\n        _ =\u003e 0,\n    }\n}\n\nstruct Rng(u64);\nimpl Rng {\n    fn next(\u0026mut self) -\u003e u64 {\n        self.0 ^= self.0 \u003c\u003c 13;\n        self.0 ^= self.0 \u003e\u003e 7;\n        self.0 ^= self.0 \u003c\u003c 17;\n        self.0\n    }\n}\n\nfn eval(p: \u0026Pos) -\u003e i32 {\n    let mut mat = 0;\n    // files with no pawns of either colour (for rook open-file bonus)\n    let mut pawn_file = [false; 8];\n    for (s, \u0026k) in p.b.iter().enumerate() {\n        if k.abs() == 1 {\n            pawn_file[s % 8] = true;\n        }\n    }\n    for (s, \u0026k) in p.b.iter().enumerate() {\n        if k != 0 {\n            let mut v = value(k.abs());\n            // bonus for rooks on open files\n            if k.abs() == 4 \u0026\u0026 !pawn_file[s % 8] {\n                v += 12;\n            }\n            // small centre bonus for knights and bishops\n            if (k.abs() == 2 || k.abs() == 3) \u0026\u0026 matches!(s, 27 | 28 | 35 | 36) {\n                v += 10;\n            }\n            // small bonus for knights on classical development squares (c3,f3,c6,f6)\n            if k.abs() == 2 \u0026\u0026 matches!(s, 18 | 21 | 42 | 45) {\n                v += 6;\n            }\n            // small bonus for pawns advanced toward promotion\n            if k == 1 {\n                v += 2 * ((s / 8) as i32 - 1);\n            } else if k == -1 {\n                v += 2 * (6 - (s / 8) as i32);\n            }\n            mat += if k \u003e 0 { v } else { -v };\n        }\n    }\n    if p.white { mat } else { -mat }\n}\n\nstruct Ctx {\n    start: Instant,\n    limit: Option\u003cDuration\u003e,\n    nodes: u64,\n    aborted: bool,\n}\n\n// Capture ordering: MVV-LVA, promotions first.\nfn order_score(p: \u0026Pos, m: Mv) -\u003e i32 {\n    let mut s = 0;\n    if m.promo != 0 {\n        s += 8_000 + value(m.promo as i8);\n    }\n    let victim =..."}},{"id":528,"at":"2026-11-25T18:20:27.656Z","kind":"tool_call","payload":{"tool":"bash","args":"{'command': 'cd /genome \u0026\u0026 git diff HEAD refs/darwin/exp-27 --stat \u0026\u0026 git diff HEAD refs/darwin/exp-27 | head -300; git diff HEAD refs/darwin/exp-28 --stat', 'timeout': 30}"}},{"id":529,"at":"2026-11-25T18:20:27.700Z","kind":"tool_result","payload":{"tool":"bash","error":false,"text":" src/main.rs | 179 ++++++++++++++++++++++++------------------------------------\n 1 file changed, 72 insertions(+), 107 deletions(-)\ndiff --git a/src/main.rs b/src/main.rs\nindex 3e31984..790d650 100644\n--- a/src/main.rs\n+++ b/src/main.rs\n@@ -1,7 +1,4 @@\n use std::io::{self, BufRead, Write};\n-use std::time::{Duration, Instant};\n-\n-const MAXD: u32 = 8;\n \n // Square index: 0 = a1 .. 7 = h1, 56 = a8 .. 63 = h8.\n // Piece codes: 1 P, 2 N, 3 B, 4 R, 5 Q, 6 K; white positive, black negative.\n@@ -420,55 +417,56 @@ fn eval(p: \u0026Pos) -\u003e i32 {\n     if p.white { mat } else { -mat }\n }\n \n-struct Ctx {\n-    start: Instant,\n-    limit: Option\u003cDuration\u003e,\n-    nodes: u64,\n-    aborted: bool,\n-}\n-\n-// Capture ordering: MVV-LVA, promotions first.\n-fn order_score(p: \u0026Pos, m: Mv) -\u003e i32 {\n-    let mut s = 0;\n-    if m.promo != 0 {\n-        s += 8_000 + value(m.promo as i8);\n-    }\n-    let victim = p.b[m.to as usize].abs();\n-    let attacker = p.b[m.from as usize].abs();\n-    if victim != 0 {\n-        let a = if attacker == 6 { 600 } else { value(attacker) };\n-        s += 10_000 + value(victim) * 10 - a;\n-    }\n-    s\n-}\n-\n // Negamax from the side to move in p; returns score for side to move.\n-fn search(p: \u0026Pos, depth: u32, mut alpha: i32, beta: i32, ctx: \u0026mut Ctx) -\u003e i32 {\n-    ctx.nodes += 1;\n-    if ctx.nodes \u0026 1023 == 0 {\n-        if let Some(l) = ctx.limit {\n-            if ctx.start.elapsed() \u003e= l {\n-                ctx.aborted = true;\n+// Quiescence: at leaves, keep searching captures (MVV-LVA order) so hanging pieces are seen.\n+// Side in check searches all legal evasions; depth is capped to bound the tree.\n+fn qsearch(p: \u0026Pos, mut alpha: i32, beta: i32, qd: u32) -\u003e i32 {\n+    let king = if p.white { 6 } else { -6 };\n+    let in_chk = match p.b.iter().position(|\u0026x| x == king) {\n+        Some(ks) =\u003e attacked(\u0026p.b, ks, !p.white),\n+        None =\u003e false,\n+    };\n+    if in_chk {\n+        let moves = legal_moves(p);\n+        if moves.is_empty() {\n+            return -100_000;\n+     ..."}},{"id":530,"at":"2026-11-25T18:20:34.924Z","kind":"tool_call","payload":{"tool":"bash","args":"{'command': 'cd /genome \u0026\u0026 sed -n 1,30p src/main.rs | head -40; sed -n 216,290p src/main.rs', 'timeout': 30}"}},{"id":531,"at":"2026-11-25T18:20:34.962Z","kind":"tool_result","payload":{"tool":"bash","error":false,"text":"use std::io::{self, BufRead, Write};\nuse std::time::{Duration, Instant};\n\nconst MAXD: u32 = 8;\n\n// Square index: 0 = a1 .. 7 = h1, 56 = a8 .. 63 = h8.\n// Piece codes: 1 P, 2 N, 3 B, 4 R, 5 Q, 6 K; white positive, black negative.\n\nconst KN: [(i32, i32); 8] = [(1, 2), (2, 1), (2, -1), (1, -2), (-1, -2), (-2, -1), (-2, 1), (-1, 2)];\nconst KG: [(i32, i32); 8] = [(1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1, -1)];\nconst DIAG: [(i32, i32); 4] = [(1, 1), (1, -1), (-1, 1), (-1, -1)];\nconst ORTH: [(i32, i32); 4] = [(1, 0), (-1, 0), (0, 1), (0, -1)];\nconst START_FEN: \u0026str = \"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1\";\n\n#[derive(Clone, Copy, PartialEq, Eq, Debug)]\nstruct Mv {\n    from: u8,\n    to: u8,\n    promo: u8, // 0 or piece kind 2..5\n}\n\n#[derive(Clone, Copy)]\nstruct Pos {\n    b: [i8; 64],\n    white: bool,\n    castle: u8, // 1 K, 2 Q, 4 k, 8 q\n    ep: i8,     // -1 none\n}\n\nfn on(f: i32, r: i32) -\u003e Option\u003cusize\u003e {\nfn castle_mask(s: usize) -\u003e u8 {\n    match s {\n        0 =\u003e 2,\n        4 =\u003e 3,\n        7 =\u003e 1,\n        56 =\u003e 8,\n        60 =\u003e 12,\n        63 =\u003e 4,\n        _ =\u003e 0,\n    }\n}\n\nfn make(p: \u0026Pos, m: Mv) -\u003e Pos {\n    let mut q = *p;\n    let from = m.from as usize;\n    let to = m.to as usize;\n    let pc = q.b[from];\n    let side = pc.signum();\n    let kind = pc.abs();\n    q.b[from] = 0;\n    let cap = q.b[to];\n    if kind == 1 \u0026\u0026 to as i8 == p.ep \u0026\u0026 cap == 0 \u0026\u0026 from % 8 != to % 8 {\n        q.b[(to as i32 - 8 * side as i32) as usize] = 0;\n    }\n    q.b[to] = if m.promo != 0 { m.promo as i8 * side } else { pc };\n    if kind == 6 \u0026\u0026 (to as i32 - from as i32).abs() == 2 {\n        match to {\n            6 =\u003e { q.b[7] = 0; q.b[5] = 4; }\n            2 =\u003e { q.b[0] = 0; q.b[3] = 4; }\n            62 =\u003e { q.b[63] = 0; q.b[61] = -4; }\n            58 =\u003e { q.b[56] = 0; q.b[59] = -4; }\n            _ =\u003e {}\n        }\n    }\n    q.ep = if kind == 1 \u0026\u0026 (to as i32 - from as i32).abs() == 16 {\n        ((from + to) / 2) as i8\n    } else {\n        -1\n    };\n    q..."}},{"id":532,"at":"2026-11-25T18:20:47.493Z","kind":"tool_call","payload":{"tool":"edit","args":"{'path': '/genome/src/main.rs', 'edits': [{'oldText': '// Negamax from the side to move in p; returns score for side to move.\\nfn search(', 'newText': '// Quiescence at the leaves: captures and promotions only (MVV-LVA), stand-pat when not in check;\\n// when in check all legal evasions are searched. The capture depth is capped at QMAX plies.\\nconst QMAX: u32 = 6;\\n\\nfn qsearch(p: \u0026Pos, mut alpha: i32, beta: i32, qd: u32, ctx: \u0026mut Ctx) -\u003e i32 {\\n    ctx.nodes += 1;\\n    if ctx.nodes \u0026 1023 == 0 {\\n        if let Some(l) = ctx.limit {\\n            if ctx.start.elapsed() \u003e= l {\\n                ctx.aborted = true;\\n            }\\n        }\\n    }\\n    if ctx.aborted {\\n        return 0;\\n    }\\n    if in_check_after(p, p.white) {\\n        if qd \u003e= QMAX {\\n            return eval(p);\\n        }\\n        let mut moves = legal_moves(p);\\n        if moves.is_empty() {\\n            return -100_000;\\n        }\\n        moves.sort_by_key(|(m, _)| std::cmp::Reverse(order_score(p, *m)));\\n        let mut best = -1_000_000;\\n        for (_, q) in \u0026moves {\\n            let s = -qsearch(q, -beta, -alpha, qd + 1, ctx);\\n            if ctx.aborted {\\n                return 0;\\n            }\\n            if s \u003e best {\\n                best = s;\\n            }\\n            if best \u003e alpha {\\n                alpha = best;\\n            }\\n            if alpha \u003e= beta {\\n                break;\\n            }\\n        }\\n        return best;\\n    }\\n    let stand = eval(p);\\n    if stand \u003e= beta || qd \u003e= QMAX {\\n        return stand;\\n    }\\n    if stand \u003e alpha {\\n        alpha = stand;\\n    }\\n    let mut v = Vec::with_capacity(48);\\n    gen_moves(p, \u0026mut v);\\n    let mut caps: Vec\u003cMv\u003e = v\\n        .into_iter()\\n        .filter(|m| {\\n            let ep_cap = p.b[m.from as usize].abs() == 1 \u0026\u0026 m.from % 8 != m.to % 8 \u0026\u0026 p.b[m.to as usize] == 0;\\n            m.promo != 0 || p.b[m.to as usize] != 0 || ep_cap\\n        })\\n        .collect();\\n    caps.sort_by_key(|m| std::cmp::Reverse(orde..."}},{"id":533,"at":"2026-11-25T18:20:47.586Z","kind":"tool_result","payload":{"tool":"edit","error":false,"text":"Successfully replaced 2 block(s) in /genome/src/main.rs."}},{"id":534,"at":"2026-11-25T18:20:51.747Z","kind":"tool_call","payload":{"tool":"bash","args":"{'command': 'cd /genome \u0026\u0026 cargo build --release 2\u003e\u00261 | grep -E \"^(warning: unused|error)|Finished\" | head; for fen in \"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1\" \"r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1\" \"8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1\" \"r1bqkbnr/pppp1ppp/2n5/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4\"; do s=$(date +%s.%N); printf \"position fen $fen\\\\ngo wtime 30000 btime 30000 winc 0 binc 0\\\\n\" | timeout 60 ./target/release/genome | tail -1; e=$(date +%s.%N); echo \"t=$(echo \"$e-$s\"|bc)\"; done', 'timeout': 300}"}},{"id":535,"at":"2026-11-25T18:20:56.315Z","kind":"tool_result","payload":{"tool":"bash","error":false,"text":"    Finished `release` profile [optimized] target(s) in 0.51s\nbestmove e2e4\nbash: line 1: bc: command not found\nt=\nbestmove e2a6\nbash: line 1: bc: command not found\nt=\nbestmove b4f4\nbash: line 1: bc: command not found\nt=\nbestmove h5f7\nbash: line 1: bc: command not found\nt=\n"}},{"id":536,"at":"2026-11-25T18:21:00.069Z","kind":"tool_call","payload":{"tool":"bash","args":"{'command': 'cd /genome \u0026\u0026 for fen in \"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1\" \"r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1\" \"8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1\" \"r1bqkbnr/pppp1ppp/2n5/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4\"; do echo \"position fen $fen\" \u003e /tmp/in.txt; echo \"go wtime 30000 btime 30000 winc 0 binc 0\" \u003e\u003e /tmp/in.txt; ( time ./target/release/genome \u003c /tmp/in.txt ) 2\u003e\u00261 | grep -E \"bestmove|real\"; done; ls /tmp | head -30', 'timeout': 300}"}},{"id":537,"at":"2026-11-25T18:21:04.110Z","kind":"tool_result","payload":{"tool":"bash","error":false,"text":"bestmove e2e4\nreal\t0m1.001s\nbestmove e2a6\nreal\t0m1.002s\nbestmove b4f4\nreal\t0m1.002s\nbestmove h5f7\nreal\t0m1.001s\ncargo\nin.txt\n"}},{"id":538,"at":"2026-11-25T18:21:08.714Z","kind":"tool_call","payload":{"tool":"bash","args":"{'command': 'cd /genome \u0026\u0026 for fen in \"r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1\" \"r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10\" \"8/5pk1/6p1/8/3K4/8/5PPP/8 w - - 0 1\"; do echo \"position fen $fen\" \u003e /tmp/in.txt; echo \"go depth 3\" \u003e\u003e /tmp/in.txt; ( time ./target/release/genome \u003c /tmp/in.txt ) 2\u003e\u00261 | grep -E \"bestmove|real\"; done', 'timeout': 300}"}},{"id":539,"at":"2026-11-25T18:21:08.763Z","kind":"tool_result","payload":{"tool":"bash","error":false,"text":"bestmove e2a6\nreal\t0m0.005s\nbestmove c3d5\nreal\t0m0.006s\nbestmove f2f4\nreal\t0m0.001s\n"}},{"id":540,"at":"2026-11-25T18:21:15.644Z","kind":"tool_call","payload":{"tool":"bash","args":"{'command': 'cd /genome \u0026\u0026 printf \"position fen 6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1\\\\ngo depth 2\\\\nposition fen r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4\\\\ngo depth 2\\\\nposition fen 4k3/8/8/3q4/8/2N5/8/4K3 w - - 0 1\\\\ngo depth 2\\\\n\" | ./target/release/genome; printf \"position startpos\\\\ngo wtime 60000 btime 60000 winc 0 binc 0\\\\n\" | (time ./target/release/genome) 2\u003e\u00261 | grep -E \"bestmove|real\"', 'timeout': 120}"}},{"id":541,"at":"2026-11-25T18:21:17.685Z","kind":"tool_result","payload":{"tool":"bash","error":false,"text":"bestmove a1a8\nbestmove h5f7\nbestmove c3d5\nbestmove g1f3\nreal\t0m2.005s\n"}},{"id":542,"at":"2026-11-25T18:21:20.629Z","kind":"tool_call","payload":{"tool":"perft_check","args":"{'depth': 3}"}},{"id":543,"at":"2026-11-25T18:21:21.163Z","kind":"tool_result","payload":{"tool":"perft_check","error":false,"text":"OK: 8 position(s) at depth 3 match the reference."}},{"id":544,"at":"2026-11-25T18:21:24.471Z","kind":"tool_call","payload":{"tool":"bash","args":"{'command': 'cd /memory \u0026\u0026 python3 - \u003c\u003c\\'EOF\\'\\np=\\'/memory/NOTES.md\\'\\ns=open(p).read()\\ns=s.replace(\"- Session 19:\", \"- Session 20: re-implemented quiescence (#27 retry) on gen-8: captures/promotions MVV-LVA, stand-pat, evasions in check, QMAX 6, abort-aware. Perft3 OK, clock respected (1 s on 30 s), mate/hanging-queen tests pass.\\\\n- Session 19:\",1)\\nopen(p,\\'w\\').write(s)\\nEOF\\nhead -5 /memory/NOTES.md', 'timeout': 30}"}},{"id":545,"at":"2026-11-25T18:21:24.510Z","kind":"tool_result","payload":{"tool":"bash","error":false,"text":"# Notes\n\nLong-term memory. One line per lesson, newest first. Compacted in session 17.\n\n- Session 20: re-implemented quiescence (#27 retry) on gen-8: captures/promotions MVV-LVA, stand-pat, evasions in check, QMAX 6, abort-aware. Perft3 OK, clock respected (1 s on 30 s), mate/hanging-queen tests pass.\n"}},{"id":546,"at":"2026-11-25T18:21:27.143Z","kind":"tool_call","payload":{"tool":"submit","args":"{'hypothesis': 'Add quiescence search at the leaves of the iterative-deepening negamax (replacing the plain eval at depth 0): stand-pat, captures and promotions ordered MVV-LVA, all evasions when in check, capture depth capped at 6, abort-aware. Leaves no longer miss hanging pieces and recaptures at the horizon (the Lichess loss pattern), and the depth-0 leaf skips legal-move generation. Movegen untouched, perft3 OK; clock respected (1 s on a 30 s clock). Expect a clear gain.', 'lesson_for_previous': '#28 (mate by ply) was still judging, so I re-applied the quiescence idea (#27, stale) on the current base rather than stacking on the unjudged ply change.'}"}},{"id":547,"at":"2026-11-25T18:21:27.465Z","kind":"tool_result","payload":{"tool":"submit","error":false,"text":"Submitted b4e9c6301b36 ({'files': 1, 'insertions': 86, 'deletions': 3}). The referee is judging it; you will see the verdict next session. This session is over: stop now."}},{"id":548,"at":"2026-11-25T18:21:30.294Z","kind":"thought","payload":{"text":"I submitted the quiescence search as candidate #29, built on gen-8.\n\n- **Change:** leaves of the iterative-deepening search now run a capture-only quiescence (`qsearch` in `src/main.rs`). It uses stand-pat, MVV-LVA ordering, searches all evasions when in check, and caps capture depth at 6. It also checks the abort flag, and depth-0 leaves no longer generate legal moves.\n- **Checks:** perft at depth 3 matches the reference on 8 positions. A 30 s clock takes about 1.0 s per move and a 60 s clock about 2.0 s. Mate-in-1 and a hanging queen are both found.\n- **Not checked:** I did not run local games against gen-8, so the strength gain is unmeasured. I also did not measure depth-3 timing on Kiwipete, where the earlier quiescence attempt (#27) took about 0.76 s.\n- **Notes:** I added a session 20 line to `/memory/NOTES.md`."},"text_it":"Ho consegnato la ricerca di quiescenza come candidato #29, costruito su gen-8.\n\n- **Modifica:** le foglie della ricerca ad approfondimento iterativo ora fanno una quiescenza sulle sole catture (`qsearch` in `src/main.rs`). Usa lo stand-pat e l’ordinamento MVV-LVA, esplora tutte le difese quando è sotto scacco e limita la profondità delle catture a 6. Controlla anche il segnale di interruzione, e le foglie a profondità 0 non generano più le mosse legali.\n- **Controlli:** il perft a profondità 3 coincide con il riferimento su 8 posizioni. Con 30 s sull’orologio impiega circa 1,0 s a mossa, con 60 s circa 2,0 s. Trova sia il matto in una sia la donna in presa.\n- **Non controllato:** non ho giocato partite in locale contro gen-8, quindi il guadagno di forza non è misurato. Non ho nemmeno misurato i tempi a profondità 3 su Kiwipete, dove il tentativo precedente di quiescenza (#27) impiegava circa 0,76 s.\n- **Appunti:** ho aggiunto una riga sulla sessione 20 in `/memory/NOTES.md`."},{"id":551,"at":"2026-11-25T22:51:23.754Z","kind":"status","payload":{"state":"judging","phase":"evolution"}},{"id":552,"at":"2026-11-25T22:51:24.031Z","kind":"status","payload":{"state":"started","kind":"iteration","trigger":"start"}},{"id":553,"at":"2026-11-25T22:51:28.504Z","kind":"tool_call","payload":{"tool":"bash","args":"{'command': 'cd /genome \u0026\u0026 git status | head -20 \u0026\u0026 git log --oneline | head -10 \u0026\u0026 cat /memory/NOTES.md | head -5 \u0026\u0026 ls \u0026\u0026 wc -l src/*.rs \u0026\u0026 cat CONTRACT.md | head -60', 'timeout': 30}"}},{"id":554,"at":"2026-11-25T22:51:28.505Z","kind":"tool_call","payload":{"tool":"experiments","args":"{'query': 'quiescence', 'limit': 5}"}},{"id":555,"at":"2026-11-25T22:51:28.514Z","kind":"tool_result","payload":{"tool":"experiments","error":false,"text":"#29 [evolution] judging: Add quiescence search at the leaves of the iterative-deepening negamax (replacing the plain eval at depth 0): stand-pat, captures and promotions ordered MVV-LVA, all evasions when in check, capture depth capped at 6, abort-aware. Leaves no longer miss hanging pieces and recaptures at the horizon (the Lichess loss pattern), and the depth-0 leaf skips legal-move generation. Movegen untouched, perft3 OK; clock respected (1 s on a 30 s clock). Expect a clear gain.\n#28 [evolution] error: Mate scores depend on ply: a mate found at ply n scores MATE-n (MATE=100000), so the mover prefers faster mates and delays mates it must suffer. Ply is threaded through the negamax (root children at ply 1). Movegen untouched; perft3 OK on 8 positions; finds mate-in-1 in test positions. Expect a small gain from converting won positions and fewer mates after long games (Lichess loss pattern).\n  lesson: #28 (mate by ply) was still judging, so I re-applied the quiescence idea (#27, stale) on the current base rather than stacking on the unjudged ply change.\n#27 [evolution] stale: Add quiescence search at the leaves of the go mover's depth-3 negamax: captures only (MVV-LVA ordered, stand-pat, all evasions when in check, capture depth capped at 6), so hanging pieces and recaptures at the horizon are seen, which targets the Lichess loss pattern. Movegen untouched, perft3 OK; worst local middlegame go time about 0.76 s (Kiwipete), 35-130 ms on others. Expect a clear gain.\n  lesson: #27 quiescence was still judging, so I took the strategy's mate-by-ply item (#7 retry), which is a one-line search change that does not touch the quiescence code.\n#26 [evolution] accepted: Replace the fixed depth-3 root search with iterative deepening: depths 1-3 always complete as before, and from depth 4 the search continues under a clock budget (wtime/30 + winc/2, capped at a quarter of the clock; movetime*0.8 if given), max depth 8, with an abort flag that discards an unfinished iteration. ..."}},{"id":556,"at":"2026-11-25T22:51:28.564Z","kind":"tool_result","payload":{"tool":"bash","error":false,"text":"HEAD detached at f147497\nnothing to commit, working tree clean\nf147497 exp-26: Replace the fixed depth-3 root search with iterative deepening: depths 1-3 always complete as before, and from depth 4 the search continues under a clock budget (wtime/30 + winc/2, capped at a quarter of the clock; movetime*0.8 if given), max depth 8, with an abort flag that discards an unfinished iteration. Adds MVV-LVA capture ordering (promotions first) and previous-best-move ordering to make the deeper search fast. Movegen untouched, so perft is unchanged; the clock is respected (abo\n07987d3 exp-24: Add a +6cp eval bonus for knights on c3, f3, c6, f6 (classical development squares) in the go mover's material eval, so it develops knights sensibly. Movegen untouched so perft is unaffected; builds and returns a move from startpos. Distinct from pending rook-7th and knight-rim terms.\n56fa4c4 exp-20: Add a +12cp bonus for rooks on open files (no pawns of either colour) in the go mover's material eval, so it activates rooks. Distinct from pending tempo term; movegen untouched, perft3 OK; expected small strength gain.\nca46afd exp-15: Add a small eval bonus of 2cp per rank for pawns advanced toward promotion (both colours) in the go mover's material eval, so it values pawn pushes and passed-pawn progress. Movegen untouched so perft unaffected; builds and returns a move from startpos.\na0ed873 exp-13: Add a +10 centipawn centre bonus for knights and bishops on d4, e4, d5, e5 in the material eval used by the go mover's depth-2 search, so it develops pieces toward the centre instead of making neutral moves. Perft unaffected (movegen untouched); expected small positive strength gain.\n0d80bf8 exp-12: Deepen the go mover's search from depth 2 to depth 3 (our move, opponent reply, our move) using the same material eval with mate detection, so it sees its own follow-up captures and avoids more hanging pieces. Perft unchanged (depth-3 OK).\n599b97d exp-5: depth-2 negamax with material eval\n3d35bed exp-3..."}},{"id":557,"at":"2026-11-25T22:51:32.793Z","kind":"tool_call","payload":{"tool":"bash","args":"{'command': 'cd /genome \u0026\u0026 git show-ref | tail -15 \u0026\u0026 cat /memory/NOTES.md | tail -20 \u0026\u0026 grep -n \"fn \\\\|const \" src/main.rs | head -100', 'timeout': 30}"}},{"id":558,"at":"2026-11-25T22:51:32.837Z","kind":"tool_result","payload":{"tool":"bash","error":false,"text":"ceffa34d127fdc416dbfa07ff0ff15b1cbdc13b0 refs/darwin/exp-4\n599b97d6599b9f4c1485d74e0ac7df6ddebf5421 refs/darwin/exp-5\n63afc0e416270b0ecb2e656a62da171160165168 refs/darwin/exp-7\n86953fb8e8aba3f6c5555123273adee7a570bd8c refs/darwin/exp-9\nacb92583a1b8e97874f9d1dc58b8b96410957cfa refs/darwin/gen-0\n3d35bed3cf2d383ed4f03ce0496d5239c32b4042 refs/darwin/gen-1\n599b97d6599b9f4c1485d74e0ac7df6ddebf5421 refs/darwin/gen-2\n0d80bf88dfbf35bfb03de04f66d2ae09128d7e02 refs/darwin/gen-3\na0ed873977b3965ab76ae256f943c071ea109572 refs/darwin/gen-4\nca46afd3e53c1708ac36dc952e966a1f376f525f refs/darwin/gen-5\n56fa4c496f1b72cb134fa62e07b787f25d5d1ffa refs/darwin/gen-6\n07987d3f08e05ea8d7f2a25f4c0ce008d7b4117f refs/darwin/gen-7\nf147497d3567e95ce6f880b79ad5f0fa5ab4bb85 refs/darwin/gen-8\nacb92583a1b8e97874f9d1dc58b8b96410957cfa refs/heads/master\nacb92583a1b8e97874f9d1dc58b8b96410957cfa refs/tags/gen-0\n# Notes\n\nLong-term memory. One line per lesson, newest first. Compacted in session 17.\n\n- Session 20: re-implemented quiescence (#27 retry) on gen-8: captures/promotions MVV-LVA, stand-pat, evasions in check, QMAX 6, abort-aware. Perft3 OK, clock respected (1 s on 30 s), mate/hanging-queen tests pass.\n- Session 19: submitted mate-by-ply (MATE-ply, ply threaded through search, #7 retry) on gen-8; #27 quiescence still judging. Perft3 OK, mate-in-1 found.\n- Session 18: submitted iterative deepening (depths 1-3 fixed, clock budget wtime/30+inc/2 from depth 4, max 8) with MVV-LVA ordering and abort flag. Perft OK, clock respected (1 s on 30 s clock).\n- Session 17 (reflection): searched the history; wrote STRATEGY.md. Champion gen-6 (56fa4c4) is depth-3 material + centre, pawn-advance and rook-open-file bonuses.\n- Session 17: depth 3 takes 5-13 ms per move; depth 4 takes 0.4-12 s in scratch tests. Time control is the key blocker for deeper search.\n- Session 16: #20 accepted (rook open file); added king-on-castled-square term as #21, which went stale.\n- Session 13-14: centre eval (#13, accepted +24); root n..."}},{"id":559,"at":"2026-11-25T22:51:35.414Z","kind":"tool_call","payload":{"tool":"bash","args":"{'command': 'cd /genome \u0026\u0026 sed -n 360,520p src/main.rs', 'timeout': 30}"}},{"id":560,"at":"2026-11-25T22:51:35.446Z","kind":"tool_result","payload":{"tool":"bash","error":false,"text":"    legal_moves(p)\n        .into_iter()\n        .map(|(m, _)| m)\n        .find(|m| m.from as usize == from \u0026\u0026 m.to as usize == to \u0026\u0026 m.promo == promo)\n}\n\nfn value(kind: i8) -\u003e i32 {\n    match kind {\n        1 =\u003e 100,\n        2 =\u003e 320,\n        3 =\u003e 330,\n        4 =\u003e 500,\n        5 =\u003e 900,\n        _ =\u003e 0,\n    }\n}\n\nstruct Rng(u64);\nimpl Rng {\n    fn next(\u0026mut self) -\u003e u64 {\n        self.0 ^= self.0 \u003c\u003c 13;\n        self.0 ^= self.0 \u003e\u003e 7;\n        self.0 ^= self.0 \u003c\u003c 17;\n        self.0\n    }\n}\n\nfn eval(p: \u0026Pos) -\u003e i32 {\n    let mut mat = 0;\n    // files with no pawns of either colour (for rook open-file bonus)\n    let mut pawn_file = [false; 8];\n    for (s, \u0026k) in p.b.iter().enumerate() {\n        if k.abs() == 1 {\n            pawn_file[s % 8] = true;\n        }\n    }\n    for (s, \u0026k) in p.b.iter().enumerate() {\n        if k != 0 {\n            let mut v = value(k.abs());\n            // bonus for rooks on open files\n            if k.abs() == 4 \u0026\u0026 !pawn_file[s % 8] {\n                v += 12;\n            }\n            // small centre bonus for knights and bishops\n            if (k.abs() == 2 || k.abs() == 3) \u0026\u0026 matches!(s, 27 | 28 | 35 | 36) {\n                v += 10;\n            }\n            // small bonus for knights on classical development squares (c3,f3,c6,f6)\n            if k.abs() == 2 \u0026\u0026 matches!(s, 18 | 21 | 42 | 45) {\n                v += 6;\n            }\n            // small bonus for pawns advanced toward promotion\n            if k == 1 {\n                v += 2 * ((s / 8) as i32 - 1);\n            } else if k == -1 {\n                v += 2 * (6 - (s / 8) as i32);\n            }\n            mat += if k \u003e 0 { v } else { -v };\n        }\n    }\n    if p.white { mat } else { -mat }\n}\n\nstruct Ctx {\n    start: Instant,\n    limit: Option\u003cDuration\u003e,\n    nodes: u64,\n    aborted: bool,\n}\n\n// Capture ordering: MVV-LVA, promotions first.\nfn order_score(p: \u0026Pos, m: Mv) -\u003e i32 {\n    let mut s = 0;\n    if m.promo != 0 {\n        s += 8_000 + value(m.promo as i8);\n    }\n    let victim =..."}},{"id":561,"at":"2026-11-25T22:51:38.658Z","kind":"tool_call","payload":{"tool":"bash","args":"{'command': 'cd /genome \u0026\u0026 sed -n 520,620p src/main.rs', 'timeout': 30}"}},{"id":562,"at":"2026-11-25T22:51:38.689Z","kind":"tool_result","payload":{"tool":"bash","error":false,"text":"        let Some(\u0026cmd) = toks.first() else { continue };\n        match cmd {\n            \"uci\" =\u003e {\n                writeln!(out, \"id name genome\").ok();\n                writeln!(out, \"id author darwin\").ok();\n                writeln!(out, \"uciok\").ok();\n            }\n            \"isready\" =\u003e {\n                writeln!(out, \"readyok\").ok();\n            }\n            \"ucinewgame\" =\u003e {\n                pos = parse_fen(START_FEN).unwrap();\n            }\n            \"position\" =\u003e {\n                let mut idx = 1;\n                let mut p = if toks.get(1) == Some(\u0026\"startpos\") {\n                    idx = 2;\n                    parse_fen(START_FEN).unwrap()\n                } else if toks.get(1) == Some(\u0026\"fen\") {\n                    let end = toks.iter().position(|\u0026t| t == \"moves\").unwrap_or(toks.len());\n                    idx = end;\n                    match parse_fen(\u0026toks[2..end].join(\" \")) {\n                        Some(p) =\u003e p,\n                        None =\u003e continue,\n                    }\n                } else {\n                    continue;\n                };\n                if toks.get(idx) == Some(\u0026\"moves\") {\n                    for ms in \u0026toks[idx + 1..] {\n                        if let Some(m) = parse_move(\u0026p, ms) {\n                            p = make(\u0026p, m);\n                        }\n                    }\n                }\n                pos = p;\n            }\n            \"perft\" =\u003e {\n                let depth: u32 = toks.get(1).and_then(|d| d.parse().ok()).unwrap_or(1);\n                let mut total = 0u64;\n                for (m, q) in legal_moves(\u0026pos) {\n                    let n = if depth \u003c= 1 { 1 } else { perft(\u0026q, depth - 1) };\n                    writeln!(out, \"{}: {}\", mv_str(m), n).ok();\n                    total += n;\n                }\n                writeln!(out, \"total: {}\", total).ok();\n            }\n            \"go\" =\u003e {\n                let (limit, maxd) = parse_go(\u0026toks, pos.white);\n                let mut ctx = Ctx { start: Instant::now()..."}},{"id":563,"at":"2026-11-25T22:51:57.074Z","kind":"tool_call","payload":{"tool":"bash","args":"{'command': 'ls -la /memory/ /jobs 2\u003e/dev/null; cd /genome \u0026\u0026 git show-ref | grep exp-2[789]; which cutechess-cli stockfish python3; nproc', 'timeout': 30}"}},{"id":564,"at":"2026-11-25T22:51:57.115Z","kind":"tool_result","payload":{"tool":"bash","error":false,"text":"/jobs:\ntotal 4\ndrwxr-xr-x 2 agent agent   64 Nov 25 11:40 .\ndrwxr-xr-x 1 root  root  4096 Nov 25 22:51 ..\n\n/memory/:\ntotal 12\ndrwxr-xr-x 4 agent agent  128 Nov 25 11:42 .\ndrwxr-xr-x 1 root  root  4096 Nov 25 22:51 ..\n-rw-r--r-- 1 agent agent 1843 Nov 25 18:21 NOTES.md\n-rw-r--r-- 1 agent agent 2888 Nov 25 17:55 STRATEGY.md\n843adec39b02d273f747d43b9acd927e91a1b6ff refs/darwin/exp-27\n140339219d6e1b7aba6b5351a35dbe7ce04f0f8f refs/darwin/exp-28\nb4e9c6301b365b316ffb16e4d5f199785ae91554 refs/darwin/exp-29\n/opt/py/bin/python3\n2\n"}},{"id":565,"at":"2026-11-25T22:51:58.954Z","kind":"tool_call","payload":{"tool":"bash","args":"{'command': 'cd /genome \u0026\u0026 git diff HEAD refs/darwin/exp-29 --stat \u0026\u0026 git diff HEAD refs/darwin/exp-29 -- src/main.rs | head -150', 'timeout': 30}"}},{"id":566,"at":"2026-11-25T22:51:58.994Z","kind":"tool_result","payload":{"tool":"bash","error":false,"text":" src/main.rs | 89 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++---\n 1 file changed, 86 insertions(+), 3 deletions(-)\ndiff --git a/src/main.rs b/src/main.rs\nindex 3e31984..cb33b71 100644\n--- a/src/main.rs\n+++ b/src/main.rs\n@@ -442,6 +442,89 @@ fn order_score(p: \u0026Pos, m: Mv) -\u003e i32 {\n     s\n }\n \n+// Quiescence at the leaves: captures and promotions only (MVV-LVA), stand-pat when not in check;\n+// when in check all legal evasions are searched. The capture depth is capped at QMAX plies.\n+const QMAX: u32 = 6;\n+\n+fn qsearch(p: \u0026Pos, mut alpha: i32, beta: i32, qd: u32, ctx: \u0026mut Ctx) -\u003e i32 {\n+    ctx.nodes += 1;\n+    if ctx.nodes \u0026 1023 == 0 {\n+        if let Some(l) = ctx.limit {\n+            if ctx.start.elapsed() \u003e= l {\n+                ctx.aborted = true;\n+            }\n+        }\n+    }\n+    if ctx.aborted {\n+        return 0;\n+    }\n+    if in_check_after(p, p.white) {\n+        if qd \u003e= QMAX {\n+            return eval(p);\n+        }\n+        let mut moves = legal_moves(p);\n+        if moves.is_empty() {\n+            return -100_000;\n+        }\n+        moves.sort_by_key(|(m, _)| std::cmp::Reverse(order_score(p, *m)));\n+        let mut best = -1_000_000;\n+        for (_, q) in \u0026moves {\n+            let s = -qsearch(q, -beta, -alpha, qd + 1, ctx);\n+            if ctx.aborted {\n+                return 0;\n+            }\n+            if s \u003e best {\n+                best = s;\n+            }\n+            if best \u003e alpha {\n+                alpha = best;\n+            }\n+            if alpha \u003e= beta {\n+                break;\n+            }\n+        }\n+        return best;\n+    }\n+    let stand = eval(p);\n+    if stand \u003e= beta || qd \u003e= QMAX {\n+        return stand;\n+    }\n+    if stand \u003e alpha {\n+        alpha = stand;\n+    }\n+    let mut v = Vec::with_capacity(48);\n+    gen_moves(p, \u0026mut v);\n+    let mut caps: Vec\u003cMv\u003e = v\n+        .into_iter()\n+        .filter(|m| {\n+            let ep_cap = p.b[m.from as usize].abs() == 1 \u0026\u0026 m.from % 8 != m.to % 8 \u0026\u0026 p.b[m.to as ..."}},{"id":567,"at":"2026-11-25T22:52:12.118Z","kind":"tool_call","payload":{"tool":"bash","args":"{'command': 'cd /genome \u0026\u0026 sed -n 14,30p src/main.rs \u0026\u0026 sed -n 228,292p src/main.rs', 'timeout': 30}"}},{"id":568,"at":"2026-11-25T22:52:12.149Z","kind":"tool_result","payload":{"tool":"bash","error":false,"text":"\n#[derive(Clone, Copy, PartialEq, Eq, Debug)]\nstruct Mv {\n    from: u8,\n    to: u8,\n    promo: u8, // 0 or piece kind 2..5\n}\n\n#[derive(Clone, Copy)]\nstruct Pos {\n    b: [i8; 64],\n    white: bool,\n    castle: u8, // 1 K, 2 Q, 4 k, 8 q\n    ep: i8,     // -1 none\n}\n\nfn on(f: i32, r: i32) -\u003e Option\u003cusize\u003e {\nfn make(p: \u0026Pos, m: Mv) -\u003e Pos {\n    let mut q = *p;\n    let from = m.from as usize;\n    let to = m.to as usize;\n    let pc = q.b[from];\n    let side = pc.signum();\n    let kind = pc.abs();\n    q.b[from] = 0;\n    let cap = q.b[to];\n    if kind == 1 \u0026\u0026 to as i8 == p.ep \u0026\u0026 cap == 0 \u0026\u0026 from % 8 != to % 8 {\n        q.b[(to as i32 - 8 * side as i32) as usize] = 0;\n    }\n    q.b[to] = if m.promo != 0 { m.promo as i8 * side } else { pc };\n    if kind == 6 \u0026\u0026 (to as i32 - from as i32).abs() == 2 {\n        match to {\n            6 =\u003e { q.b[7] = 0; q.b[5] = 4; }\n            2 =\u003e { q.b[0] = 0; q.b[3] = 4; }\n            62 =\u003e { q.b[63] = 0; q.b[61] = -4; }\n            58 =\u003e { q.b[56] = 0; q.b[59] = -4; }\n            _ =\u003e {}\n        }\n    }\n    q.ep = if kind == 1 \u0026\u0026 (to as i32 - from as i32).abs() == 16 {\n        ((from + to) / 2) as i8\n    } else {\n        -1\n    };\n    q.castle \u0026= !(castle_mask(from) | castle_mask(to));\n    q.white = !p.white;\n    q\n}\n\nfn in_check_after(q: \u0026Pos, mover_white: bool) -\u003e bool {\n    let king = if mover_white { 6 } else { -6 };\n    match q.b.iter().position(|\u0026x| x == king) {\n        Some(ks) =\u003e attacked(\u0026q.b, ks, !mover_white),\n        None =\u003e false,\n    }\n}\n\nfn legal_moves(p: \u0026Pos) -\u003e Vec\u003c(Mv, Pos)\u003e {\n    let mut v = Vec::with_capacity(48);\n    gen_moves(p, \u0026mut v);\n    let mut out = Vec::with_capacity(v.len());\n    for m in v {\n        let q = make(p, m);\n        if !in_check_after(\u0026q, p.white) {\n            out.push((m, q));\n        }\n    }\n    out\n}\n\nfn perft(p: \u0026Pos, depth: u32) -\u003e u64 {\n    if depth == 0 {\n        return 1;\n    }\n    let moves = legal_moves(p);\n    if depth == 1 {\n        return moves.len() as u64;\n    }\n    moves.iter().map(|..."}},{"id":569,"at":"2026-11-25T22:52:23.711Z","kind":"tool_call","payload":{"tool":"edit","args":"{'path': '/genome/src/main.rs', 'edits': [{'oldText': '    moves.sort_by_key(|(m, _)| std::cmp::Reverse(order_score(p, *m)));\\n    let mut best = -1_000_000;\\n    for (_, q) in \u0026moves {\\n        let s = -search(q, depth - 1, -beta, -alpha, ctx);', 'newText': '    moves.sort_by_key(|(m, _)| std::cmp::Reverse(order_score(p, *m)));\\n    // null-move pruning: if the side to move still fails high after passing (reduction 2),\\n    // the node is cut; skipped in check and without non-pawn pieces (zugzwang risk)\\n    if depth \u003e= 3 \u0026\u0026 beta \u003c 500_000 \u0026\u0026 !in_check_after(p, p.white) {\\n        let side = if p.white { 1 } else { -1 };\\n        if p.b.iter().any(|\u0026k| k.signum() == side \u0026\u0026 (2..=5).contains(\u0026k.abs())) {\\n            let mut np = *p;\\n            np.white = !p.white;\\n            np.ep = -1;\\n            let s = -search(\u0026np, depth - 3, -beta, -beta + 1, ctx);\\n            if ctx.aborted {\\n                return 0;\\n            }\\n            if s \u003e= beta {\\n                return s;\\n            }\\n        }\\n    }\\n    let mut best = -1_000_000;\\n    for (_, q) in \u0026moves {\\n        let s = -search(q, depth - 1, -beta, -alpha, ctx);'}]}"}},{"id":570,"at":"2026-11-25T22:52:23.805Z","kind":"tool_result","payload":{"tool":"edit","error":false,"text":"Successfully replaced 1 block(s) in /genome/src/main.rs."}},{"id":571,"at":"2026-11-25T22:52:28.822Z","kind":"tool_call","payload":{"tool":"bash","args":"{'command': \"cd /genome \u0026\u0026 cargo build --release 2\u003e\u00261 | tail -3 \u0026\u0026 printf 'position startpos\\\\ngo wtime 30000 btime 30000 winc 0 binc 0\\\\nposition fen r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4\\\\ngo wtime 30000 btime 30000\\\\nposition fen 6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 1\\\\ngo wtime 30000 btime 30000\\\\nquit\\\\n' | (time ./target/release/genome)\", 'timeout': 200}"}},{"id":572,"at":"2026-11-25T22:52:30.711Z","kind":"tool_result","payload":{"tool":"bash","error":false,"text":"\nwarning: `genome` (bin \"genome\") generated 1 warning\n    Finished `release` profile [optimized] target(s) in 0.44s\nbestmove a2a4\nbestmove h5f7\nbestmove d1d8\n\nreal\t0m1.393s\nuser\t0m1.380s\nsys\t0m0.011s\n"}},{"id":573,"at":"2026-11-25T22:52:37.889Z","kind":"tool_call","payload":{"tool":"bash","args":"{'command': 'cd /genome \u0026\u0026 python3 -c \"import chess; print(chess.__version__)\" 2\u003e\u00261 | tail -1; cargo build --release 2\u003e\u00261 | grep -c warning; rm -rf /tmp/base \u0026\u0026 git worktree add /tmp/base HEAD -f \u003e/dev/null 2\u003e\u00261; cd /tmp/base \u0026\u0026 cargo build --release 2\u003e\u00261 | tail -1 \u0026\u0026 ls /tmp/base/target/release/genome', 'timeout': 300}"}},{"id":574,"at":"2026-11-25T22:52:38.375Z","kind":"tool_result","payload":{"tool":"bash","error":false,"text":"ModuleNotFoundError: No module named 'chess'\n2\n    Finished `release` profile [optimized] target(s) in 0.37s\n/tmp/base/target/release/genome\n"}},{"id":575,"at":"2026-11-25T22:52:59.805Z","kind":"tool_call","payload":{"tool":"write","args":"{'path': '/memory/match.py', 'content': '#!/usr/bin/env python3\\n\"\"\"Local self-play match between two UCI engines (scratch tool, not the referee).\\nusage: match.py ENGINE_A ENGINE_B [games] [base_ms] [inc_ms]\\nChecks every move against the engine\\'s own `perft 1` list (illegal move =\u003e loss for mover).\\nPrints W/D/L from A\\'s view and an Elo estimate. Games are capped at 300 plies (draw).\\n\"\"\"\\nimport subprocess, sys, random\\n\\nSQ = lambda s: \"abcdefgh\"[s % 8] + str(s // 8 + 1)\\n\\nclass Eng:\\n    def __init__(self, path):\\n        self.p = subprocess.Popen([path], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, bufsize=1)\\n        self.send(\"uci\"); self.read_until(\"uciok\"); self.send(\"isready\"); self.read_until(\"readyok\")\\n    def send(self, s): self.p.stdin.write(s + \"\\\\n\"); self.p.stdin.flush()\\n    def read_until(self, tok):\\n        out = []\\n        while True:\\n            l = self.p.stdout.readline()\\n            if not l: raise RuntimeError(\"engine died\")\\n            l = l.strip(); out.append(l)\\n            if l.startswith(tok): return out\\n    def legal(self, moves):\\n        self.send(\"position startpos\" + (\" moves \" + \" \".join(moves) if moves else \"\"))\\n        self.send(\"perft 1\")\\n        lines = self.read_until(\"total:\")\\n        return {l.split(\":\")[0] for l in lines if \": \" in l and not l.startswith(\"total\")}\\n    def go(self, moves, wt, bt, inc):\\n        self.send(\"position startpos\" + (\" moves \" + \" \".join(moves) if moves else \"\"))\\n        self.send(f\"go wtime {wt} btime {bt} winc {inc} binc {inc}\")\\n        while True:\\n            l = self.p.stdout.readline().strip()\\n            if l.startswith(\"bestmove\"): return l.split()[1]\\n    def quit(self):\\n        try: self.send(\"quit\"); self.p.wait(timeout=2)\\n        except Exception: self.p.kill()\\n\\ndef play(white, black, base, inc):\\n    # random 6-ply opening for variety, checked for legality\\n    moves = []\\n    rnd = random.Random(random.random())\\n    for _ in range(6):\\n        ls..."}},{"id":576,"at":"2026-11-25T22:52:59.871Z","kind":"tool_result","payload":{"tool":"write","error":false,"text":"Successfully wrote to /memory/match.py"}},{"id":577,"at":"2026-11-25T22:53:05.416Z","kind":"tool_call","payload":{"tool":"bash","args":"{'command': 'cd /memory \u0026\u0026 python3 - \u003c\u003c\\'EOF\\'\\nimport re\\ns=open(\\'match.py\\').read()\\ns=s.replace(\"\"\"        t0 = clk[turn_white]\\n        m = eng.go(moves, clk[True], clk[False], inc)\"\"\",\"\"\"        t0 = time.time()\\n        m = eng.go(moves, clk[True], clk[False], inc)\\n        spent_ms = int((time.time() - t0) * 1000)\"\"\")\\ns=s.replace(\"\"\"        spent = max(1, min(clk[turn_white] // 30 + 1, clk[turn_white]))\\n        clk[turn_white] = clk[turn_white] - spent + inc\"\"\",\"\"\"        clk[turn_white] = max(1, clk[turn_white] - spent_ms + inc)\"\"\")\\ns=s.replace(\"import subprocess, sys, random\",\"import subprocess, sys, random, time\")\\ns=s.replace(\"        # crude clock: assume each move takes budget time (engines use wtime/30 internally)\\\\n\",\"\")\\nopen(\\'match.py\\',\\'w\\').write(s)\\nEOF\\ncd /tmp \u0026\u0026 time python3 /memory/match.py /tmp/base/target/release/genome /genome/target/release/genome 2 1000 20', 'timeout': 600}"}},{"id":578,"at":"2026-11-25T22:53:16.057Z","kind":"tool_result","payload":{"tool":"bash","error":false,"text":"game 0: A lost  W0 D0 L1\ngame 1: draw  W0 D1 L1\nfinal A vs B: W0 D1 L1  score 0.250  elo -190.8\n\nreal\t0m10.589s\nuser\t0m10.452s\nsys\t0m0.057s\n"}},{"id":579,"at":"2026-11-25T22:53:19.109Z","kind":"tool_call","payload":{"tool":"bash","args":"{'command': \"cd /tmp \u0026\u0026 python3 - \u003c\u003c'EOF'\\nimport sys\\nsys.path.insert(0,'/memory')\\nimport match, random\\nA=match.Eng('/tmp/base/target/release/genome'); B=match.Eng('/genome/target/release/genome')\\nfor trial in range(3):\\n    res,tw=match.play(A,B,1000,20)\\n    print(res,tw)\\nEOF\", 'timeout': 300}"}},{"id":580,"at":"2026-11-25T22:53:31.987Z","kind":"tool_result","payload":{"tool":"bash","error":false,"text":"loss False\nloss False\nloss False\n"}},{"id":581,"at":"2026-11-25T22:53:34.523Z","kind":"tool_call","payload":{"tool":"bash","args":"{'command': 'cd /tmp \u0026\u0026 python3 - \u003c\u003c\\'EOF\\'\\nimport sys\\nsys.path.insert(0,\\'/memory\\')\\nimport match\\nA=match.Eng(\\'/tmp/base/target/release/genome\\')\\nmoves=[\"e2e4\",\"e7e5\",\"g1f3\",\"b8c6\",\"f1c4\",\"g8f6\",\"f3g5\",\"f6e4\"]  # sample\\n# play fool\\'s mate to test check detection\\nmoves=[\"f2f3\",\"e7e5\",\"g2g4\",\"d8h4\"]\\nprint(match.eng_in_check(A,moves), A.legal(moves))\\nb=match.start_board()\\nfor m in moves: b=match.apply(b,m)\\nprint([i for i in range(64) if b[i]==6], [i for i in range(64) if b[i]==-6])\\nprint(match.attacked(b, 4, -1))\\nEOF', 'timeout': 300}"}},{"id":582,"at":"2026-11-25T22:53:34.570Z","kind":"tool_result","payload":{"tool":"bash","error":false,"text":"True set()\n[4] [60]\nTrue\n"}},{"id":583,"at":"2026-11-25T22:53:38.485Z","kind":"tool_call","payload":{"tool":"bash","args":"{'command': 'cd /tmp \u0026\u0026 python3 - \u003c\u003c\\'EOF\\'\\nimport sys\\nsys.path.insert(0,\\'/memory\\')\\nimport match\\nA=match.Eng(\\'/tmp/base/target/release/genome\\'); B=match.Eng(\\'/genome/target/release/genome\\')\\norig=match.play\\n# replicate play with printing\\nimport random,time\\nmoves=[]\\nrnd=random.Random(5)\\nturn=True\\nfor i in range(300):\\n    eng = A if turn else B\\n    legal=eng.legal(moves)\\n    if not legal:\\n        print(\"no moves\", len(moves), turn, match.eng_in_check(eng,moves)); print(\" \".join(moves)); break\\n    m=eng.go(moves,1000,1000,20)\\n    if m not in legal: print(\"illegal\",m); break\\n    moves.append(m); turn=not turn\\nEOF', 'timeout': 300}"}},{"id":584,"at":"2026-11-25T22:53:42.292Z","kind":"tool_result","payload":{"tool":"bash","error":false,"text":"no moves 86 True True\nb1c3 c7c6 g1f3 f7f6 c3e4 d7d5 e4c3 c6c5 e2e3 e7e5 a2a4 a7a6 f3h4 g7g6 a1b1 b7b5 a4b5 f6f5 h4f3 d5d4 b5a6 d4c3 b2c3 c8a6 f1a6 b8a6 d1e2 a8b8 b1b8 a6b8 e2b5 e8f7 f3e5 f7f6 f2f4 g6g5 e5c6 b8c6 b5c6 f6f7 c6b7 f7g6 b7a6 d8f6 a6a8 g5f4 e3f4 f6h4 g2g3 h4e7 e1f2 e7e4 a8f8 e4h1 f8e8 g6g7 e8d7 g7f6 d7d8 f6f7 d8c7 g8e7 f2e2 h1h2 e2d1 h2g1 d1e2 h8c8 c7b7 g1c1 b7b3 c5c4 b3a4 c8c6 d2d4 c6e6 e2f2 c1e1 f2g2 e1d2 g2g1 d2c1 g1g2 e6e2 g2h3 c1h1\n"}},{"id":585,"at":"2026-11-25T22:53:46.358Z","kind":"tool_call","payload":{"tool":"bash","args":"{'command': 'cd /tmp \u0026\u0026 nohup python3 /memory/match.py /tmp/base/target/release/genome /genome/target/release/genome 60 3000 30 \u003e /tmp/m1.log 2\u003e\u00261 \u0026\\nsleep 120; cat /tmp/m1.log', 'timeout': 200}"}},{"id":586,"at":"2026-11-25T22:55:48.411Z","kind":"tool_result","payload":{"tool":"bash","error":false,"text":"game 0: A won  W1 D0 L0\ngame 1: A lost  W1 D0 L1\ngame 2: draw  W1 D1 L1\ngame 3: A won  W2 D1 L1\ngame 4: A won  W3 D1 L1\ngame 5: A won  W4 D1 L1\ngame 6: A lost  W4 D1 L2\ngame 7: A lost  W4 D1 L3\ngame 8: A lost  W4 D1 L4\ngame 9: A lost  W4 D1 L5\ngame 10: A won  W5 D1 L5\ngame 11: A won  W6 D1 L5\ngame 12: A lost  W6 D1 L6\ngame 13: A lost  W6 D1 L7\n"}},{"id":587,"at":"2026-11-25T22:55:51.326Z","kind":"tool_call","payload":{"tool":"bash","args":"{'command': 'sleep 600; tail -3 /tmp/m1.log', 'timeout': 700}"}},{"id":588,"at":"2026-11-25T23:05:51.389Z","kind":"tool_result","payload":{"tool":"bash","error":false,"text":"game 58: A won  W24 D7 L28\ngame 59: A lost  W24 D7 L29\nfinal A vs B: W24 D7 L29  score 0.458  elo -29.0\n"}},{"id":589,"at":"2026-11-25T23:05:56.261Z","kind":"tool_call","payload":{"tool":"bash","args":"{'command': 'cd /tmp \u0026\u0026 (nohup python3 /memory/match.py /tmp/base/target/release/genome /genome/target/release/genome 100 3000 30 \u003e /tmp/m2.log 2\u003e\u00261 \u0026) ; (nohup python3 /memory/match.py /tmp/base/target/release/genome /genome/target/release/genome 100 3000 30 \u003e /tmp/m3.log 2\u003e\u00261 \u0026); sleep 5; cat /tmp/m2.log', 'timeout': 60}"}},{"id":590,"at":"2026-11-25T23:06:01.315Z","kind":"tool_result","payload":{"tool":"bash","error":false,"text":"(no output)"}},{"id":591,"at":"2026-11-25T23:06:03.318Z","kind":"tool_call","payload":{"tool":"lichess_losses","args":"{'limit': 5}"}},{"id":592,"at":"2026-11-25T23:06:03.319Z","kind":"tool_result","payload":{"tool":"lichess_losses","error":false,"text":"5 most recent Lichess loss(es), newest first.\n\nGame F1GgKkg3 (gen-8): you were black against bilo126 (1579), 600+0 casual, ended (mate) after 77 moves.\n  Worst move: move 8 (f6): your evaluation went from -1.1 to -4.1, position before: r1bqk1nr/2p1ppb1/ppn3pp/3pP3/3P1P2/2N2N2/PPP1B1PP/R1BQ1RK1 b kq - 1 8\n  Moves (UCI, last 40 of 153 plies): ... d7b7 h2h4 b3c4 h4h5 c4b4 h5h6 b4b5 h6h7 b7b8 h7h8q b8b7 h8e8 b5b6 e8e3 b6a6 g7h6 b7b8 e3e6 a6a7 e6e7 a7b6 f7f8q b8f8 e7f8 b6b5 f8c8 b5b4 h6g5 b4a5 c8b7 a5a4 g5f4 a4a3 f4e3 a3a4 e3d4 a4a3 d4c3 a3a2 b7b2\n\nGame TCLZE0zr (gen-6): you were black against BOT LouisChess48-6K (1109), 180+2 rated, ended (mate) after 51 moves.\n  Worst move: move 8 (Qg5): your evaluation went from +1.3 to -1.8, position before: rnbqkb1r/1p1p1ppp/2p5/p7/P5N1/5p2/1PPPPPPP/R1BQKB1R b KQkq - 0 8\n  Moves (UCI, last 40 of 101 plies): ... f6b2 a4a5 g7g6 a5a8 f8f7 a8h8 b2h8 f5h4 h8f6 d1e2 f7g7 e2e4 g6g5 h4f5 g7f7 h3h6 f6b2 e4d5 f7f8 f5d6 f8e7 d5g5 e7d7 g5b5 d7d8 b5b2 d8d7 b2d4 d7e7 f3f4 e7d7 c2c4 d7e7 d6f5 e7f7 c4c5 f7f8 d4d5 f8e8 h6h8\n\nGame xR3unHOy (gen-6): you were white against BOT Mr_Sandbar (913), 180+2 rated, ended (mate) after 30 moves.\n  Worst move: move 9 (Qxb7): your evaluation went from -3.4 to -5.5, position before: rn1qkbnr/pp1b4/4p3/2pp3p/6p1/1QP2N2/PP1PPPPP/R1B1KB1R w KQkq - 0 9\n  Moves (UCI, last 40 of 60 plies): ... e2f3 c5c4 h2h4 f8d6 e1e2 g8e7 a1b1 h8h7 h1h3 a7a6 e2e1 e6e5 h3h2 d6c7 e1e2 e5e4 g2g3 e4f3 e2f3 d7g4 f3g2 g4f5 d2d3 c4d3 f2f3 a6a5 a2a4 d3d2 f1b5 b6b5 a4b5 d2d1q h2h1 d1e2 g2g1 c7b6 c1e3 e2e3 g1h2 e3f2\n\nGame HRrmy6qT (gen-6): you were black against BOT dala-1100 (1119), 180+2 rated, ended (mate) after 62 moves.\n  Worst move: move 23 (Kf8): your evaluation went from +4.8 to a forced mate against you, position before: r1b1k1r1/1p5Q/1q1pp1p1/p1p4p/2P5/1P2R3/P4PPP/6K1 b q - 1 23\n  Moves (UCI, last 40 of 123 plies): ... a4a3 g2g4 b6b5 g4g5 c5c4 d3c2 d4d3 c2d2 a7b7 g5g6 b7b6 g6g7 c4c3 d2c3 d3d2 c3d2 b5b4 h4b4 b6c6 g7g8q c6c7 g8g5 c7d7 h2h..."}},{"id":593,"at":"2026-11-25T23:06:05.381Z","kind":"tool_call","payload":{"tool":"bash","args":"{'command': 'sleep 900; tail -1 /tmp/m2.log; tail -1 /tmp/m3.log', 'timeout': 1000}"}}]}</script>
+
+		<script id="rules">
+			// ---- Rules: from a tool call's payload to a sentence for a person. Pure functions.
+
+			/** Python's repr of a dict (how session.py stores args today), read tolerantly: a cut
+			    string or container ends where the text ends, and the result says it was cut. */
+			function pyParse(src) {
+				let cut = false;
+				if (src.length > 2000 && src.endsWith('...')) { src = src.slice(0, -3); cut = true; }
+				let i = 0;
+				const ws = () => { while (i < src.length && /\s/.test(src[i])) i++; };
+				const str = () => {
+					const q = src[i++];
+					let out = '';
+					while (i < src.length) {
+						const c = src[i++];
+						if (c === '\\') {
+							const n = src[i++];
+							if (n === undefined) break;
+							out += n === 'n' ? '\n' : n === 't' ? '\t' : n === 'r' ? '\r' : n === '\\' || n === "'" || n === '"' ? n : '\\' + n;
+						} else if (c === q) return out;
+						else out += c;
+					}
+					cut = true;
+					return out;
+				};
+				const value = () => {
+					ws();
+					const c = src[i];
+					if (c === '{' || c === '[') {
+						const dict = c === '{';
+						const close = dict ? '}' : ']';
+						const o = dict ? {} : [];
+						i++;
+						for (;;) {
+							ws();
+							if (i >= src.length) { cut = true; return o; }
+							if (src[i] === close) { i++; return o; }
+							if (dict) {
+								const k = value();
+								ws();
+								if (src[i] !== ':') { cut = true; return o; }
+								i++;
+								o[k] = value();
+							} else o.push(value());
+							ws();
+							if (src[i] === ',') i++;
+						}
+					}
+					if (c === "'" || c === '"') return str();
+					const m = /^(-?\d+(?:\.\d+)?|True|False|None)/.exec(src.slice(i));
+					if (m) {
+						i += m[0].length;
+						return m[0] === 'True' ? true : m[0] === 'False' ? false : m[0] === 'None' ? null : Number(m[0]);
+					}
+					cut = true;
+					i = src.length;
+					return null;
+				};
+				try { return { value: value(), cut }; } catch { return { value: null, cut: true }; }
+			}
+
+			const basename = (p) => String(p || '').replace(/\/+$/, '').split('/').pop();
+			const joinIt = (xs) => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} e ${xs[xs.length - 1]}`);
+			const durWords = (s) => (s < 60 ? (s === 1 ? '1 secondo' : `${s} secondi`) : Math.round(s / 60) === 1 ? '1 minuto' : `${Math.round(s / 60)} minuti`);
+			const NOTE = { 'NOTES.md': 'gli appunti', 'STRATEGY.md': 'la strategia', 'CONTRACT.md': 'il contratto' };
+			const FILTERS = new Set(['head', 'tail', 'grep', 'sort', 'uniq', 'wc', 'cut', 'awk', 'sed', 'tr', 'tee', 'xargs', 'cat', 'less']);
+			const QUIET = new Set(['cd', 'echo', 'printf', 'rm', 'export', 'true', 'do', 'done', 'then', 'fi', 'if', 'mkdir', 'set', 'chmod', 'touch', 'cp', 'mv', 'exit', 'wait', 'kill', 'pkill', 's=', 'e=']);
+
+			/** Heredoc bodies are taken out first, so a script never reads as shell. */
+			function maskHeredocs(cmd) {
+				const bodies = [];
+				const masked = cmd.replace(/<<-?\s*(['"]?)(\w+)\1[^\n]*\n([\s\S]*?)\n\2(?=\s|$)/g, (m, q, tag, body) => {
+					bodies.push(body);
+					return `<<HEREDOC${bodies.length - 1}`;
+				});
+				return { masked, bodies };
+			}
+
+			/** Simple commands, split on && || ; | & and newlines outside quotes. */
+			function splitSegments(s) {
+				const out = [];
+				let cur = '';
+				let q = null;
+				let piped = false;
+				const push = (sep) => {
+					if (cur.trim()) out.push({ text: cur.trim(), piped, bg: sep === 'bg' });
+					piped = sep === 'pipe';
+					cur = '';
+				};
+				for (let i = 0; i < s.length; i++) {
+					const c = s[i];
+					if (q) {
+						cur += c;
+						if (c === '\\' && q === '"') { cur += s[++i] ?? ''; continue; }
+						if (c === q) q = null;
+						continue;
+					}
+					if (c === "'" || c === '"') { q = c; cur += c; continue; }
+					if (c === '\\') { cur += c + (s[i + 1] ?? ''); i++; continue; }
+					const two = s.slice(i, i + 2);
+					if (two === '&&' || two === '||') { push('and'); i++; continue; }
+					if (c === '&' && (s[i + 1] === '>' || s[i - 1] === '>')) { cur += c; continue; }
+					if (c === '&') { push('bg'); continue; }
+					if (c === '|') { push('pipe'); continue; }
+					if (c === ';' || c === '\n') { push('seq'); continue; }
+					if (c === '(' || c === ')') {
+						if (s[i - 1] === '$') { cur += c; continue; }
+						cur += ' ';
+						continue;
+					}
+					cur += c;
+				}
+				push('end');
+				return out;
+			}
+
+			function shellWords(seg) {
+				const w = [];
+				let cur = '';
+				let q = null;
+				let any = false;
+				for (let i = 0; i < seg.length; i++) {
+					const c = seg[i];
+					if (q) {
+						if (c === q) { q = null; continue; }
+						if (c === '\\' && q === '"' && i + 1 < seg.length) { cur += seg[++i]; continue; }
+						cur += c;
+						continue;
+					}
+					if (c === "'" || c === '"') { q = c; any = true; continue; }
+					if (c === '\\' && i + 1 < seg.length) { cur += seg[++i]; any = true; continue; }
+					if (/\s/.test(c)) { if (cur || any) { w.push(cur); cur = ''; any = false; } continue; }
+					cur += c;
+				}
+				if (cur || any) w.push(cur);
+				return w;
+			}
+
+			function parseSeg(seg) {
+				const w = shellWords(seg.text);
+				const args = [];
+				let out = null;
+				for (let i = 0; i < w.length; i++) {
+					const x = w[i];
+					if (x === '>' || x === '>>' || x === '1>' || x === '&>') { out = w[i + 1]; i++; continue; }
+					if (x === '2>' || x === '<') { i++; continue; }
+					const m = /^(\d?|&)>>?(.+)$/.exec(x);
+					if (m) { if (!m[2].startsWith('&') && m[1] !== '2') out = m[2]; continue; }
+					args.push(x);
+				}
+				while (args.length && (args[0] === 'nohup' || args[0] === 'time' || args[0] === 'exec' || args[0] === 'timeout' || /^\d+[smh]?$/.test(args[0]) && args.length > 1 || /^\w+=/.test(args[0]))) args.shift();
+				return { cmd: args[0] || '', args: args.slice(1), out, bg: seg.bg, piped: seg.piped, raw: seg.text };
+			}
+
+			function readFile(file, ctx) {
+				const b = basename(file);
+				if (NOTE[b]) return { cat: 'capisce', key: 'note:' + b, text: `rilegge ${NOTE[b]}`, topic: NOTE[b] };
+				if (/\.log$/.test(file)) return { cat: 'capisce', key: 'log', logs: [file] };
+				return { cat: 'capisce', key: 'read:' + file, file, text: `legge ${b}`, topic: 'il codice' };
+			}
+
+			function pyBody(body) {
+				if (/\.write\(/.test(body)) {
+					const files = body.match(/[\w/.-]+\.(?:md|py|rs|toml)\b/g) || [];
+					const f = files.find((x) => NOTE[basename(x)]) || files[0];
+					if (f) {
+						const b = basename(f);
+						if (NOTE[b]) return { cat: 'consegna', key: 'note-write:' + b, text: `aggiorna ${NOTE[b]}`, gist: `aggiorna ${NOTE[b]}` };
+						if (/\.rs$/.test(b)) return { cat: 'modifica', key: 'edit:' + b, text: `modifica ${b}` };
+						return { cat: 'prova', key: 'tool-edit:' + b, text: `modifica il suo strumento ${b}`, gist: `sistema ${b}`, rank: 8 };
+					}
+				}
+				const imp = /sys\.path\.insert\([^)]*\/memory[^)]*\)[\s\S]*?import\s+(\w+)/.exec(body);
+				if (imp) return { cat: 'prova', key: 'tool-try:' + imp[1], text: `prova a mano il suo strumento ${imp[1]}.py`, gist: `prova ${imp[1]}.py a mano`, rank: 7 };
+				return { cat: 'prova', key: 'py', text: 'esegue uno script Python' };
+			}
+
+			function python(s, ctx, bodies) {
+				const a = s.args;
+				if (a[0] === '-c') {
+					const m = /import\s+(\w+)/.exec(a[1] || '');
+					return { cat: 'capisce', key: 'module', text: m ? `controlla se c’è il modulo Python ${m[1]}` : 'esegue una riga di Python', topic: 'gli strumenti a disposizione' };
+				}
+				if (a[0] === '-') {
+					const hd = /<<HEREDOC(\d+)/.exec(s.raw);
+					return pyBody(hd ? bodies[+hd[1]] : '');
+				}
+				const script = a.find((x) => /\.py$/.test(x));
+				if (script) {
+					const b = basename(script);
+					if (b === 'match.py') {
+						const pos = a.slice(a.indexOf(script) + 1);
+						const run = { engines: pos.slice(0, 2), games: parseInt(pos[2], 10) || null, bg: s.bg };
+						if (s.out) ctx.logs[s.out] = run;
+						return { cat: 'prova', key: 'match', run };
+					}
+					return { cat: 'prova', key: 'tool:' + b, text: `lancia il suo strumento ${b}`, gist: `lancia ${b}`, rank: 7 };
+				}
+				return { cat: 'prova', key: 'py', text: 'esegue uno script Python' };
+			}
+
+			function git(args, ctx) {
+				const sub = args[0];
+				if (sub === 'status' || sub === 'log') return { cat: 'capisce', key: 'history', text: 'guarda la storia del codice', topic: 'la storia del codice' };
+				if (sub === 'diff') {
+					const exps = args.map((x) => /exp-(\d+)/.exec(x)?.[1]).filter(Boolean);
+					return exps.length ? { cat: 'capisce', key: 'diff', exps } : { cat: 'capisce', key: 'diff0', text: 'guarda le modifiche in corso', topic: 'il codice' };
+				}
+				if (sub === 'show-ref') return { cat: 'capisce', key: 'refs', text: 'elenca le versioni salvate', topic: 'la storia del codice' };
+				if (sub === 'worktree' && args[1] === 'add') {
+					const dir = args.slice(2).find((x) => !x.startsWith('-'));
+					if (dir) ctx.worktrees[dir.replace(/\/+$/, '')] = true;
+					return { cat: 'prova', key: 'worktree', text: 'mette da parte la versione di partenza', gist: 'mette da parte la versione di partenza', rank: 6 };
+				}
+				return { cat: 'capisce', key: 'git', text: `usa git ${sub || ''}`.trim(), topic: 'la storia del codice' };
+			}
+
+			function classify(s, ctx, bodies) {
+				const { cmd, args } = s;
+				const name = basename(cmd);
+				if (!cmd) return null;
+				if (s.piped && FILTERS.has(name)) return null;
+				if (cmd === 'for') { const k = args.indexOf('in'); ctx.loop = k >= 0 ? args.length - k - 1 : 0; return null; }
+				if (QUIET.has(name) || /^\w+=/.test(cmd)) return null;
+				if (name === 'sleep') { const n = parseInt(args[0], 10); return n >= 30 ? { cat: 'aspetta', key: 'sleep', text: `aspetta ${durWords(n)}`, wait: n } : null; }
+				if (name === 'cargo') {
+					if (args[0] === 'build') return { cat: 'prova', key: 'build', text: 'compila', gist: 'compila', rank: 4 };
+					if (args[0] === 'test') return { cat: 'prova', key: 'test', text: 'lancia i test', gist: 'lancia i test', rank: 4 };
+					return { cat: 'prova', key: 'cargo', text: `usa cargo ${args[0] || ''}`.trim() };
+				}
+				if (/target\/release\/genome$/.test(cmd)) return { cat: 'prova', key: 'engine', gist: 'prova il motore', rank: 5 };
+				if (/^python3?$/.test(name)) return python(s, ctx, bodies);
+				if (name === 'sed') {
+					const r = args.find((x) => /^\d+,\d+p$/.test(x));
+					const file = args.filter((x) => !x.startsWith('-') && x !== r).pop();
+					if (r && file) { const [a, b] = r.slice(0, -1).split(','); return { cat: 'capisce', key: 'read:' + file, file, range: [+a, +b], topic: 'il codice' }; }
+					return { cat: 'capisce', key: 'sed', text: 'trasforma un testo' };
+				}
+				if (['cat', 'head', 'tail', 'less'].includes(name)) {
+					const file = args.filter((x) => !x.startsWith('-') && !/^\d+$/.test(x)).pop();
+					return file ? readFile(file, ctx) : null;
+				}
+				if (name === 'grep') {
+					const pos = args.filter((x) => !x.startsWith('-'));
+					const pat = pos[0] || '';
+					const file = pos[1] ? basename(pos[1]) : 'il codice';
+					if (/fn /.test(pat)) return { cat: 'capisce', key: 'grep-fn:' + file, text: `elenca le funzioni di ${file}`, topic: 'il codice' };
+					return { cat: 'capisce', key: 'grep:' + pat, text: `cerca «${pat}» in ${file}`, topic: 'il codice' };
+				}
+				if (name === 'git') return git(args, ctx);
+				if (name === 'ls') {
+					const dirs = args.filter((x) => !x.startsWith('-')).map((x) => x.replace(/\/+$/, ''));
+					return { cat: 'capisce', key: 'ls', text: dirs.length ? `guarda cosa c’è in ${joinIt(dirs)}` : 'guarda i file', topic: dirs.length ? 'gli strumenti a disposizione' : 'il codice' };
+				}
+				if (name === 'wc') return { cat: 'capisce', key: 'wc', text: 'conta le righe del codice', topic: 'il codice' };
+				if (['which', 'nproc', 'uname', 'free', 'df', 'du'].includes(name)) return { cat: 'capisce', key: 'env', text: 'controlla gli strumenti a disposizione', topic: 'gli strumenti a disposizione' };
+				return { cat: 'capisce', key: 'cmd:' + name, text: `esegue ${name}` };
+			}
+
+			function describeBash(command, ctx) {
+				const { masked, bodies } = maskHeredocs(command);
+				ctx.loop = 0;
+				// Command substitutions ($(date +%s)) are values, not commands.
+				let flat = masked;
+				while (/\$\([^()]*\)/.test(flat)) flat = flat.replace(/\$\([^()]*\)/g, '$SUB');
+				const parts = splitSegments(flat).map(parseSeg).map((s) => classify(s, ctx, bodies)).filter(Boolean);
+				const merged = [];
+				const byKey = new Map();
+				for (const p of parts) {
+					const prev = byKey.get(p.key);
+					if (prev) {
+						if (p.range) prev.ranges.push(p.range);
+						if (p.logs) prev.logs.push(...p.logs);
+						if (p.exps) prev.exps.push(...p.exps);
+						if (p.run) prev.runs.push(p.run);
+						continue;
+					}
+					const q = { ...p, ranges: p.range ? [p.range] : [], logs: p.logs ? [...p.logs] : [], exps: p.exps ? [...p.exps] : [], runs: p.run ? [p.run] : [] };
+					byKey.set(p.key, q);
+					merged.push(q);
+				}
+				for (const q of merged) {
+					if (q.key.startsWith('read:')) q.text = q.ranges.length ? `legge ${basename(q.file)}, righe ${joinIt(q.ranges.map(([a, b]) => `${a}-${b}`))}` : `legge ${basename(q.file)}`;
+					if (q.key === 'diff') {
+						const e = [...new Set(q.exps)];
+						q.text = e.length === 1 ? `confronta con il tentativo #${e[0]}` : `confronta con i tentativi ${joinIt(e.map((x) => '#' + x))}`;
+						q.topics = e.map((x) => `il tentativo #${x}`);
+					}
+					if (q.key === 'log') {
+						const files = [...new Set(q.logs)];
+						const known = files.filter((f) => ctx.logs[f]);
+						q.text = known.length > 1 ? `guarda come vanno i ${known.length} match di prova` : known.length ? 'guarda come va il match di prova' : `legge ${joinIt(files.map(basename))}`;
+						q.engines = known.length ? ctx.logs[known[0]].engines : null;
+						q.topic = known.length ? null : 'il codice';
+					}
+					if (q.key === 'engine') {
+						const n = ctx.loop || (masked.match(/position\s+(?:fen|startpos)/g) || []).length;
+						q.text = n > 1 ? `prova il motore su ${n} posizioni` : 'prova il motore';
+					}
+					if (q.key === 'match') {
+						const k = q.runs.length;
+						const g = q.runs[0].games;
+						const bg = q.runs.some((r) => r.bg);
+						const games = g ? `${g} partite` : 'qualche partita';
+						q.engines = q.runs[0].engines;
+						q.games = g;
+						q.text = k > 1 ? `${bg ? 'avvia in sottofondo' : 'gioca'} ${k} match di prova: ${games} ciascuno` : `${bg ? 'avvia in sottofondo un' : 'gioca un'} match di prova: ${games}`;
+						q.gist = k > 1 ? `${bg ? 'avvia in sottofondo' : 'gioca'} ${k} match di prova da ${games}` : `gioca un match di prova da ${games}`;
+						q.rank = 1;
+					}
+				}
+				const written = new Set(merged.filter((q) => q.key.startsWith('note-write:')).map((q) => q.key.slice(11)));
+				const seen = new Set();
+				let list = merged.filter((q) => !(q.key.startsWith('note:') && written.has(q.key.slice(5)))).filter((q) => q.text && !seen.has(q.text) && seen.add(q.text));
+				if (!list.length) list = [{ cat: 'capisce', key: 'cmd', text: 'esegue un comando' }];
+				const cat = list[0].cat === 'aspetta' ? 'aspetta' : list.some((q) => q.cat === 'prova') ? 'prova' : list.some((q) => q.cat === 'modifica') ? 'modifica' : list.some((q) => q.cat === 'consegna') ? 'consegna' : 'capisce';
+				let text = '';
+				list.slice(0, 3).forEach((q, i) => { text += i === 0 ? q.text : (list[i - 1].key === 'sleep' ? ', poi ' : ', ') + q.text; });
+				const rest = list.length - 3;
+				if (rest > 0) text += rest === 1 ? ' e un’altra cosa' : ` e altre ${rest} cose`;
+				return { cat, text, parts: list, wait: list.find((q) => q.key === 'sleep')?.wait ?? null, match: list.find((q) => q.key === 'match') ?? null, logRead: list.find((q) => q.key === 'log' && q.engines) ?? null };
+			}
+
+			/** Line diff of an edit (LCS), for the count of lines and the diff view. */
+			function lineDiff(a, b) {
+				const A = String(a).split('\n');
+				const B = String(b).split('\n');
+				const n = A.length;
+				const m = B.length;
+				const L = Array.from({ length: n + 1 }, () => new Int32Array(m + 1));
+				for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) L[i][j] = A[i] === B[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+				const out = [];
+				let i = 0;
+				let j = 0;
+				while (i < n && j < m) {
+					if (A[i] === B[j]) { out.push([' ', A[i]]); i++; j++; }
+					else if (L[i + 1][j] >= L[i][j + 1]) out.push(['-', A[i++]]);
+					else out.push(['+', B[j++]]);
+				}
+				while (i < n) out.push(['-', A[i++]]);
+				while (j < m) out.push(['+', B[j++]]);
+				return out;
+			}
+
+			function editCount(edits) {
+				let add = 0;
+				let del = 0;
+				for (const e of edits || []) for (const [k] of lineDiff(e.oldText ?? '', e.newText ?? '')) { if (k === '+') add++; else if (k === '-') del++; }
+				return { add, del };
+			}
+
+			const signedLines = ({ add, del }, cut) => [add ? `+${add}` : '', del ? `−${del}` : ''].filter(Boolean).join(' ') + (cut ? ' righe o più' : ' righe');
+
+			/** A call -> { cat, text, ... }. ctx carries what earlier calls established (logs, worktrees). */
+			function describe(it, ctx) {
+				const a = it.args || {};
+				const b = basename(a.path);
+				switch (it.tool) {
+					case 'bash': return describeBash(String(a.command ?? ''), ctx);
+					case 'read': {
+						const o = a.offset;
+						const l = a.limit;
+						return { cat: 'capisce', text: o && l ? `legge ${b}, righe ${o}-${o + l - 1}` : `legge ${b}`, topics: ['il codice'] };
+					}
+					case 'edit': {
+						if (String(a.path).startsWith('/memory/')) return NOTE[b] ? { cat: 'consegna', text: `aggiorna ${NOTE[b]}`, gist: `aggiorna ${NOTE[b]}` } : { cat: 'prova', text: `modifica il suo strumento ${b}`, gist: `sistema ${b}`, rank: 8 };
+						const c = editCount(a.edits);
+						return { cat: 'modifica', text: `modifica ${b}: ${signedLines(c, it.cut)}`, file: b, count: c };
+					}
+					case 'write': {
+						const lines = it.cut ? null : String(a.content ?? '').split('\n').length;
+						if (String(a.path).startsWith('/memory/')) {
+							if (NOTE[b]) return { cat: 'consegna', text: `riscrive ${NOTE[b]}`, gist: `riscrive ${NOTE[b]}` };
+							return { cat: 'prova', text: `scrive un suo strumento: ${b}${lines ? ` (${lines} righe)` : ''}`, gist: `scrive ${b}`, rank: 2 };
+						}
+						return { cat: 'modifica', text: `scrive ${b}`, file: b, count: { add: lines || 0, del: 0 } };
+					}
+					case 'experiments': return { cat: 'capisce', text: a.query ? `cerca fra i tentativi passati: «${a.query}»` : `rilegge gli ultimi ${a.limit ?? ''} tentativi`.replace('  ', ' '), topics: ['i tentativi passati'] };
+					case 'lichess_losses': return { cat: 'capisce', text: `rilegge le ultime ${a.limit ?? ''} sconfitte su Lichess`.replace('  ', ' '), topics: ['le sconfitte su Lichess'] };
+					case 'perft_check': return { cat: 'prova', text: `controlla le regole: perft a profondità ${a.depth ?? '?'}`, gist: 'controlla le regole', rank: 3 };
+					case 'submit': return { cat: 'consegna', text: 'consegna il candidato all’arbitro', gist: 'consegna il candidato all’arbitro' };
+					case 'run_job': return { cat: 'prova', text: 'avvia un lavoro lungo', gist: 'avvia un lavoro lungo', rank: 1 };
+					default: return { cat: 'capisce', text: `usa lo strumento ${it.tool}` };
+				}
+			}
+
+			function matchText(w, d, l, engines, ctx) {
+				const role = (p) => (!p ? null : p.startsWith('/genome/') ? 'nuova' : Object.keys(ctx.worktrees).some((x) => p.startsWith(x + '/')) ? 'partenza' : null);
+				const [ra, rb] = engines ? engines.map(role) : [null, null];
+				if (ra === 'partenza' && rb === 'nuova') return { short: `nuova ${l} · partenza ${w} · patte ${d}`, long: `la versione nuova ne vince ${l}, quella di partenza ${w}, ${draws(d)}` };
+				if (ra === 'nuova' && rb === 'partenza') return { short: `nuova ${w} · partenza ${l} · patte ${d}`, long: `la versione nuova ne vince ${w}, quella di partenza ${l}, ${draws(d)}` };
+				return { short: `${w}-${l}, patte ${d}`, long: `${w} vinte, ${l} perse, ${draws(d)} per il primo motore` };
+			}
+
+			const firstLine = (t) => (String(t).split('\n').find((x) => x.trim()) || '').trim();
+			const clip = (s, n) => (s.length > n ? s.slice(0, n - 1) + '…' : s);
+			const secs = (x) => (x < 1 ? `${Math.round(x * 1000)} ms` : `${new Intl.NumberFormat('it-IT', { maximumFractionDigits: 1 }).format(x)} s`);
+			const draws = (d) => (d === 1 ? '1 patta' : `${d} patte`);
+
+			/** A call with its result -> { text, long?, tone, mono? }. */
+			function outcome(it, ctx) {
+				const r = it.result;
+				const t = r.text;
+				if (r.error) return { tone: 'bad', text: `errore: ${clip(firstLine(t), 70)}` };
+				const lines = t.split('\n').filter((x) => x.trim()).length;
+				switch (it.tool) {
+					case 'edit': return /Successfully/.test(t) ? { tone: 'good', text: 'fatto' } : { tone: '', text: clip(firstLine(t), 70), mono: true };
+					case 'write': return /Successfully/.test(t) ? { tone: 'good', text: 'fatto' } : { tone: '', text: clip(firstLine(t), 70), mono: true };
+					case 'perft_check': { const m = /^OK: (\d+) position/.exec(t); return m ? { tone: 'good', text: `mosse corrette su ${m[1]} posizioni` } : { tone: 'bad', text: 'le mosse non tornano' }; }
+					case 'submit': return /^Submitted/.test(t) ? { tone: 'good', text: 'consegnato: ora decide l’arbitro' } : { tone: 'bad', text: clip(firstLine(t), 70) };
+					case 'experiments': { const n = (t.match(/^#\d+ /gm) || []).length; return { tone: '', text: `${n} tentativi${r.cut ? ' e oltre' : ''}` }; }
+					case 'lichess_losses': { const m = /(\d+) most recent/.exec(t); return { tone: '', text: m ? `${m[1]} partite perse` : clip(firstLine(t), 70) }; }
+					case 'read': return { tone: '', text: `${lines} righe` };
+				}
+				const d = it.desc || {};
+				const engines = d.match?.engines || d.logRead?.engines || null;
+				const fin = [...t.matchAll(/final A vs B: W(\d+) D(\d+) L(\d+)\s+score [\d.]+\s+elo (-?[\d.]+)/g)].pop();
+				if (fin) { const m = matchText(+fin[1], +fin[2], +fin[3], engines, ctx); return { tone: '', text: m.short, long: m.long }; }
+				const prog = [...t.matchAll(/game (\d+): .*?W(\d+) D(\d+) L(\d+)/g)].pop();
+				if (prog) { const m = matchText(+prog[2], +prog[3], +prog[4], engines, ctx); const g = +prog[1] + 1; return { tone: '', text: `dopo ${g} partite: ${m.short}`, long: `dopo ${g} partite ${m.long}` }; }
+				if (/error(\[E\d+\])?:/.test(t) && /-->|could not compile/.test(t)) return { tone: 'bad', text: 'non compila' };
+				const notes = [];
+				const mod = /ModuleNotFoundError: No module named '(\w+)'/.exec(t);
+				if (mod) notes.push(`il modulo ${mod[1]} non c’è`);
+				const nf = /([\w-]+): command not found/.exec(t);
+				if (nf) notes.push(`manca il comando ${nf[1]}`);
+				const best = (t.match(/^bestmove \S+/gm) || []).length;
+				const reals = [...t.matchAll(/^real\s+(\d+)m([\d.]+)s/gm)];
+				if (best) notes.push(`${best === 1 ? '1 mossa scelta' : `${best} mosse scelte`}${!reals.length ? '' : reals.length > 1 && reals.length === best ? ` in ${secs(+reals[0][1] * 60 + +reals[0][2])} ciascuna` : best === 1 ? ` in ${secs(+reals[0][1] * 60 + +reals[0][2])}` : `, tempo misurato ${secs(+reals[0][1] * 60 + +reals[0][2])}`}`);
+				if (!notes.length && /Finished `release`/.test(t)) notes.push('compila');
+				if (notes.length) return { tone: mod || nf ? 'warn' : '', text: notes.join(', ') };
+				if (t.trim() === '(no output)') return { tone: '', text: 'nessuna risposta' };
+				if (d.cat === 'capisce') return { tone: '', text: `${lines} righe${r.cut ? ' e oltre' : ''}` };
+				if (d.cat === 'consegna' || d.cat === 'modifica') return { tone: 'good', text: 'fatto' };
+				return { tone: '', text: clip(firstLine(t), 64), mono: true };
+			}
+
+			// ---- Steps: consecutive calls of the same category.
+			const CATS = ['capisce', 'modifica', 'prova', 'aspetta', 'consegna'];
+			const CAT_NAME = { capisce: 'Capisce', modifica: 'Modifica', prova: 'Prova', aspetta: 'Aspetta', consegna: 'Consegna' };
+			const TOPIC_RANK = (t) => (t.startsWith('il tentativo #') || t.startsWith('i tentativi #') ? 0 : ['i tentativi passati', 'le sconfitte su Lichess', 'il codice', 'gli appunti', 'la strategia', 'il contratto', 'la storia del codice', 'gli strumenti a disposizione'].indexOf(t) + 1 || 9);
+
+			function topicsOf(c) {
+				if (c.desc.topics) return c.desc.topics;
+				if (!c.desc.parts) return [];
+				return c.desc.parts.flatMap((p) => p.topics || (p.topic ? [p.topic] : []));
+			}
+
+			function gistsOf(c) {
+				const d = c.desc;
+				if (!d.parts) return d.gist ? [{ text: d.gist, rank: d.rank ?? 5 }] : [];
+				return d.parts.filter((p) => p.gist).map((p) => ({ text: p.gist, rank: p.rank ?? 5, games: p.games }));
+			}
+
+			function stepSummary(st) {
+				const calls = st.calls;
+				if (!calls.length) return 'Scrive cosa ha fatto';
+				if (st.cat === 'capisce') {
+					const topics = [];
+					calls.forEach((c) => topicsOf(c).forEach((t) => topics.includes(t) || topics.push(t)));
+					if (!topics.length) return calls.length === 1 ? calls[0].desc.text : 'Si guarda intorno';
+					// Several attempts read in one step are one topic: "i tentativi #27 e #28".
+					const nums = topics.filter((t) => t.startsWith('il tentativo #')).map((t) => t.slice(13));
+					const merged = nums.length > 1 ? [`i tentativi ${joinIt(nums)}`, ...topics.filter((t) => !t.startsWith('il tentativo #'))] : topics;
+					const top = merged.slice().sort((a, b) => TOPIC_RANK(a) - TOPIC_RANK(b)).slice(0, 3);
+					return `Rilegge ${joinIt(top)}${merged.length > 3 ? ', e altro' : ''}`;
+				}
+				if (st.cat === 'modifica') {
+					const files = [...new Set(calls.map((c) => c.desc.file).filter(Boolean))];
+					const add = calls.reduce((s, c) => s + (c.desc.count?.add || 0), 0);
+					const del = calls.reduce((s, c) => s + (c.desc.count?.del || 0), 0);
+					return files.length ? `Modifica ${joinIt(files)}: ${signedLines({ add, del }, calls.some((c) => c.cut))}` : calls[0].desc.text;
+				}
+				if (st.cat === 'aspetta') {
+					if (calls.length === 1) return calls[0].desc.text;
+					return `Aspetta in tutto ${durWords(calls.reduce((s, c) => s + (c.desc.wait || 0), 0))}`;
+				}
+				const gists = [];
+				calls.forEach((c, order) => gistsOf(c).forEach((g) => gists.push({ ...g, order })));
+				const matches = gists.filter((g) => g.rank === 1 && g.games);
+				const bestMatch = matches.sort((a, b) => b.games - a.games)[0];
+				const pool = [];
+				for (const g of gists) {
+					if (g.rank === 1 && g.games && g !== bestMatch) continue;
+					if (!pool.some((p) => p.text === g.text)) pool.push(g);
+				}
+				const chosen = pool.slice().sort((a, b) => a.rank - b.rank).slice(0, 3).sort((a, b) => a.order - b.order);
+				return chosen.length ? joinIt(chosen.map((g) => g.text)) : calls[calls.length - 1].desc.text;
+			}
+
+			function stepResult(st) {
+				if (st.cat === 'capisce') return null;
+				const done = st.calls.filter((c) => c.out && c.out.text !== 'fatto' && c.out.text !== 'nessuna risposta');
+				const pick = done.slice().reverse().find((c) => c.out.long) || done[done.length - 1];
+				return pick ? { text: pick.out.long || pick.out.text, tone: pick.out.tone, mono: pick.out.mono && !pick.out.long } : null;
+			}
+		</script>
+
+		<script>
+			// ---- Data and session model.
+			const RAW = JSON.parse(document.getElementById('data').textContent);
+			const EXPS = Object.fromEntries(RAW.experiments.map((e) => [e.id, { ...e, created: Date.parse(e.created_at), finished: e.finished_at ? Date.parse(e.finished_at) : null }]));
+			const EV = RAW.events.map((e) => ({ ...e, ms: Date.parse(e.at) }));
+			// The export has no experiment id: an event belongs to the session that existed when it was written.
+			EV.forEach((e) => (e.exp = e.ms >= EXPS[30].created ? 30 : 29));
+			const SNAP = Date.parse('2026-11-25T23:11:02Z');
+			const S30 = EV.filter((e) => e.exp === 30);
+			const T0 = S30[0].ms - 1500;
+			const LAST = S30[S30.length - 1].ms;
+			const MAX_CALLS = 80;
+
+			function build(id, t) {
+				const evs = EV.filter((e) => e.exp === id && e.ms <= t);
+				const ctx = { logs: {}, worktrees: {} };
+				const queues = {};
+				const items = [];
+				for (const e of evs) {
+					const p = e.payload;
+					if (e.kind === 'tool_call') {
+						const parsed = pyParse(String(p.args ?? ''));
+						const it = { type: 'call', id: e.id, at: e.ms, tool: p.tool, rawArgs: String(p.args ?? ''), args: parsed.value && typeof parsed.value === 'object' ? parsed.value : {}, cut: parsed.cut, result: null };
+						it.desc = describe(it, ctx);
+						(queues[p.tool] ||= []).push(it);
+						items.push(it);
+					} else if (e.kind === 'tool_result') {
+						const it = (queues[p.tool] || []).shift();
+						if (!it) continue;
+						const text = String(p.text ?? '');
+						it.result = { id: e.id, at: e.ms, text, error: !!p.error, cut: text.length > 2000 && text.endsWith('...') };
+						it.out = outcome(it, ctx);
+					} else if (e.kind === 'thought') items.push({ type: 'thought', id: e.id, at: e.ms, text: String(p.text ?? ''), it: e.text_it || null });
+					else if (e.kind === 'status') items.push({ type: 'status', id: e.id, at: e.ms, state: p.state });
+				}
+				const calls = items.filter((i) => i.type === 'call');
+				const steps = makeSteps(items);
+				const exp = EXPS[id];
+				const start = evs.find((e) => e.kind === 'status' && e.payload.state === 'started')?.ms ?? exp.created;
+				const pending = calls.filter((c) => !c.result).pop() || null;
+				const submitted = calls.some((c) => c.tool === 'submit' && c.result && !c.result.error);
+				return { id, items, calls, steps, start, last: evs.length ? evs[evs.length - 1].ms : start, pending, live: id === 30, submitted, thoughts: items.filter((i) => i.type === 'thought').length, exp };
+			}
+
+			function makeSteps(items) {
+				const steps = [];
+				let cur = null;
+				for (const it of items) {
+					if (it.type === 'status') continue;
+					if (it.type === 'thought') {
+						if (!cur) { cur = { cat: 'capisce', calls: [], thoughts: [] }; steps.push(cur); }
+						cur.thoughts.push(it);
+						continue;
+					}
+					if (!cur || cur.cat !== it.desc.cat) { cur = { cat: it.desc.cat, calls: [], thoughts: [] }; steps.push(cur); }
+					cur.calls.push(it);
+				}
+				steps.forEach((s, i) => {
+					s.index = i;
+					s.start = s.calls[0]?.at ?? s.thoughts[0].at;
+					const lc = s.calls[s.calls.length - 1];
+					s.end = lc ? lc.result?.at ?? null : s.thoughts[s.thoughts.length - 1].at;
+					s.summary = stepSummary(s);
+					s.result = stepResult(s);
+				});
+				return steps;
+			}
+
+			// ---- Formatting (Rome time, Italian numbers).
+			const TZ = { timeZone: 'Europe/Rome' };
+			const fHM = new Intl.DateTimeFormat('it-IT', { hour: '2-digit', minute: '2-digit', ...TZ });
+			const fHMS = new Intl.DateTimeFormat('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit', ...TZ });
+			const hm = (t) => fHM.format(t);
+			const hms = (t) => fHMS.format(t);
+			const nf = new Intl.NumberFormat('it-IT');
+			/** The site's duration(): "meno di un minuto", "14 min", "1 h 2 min". */
+			const since = (ms) => { const m = Math.floor(Math.max(0, ms) / 60000); if (m < 1) return 'meno di un minuto'; const h = Math.floor(m / 60); return h > 0 ? `${h} h ${m % 60} min` : `${m} min`; };
+			const clockStr = (ms) => { const s = Math.floor(Math.max(0, ms) / 1000); const h = Math.floor(s / 3600); const mm = String(Math.floor((s % 3600) / 60)); return h ? `${h}:${mm.padStart(2, '0')}:${String(s % 60).padStart(2, '0')}` : `${mm}:${String(s % 60).padStart(2, '0')}`; };
+			const span = (ms) => { const s = Math.round(ms / 1000); return s < 60 ? `${s} s` : `${Math.floor(s / 60)} min${s % 60 ? ` ${s % 60} s` : ''}`; };
+			const upper = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
+			const plainText = (md) => md.replace(/```[\s\S]*?```/g, ' ').replace(/\*\*|__|`/g, '').replace(/^\s*(#+\s+|>\s*)/gm, '').replace(/^\s*[-+]\s+/gm, '').replace(/\s+/g, ' ').trim();
+
+			// ---- DOM: strings always become text nodes, agent content never goes through innerHTML.
+			function h(tag, props, ...kids) {
+				const el = document.createElement(tag);
+				for (const [k, v] of Object.entries(props || {})) {
+					if (v == null || v === false) continue;
+					if (k === 'class') el.className = v;
+					else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+					else el.setAttribute(k, v === true ? '' : String(v));
+				}
+				for (const c of kids.flat(9)) if (c != null && c !== false) el.append(c instanceof Node ? c : String(c));
+				return el;
+			}
+			const SVGNS = 'http://www.w3.org/2000/svg';
+			function chevron(cls) {
+				const s = document.createElementNS(SVGNS, 'svg');
+				s.setAttribute('viewBox', '0 0 24 24');
+				s.setAttribute('width', '16');
+				s.setAttribute('height', '16');
+				s.setAttribute('fill', 'none');
+				s.setAttribute('stroke', 'currentColor');
+				s.setAttribute('stroke-width', '2');
+				s.setAttribute('stroke-linecap', 'round');
+				s.setAttribute('stroke-linejoin', 'round');
+				s.setAttribute('aria-hidden', 'true');
+				if (cls) s.setAttribute('class', cls);
+				const p = document.createElementNS(SVGNS, 'path');
+				p.setAttribute('d', 'm9 18 6-6-6-6');
+				s.append(p);
+				return s;
+			}
+
+			/** The agent writes Markdown: paragraphs, "- " lists, **bold**, `code`; all as text nodes. */
+			function mdLite(text) {
+				const inline = (s) => s.split(/(\*\*[^*]+\*\*|`[^`]+`)/).map((p) => (p.startsWith('**') && p.endsWith('**') && p.length > 4 ? h('strong', {}, p.slice(2, -2)) : p.startsWith('`') && p.endsWith('`') && p.length > 2 ? h('code', {}, p.slice(1, -1)) : p));
+				const out = [];
+				let list = null;
+				for (const line of text.split('\n')) {
+					if (/^\s*[-*]\s+/.test(line)) { if (!list) { list = h('ul', {}); out.push(list); } list.append(h('li', {}, inline(line.replace(/^\s*[-*]\s+/, '')))); continue; }
+					list = null;
+					if (line.trim()) out.push(h('p', {}, inline(line)));
+				}
+				return h('div', { class: 'md' }, out);
+			}
+
+			// ---- UI state, kept across re-renders.
+			const UI = { open: new Set(), full: new Set(), steps: new Set(), original: new Set(), session: 30, sel: {}, follow: true };
+
+			function outBlock(it) {
+				const r = it.result;
+				const key = `o:${it.id}`;
+				const full = UI.full.has(key);
+				const lines = r.text.split('\n');
+				const long = lines.length > 14 || r.text.length > 1400;
+				const shown = full || !long ? r.text : lines.slice(0, 14).join('\n').slice(0, 1400) + '\n…';
+				return [
+					h('pre', { class: `code${r.error ? ' bad' : ''}` }, shown),
+					long && h('button', { class: 'more', 'data-key': key, 'aria-expanded': String(full), onclick: () => toggle(UI.full, key) }, full ? 'Mostra meno' : `Mostra tutto (${nf.format(r.text.length)} caratteri)`),
+					full && r.cut && h('p', { class: 'note' }, 'Il registro conserva solo i primi 2.000 caratteri di ogni risposta: qui finisce.'),
+				];
+			}
+
+			function callText(it) {
+				const a = it.args;
+				if (it.tool === 'bash' && a.command != null) return `$ ${a.command}`;
+				if (it.tool === 'write' && a.path) return `${a.path}\n\n${a.content ?? ''}`;
+				if (!Object.keys(a).length) return `${it.tool} ${it.rawArgs}`;
+				return `${it.tool}(${Object.entries(a).map(([k, v]) => `${k}: ${typeof v === 'string' ? `"${v}"` : JSON.stringify(v)}`).join(', ')})`;
+			}
+
+			function diffBlock(it) {
+				const rows = [];
+				(it.args.edits || []).forEach((e, i) => {
+					if (i) rows.push(h('div', { class: 'ctx' }, '  ⋯'));
+					for (const [k, line] of lineDiff(e.oldText ?? '', e.newText ?? '')) rows.push(h('div', { class: k === '+' ? 'add' : k === '-' ? 'del' : 'ctx' }, `${k === ' ' ? ' ' : k === '-' ? '−' : '+'} ${line}`));
+				});
+				return h('div', { class: 'diff' }, rows);
+			}
+
+			/** The raw call and its answer: what "one click away" opens, in every variant. */
+			function rawBlock(it) {
+				const isEdit = it.tool === 'edit' && Array.isArray(it.args.edits);
+				return [
+					h('p', { class: 'lab' }, isEdit ? `Modifica a ${it.args.path}` : it.tool === 'bash' ? 'Comando' : it.tool === 'write' ? 'File scritto' : 'Chiamata'),
+					isEdit ? diffBlock(it) : h('pre', { class: 'code' }, callText(it)),
+					it.cut && h('p', { class: 'note' }, 'Il registro tiene solo i primi 2.000 caratteri della chiamata: il resto non c’è.'),
+					h('p', { class: 'lab' }, it.result ? `Risposta · ${hms(it.result.at)} · dopo ${span(it.result.at - it.at)}` : 'Risposta'),
+					it.result ? outBlock(it) : h('p', { class: 'note' }, 'Non ancora arrivata: ', h('span', { 'data-clock': 'since', 'data-from': it.at, 'data-prefix': 'aspetta da ' })),
+				];
+			}
+
+			function toggle(set, key) {
+				set.has(key) ? set.delete(key) : set.add(key);
+				render();
+			}
+
+			function outSpan(it) {
+				if (!it.result) return h('span', { class: 'o tone-live' }, 'in corso');
+				return h('span', { class: `o${it.out.mono ? ' mono' : ''}${it.out.tone ? ' tone-' + it.out.tone : ''}` }, it.out.text);
+			}
+
+			/** One line of the log: time, the sentence, the outcome; opens on the raw call. */
+			function logRow(it) {
+				const key = `r:${it.id}`;
+				const open = UI.open.has(key);
+				return h('li', {},
+					h('button', { class: `row${it.result ? '' : ' pending'}`, 'data-key': key, 'aria-expanded': String(open), onclick: () => toggle(UI.open, key) },
+						h('span', { class: 't' }, hms(it.at)),
+						h('span', { class: 'w' }, h('span', { class: 'cap' }, upper(it.desc.text)), ' ', outSpan(it)),
+						chevron('chev')),
+					open && h('div', { class: 'raw' }, rawBlock(it)));
+			}
+
+			function thoughtBody(th) {
+				const key = `th:${th.id}`;
+				const orig = UI.original.has(key) || !th.it;
+				return [
+					th.it && h('button', { class: 'more', 'data-key': key, onclick: () => toggle(UI.original, key) }, orig ? 'Mostra la traduzione' : 'Mostra l’originale in inglese'),
+					h('div', { lang: orig ? 'en' : 'it' }, mdLite(orig ? th.text : th.it)),
+				];
+			}
+
+			function thoughtRow(th) {
+				return h('li', { class: 'thought' }, h('p', { class: 'k' }, `Pensa · ${hms(th.at)}`), thoughtBody(th));
+			}
+
+			function statusRow(st, S) {
+				if (st.state === 'started') return h('li', { class: 'sepl' }, `${hms(st.at)} · inizia la sessione #${S.id}, parte da gen-${S.exp.base_generation_id}`);
+				if (st.state === 'judging') return h('li', { class: 'sepl' }, `${hms(st.at)} · il candidato passa all’arbitro`);
+				return h('li', { class: 'sepl' }, `${hms(st.at)} · ${st.state}`);
+			}
+
+			function waitInfo(c) {
+				if (!c || !c.desc.wait) return null;
+				const until = c.at + c.desc.wait * 1000;
+				return [h('div', { class: 'bar' }, h('i', { 'data-bar-from': c.at, 'data-bar-to': until })), h('p', { class: 'sub' }, h('span', { 'data-clock': 'left', 'data-until': until }))];
+			}
+
+			function nowLine(S, cls) {
+				const c = S.pending;
+				return [
+					h('p', { class: cls || 'nowline' }, c ? upper(c.desc.text) : 'Sceglie il prossimo passo'),
+					c ? waitInfo(c) || h('p', { class: 'sub' }, 'in corso da ', h('span', { 'data-clock': 'since', 'data-from': c.at }))
+						: h('p', { class: 'sub' }, S.calls.length ? ['ultima risposta ', h('span', { 'data-clock': 'since', 'data-from': S.last }), ' fa'] : 'la sessione è appena partita'),
+				];
+			}
+
+			function goLink() {
+				return h('a', { class: 'golink', href: '#/sessione?id=30', onclick: (e) => { e.preventDefault(); UI.session = 30; render(); document.getElementById('sessione').scrollIntoView({ behavior: 'smooth' }); } }, 'Segui la sessione →');
+			}
+
+			const countLine = (S) => `${S.calls.length} ${S.calls.length === 1 ? 'azione' : 'azioni'} · ${S.thoughts ? `${S.thoughts} ${S.thoughts === 1 ? 'pensiero' : 'pensieri'}` : 'nessun pensiero'}`;
+
+			// ---- ASCII inline (components/ascii.tsx, art "inline"): one knight walking a row of dots.
+			const COLOURS = ['var(--c-strength)', 'var(--c-gens)', 'var(--live)', 'var(--c-verdict)', 'var(--c-spend)'];
+			const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+			let asciiT = 0;
+			function paintAscii() {
+				document.querySelectorAll('[data-ascii]').forEach((el) => {
+					el.textContent = '';
+					const t = still ? 6 : asciiT;
+					const frame = Array.from({ length: 6 }, (_, i) => (i === t % 6 ? '♞' : '·')).join(' ');
+					[...frame].forEach((ch, x) => el.append(ch === ' ' ? ' ' : h('span', { style: `color:${ch === '♞' ? 'var(--live)' : COLOURS[(x + Math.floor(t / 3)) % COLOURS.length]}` }, ch)));
+				});
+			}
+			if (!still) setInterval(() => { asciiT++; paintAscii(); }, 125);
+
+			// ---- X: today's stage without a game.
+			const PIECE = { k: 'K', q: 'Q', r: 'R', b: 'B', n: 'N', p: 'P' };
+			function board() {
+				const rows = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR'.split('/');
+				const cells = [];
+				rows.forEach((row, r) => {
+					let c = 0;
+					for (const ch of row) {
+						if (/\d/.test(ch)) { for (let k = 0; k < +ch; k++) cells.push(square(r, c++, null)); }
+						else cells.push(square(r, c++, (ch === ch.toUpperCase() ? 'w' : 'b') + PIECE[ch.toLowerCase()]));
+					}
+				});
+				return h('div', { class: 'tray' }, h('div', { class: 'board' }, cells));
+			}
+			function square(r, c, code) {
+				const light = (r + c) % 2 === 0;
+				return h('div', { style: `background:var(${light ? '--sq-light' : '--sq-dark'})` },
+					code && h('img', { src: `../../frontend/public/pieces/cburnett/${code}.svg`, alt: '', draggable: 'false' }),
+					r === 7 && h('span', { class: 'f', style: `color:var(${light ? '--sq-dark' : '--sq-light'})` }, 'abcdefgh'[c]),
+					c === 0 && h('span', { class: 'r', style: `color:var(${light ? '--sq-dark' : '--sq-light'})` }, String(8 - r)));
+			}
+			function gtabs() {
+				return h('div', { class: 'stagebar' }, h('div', { class: 'gtabs', role: 'tablist', 'aria-label': 'Partita mostrata' },
+					h('button', { role: 'tab', 'aria-selected': 'true' }, 'Arbitro'), h('button', { role: 'tab', 'aria-selected': 'false' }, 'Lichess')));
+			}
+			function stageX() {
+				const maxId = Math.max(...EV.filter((e) => e.ms <= R.t).map((e) => e.id));
+				// The overview carries the last 30 events of all sessions (recent_events), the Caption the last thought among them.
+				const th = EV.filter((e) => e.id > maxId - 30 && e.id <= maxId && e.kind === 'thought').pop();
+				const text = th ? plainText(th.text_it || th.payload.text) : '';
+				return [
+					gtabs(),
+					h('div', { class: 'frame' },
+						h('div', {},
+							h('div', { class: 'player' }, h('span', { class: 'disc', style: 'background:#16140f' }), h('span', {}, h('b', {}, 'In attesa di una partita'))),
+							board(),
+							h('div', { class: 'player' }, h('span', { class: 'disc', style: 'background:#fbfaf7' }))),
+						h('div', { class: 'moves' }, h('p', { class: 'label' }, 'Mosse'), h('p', { class: 'mono muted', style: 'font-size:12px' }, 'nessuna mossa'))),
+					h('div', { class: 'caption' },
+						h('p', { class: 'k' }, `L’agente pensa${th ? ` · ${hm(th.ms)}` : ''}`),
+						h('p', { class: 'clamp2', lang: th ? 'it' : null }, text || 'Ancora nessun pensiero da mostrare.')),
+				];
+			}
+
+			// ---- A: the card is the tail of the log.
+			function stageA(S) {
+				const tail = S.items.filter((i) => i.type !== 'status').slice(-8);
+				return [
+					gtabs(),
+					h('section', { class: 'panel hue-live' },
+						h('header', { class: 'phead panel-rule' }, h('h2', { class: 'panel-label' }, `Sessione #${S.id} · al lavoro`), h('span', { class: 'aside', 'data-clock': 'clock', 'data-from': S.start })),
+						nowLine(S),
+						h('ol', { class: 'tail', 'aria-label': 'Ultime azioni' },
+							tail.length ? tail.map((i) => i.type === 'thought'
+								? h('li', { class: 'thought' }, h('span', { class: 't' }, hms(i.at)), h('span', { class: 'w clamp2' }, plainText(i.it || i.text)))
+								: h('li', { class: i.result ? '' : 'pending' }, h('span', { class: 't' }, hms(i.at)), h('span', { class: 'w' }, h('span', { class: 'cap' }, upper(i.desc.text)), i.result && h('span', { class: 'o' }, ' · ', i.out.text))))
+								: h('li', {}, h('span', { class: 't' }, hms(S.start)), h('span', { class: 'w' }, `inizia la sessione #${S.id}`))),
+						h('div', { class: 'pfoot' }, h('span', {}, countLine(S)), goLink())),
+				];
+			}
+
+			// ---- B: one sentence, the five steps, the last three steps.
+			function trackStates(S) {
+				const cur = S.pending ? S.steps[S.steps.length - 1]?.cat : null;
+				const done = new Set(S.steps.filter((s) => s.end !== null && !(s === S.steps[S.steps.length - 1] && S.pending)).map((s) => s.cat));
+				return CATS.map((c) => ({ c, state: c === cur ? 'cur' : done.has(c) ? 'done' : '' }));
+			}
+			function stageB(S) {
+				const last = S.steps[S.steps.length - 1];
+				const current = S.pending ? last : null;
+				const past = S.steps.filter((s) => s !== current).slice(-3).reverse();
+				return [
+					gtabs(),
+					h('section', { class: 'panel hue-live' },
+						h('header', { class: 'phead panel-rule' }, h('h2', { class: 'panel-label' }, 'L’agente al lavoro'), h('span', { class: 'aside' }, `sessione #${S.id} · `, h('span', { 'data-clock': 'since', 'data-from': S.start, 'data-prefix': 'da ' }))),
+						h('p', { class: 'nowline', style: 'font-size:22px' }, current ? upper(current.summary) : 'Sceglie il prossimo passo'),
+						current ? waitInfo(S.pending) || h('p', { class: 'sub' }, 'da ', h('span', { 'data-clock': 'since', 'data-from': current.start }))
+							: h('p', { class: 'sub' }, S.calls.length ? ['ultima risposta ', h('span', { 'data-clock': 'since', 'data-from': S.last }), ' fa'] : 'la sessione è appena partita'),
+						h('ol', { class: 'track', 'aria-label': 'I passi di una sessione' }, trackStates(S).map(({ c, state }) =>
+							h('li', { class: state, 'aria-current': state === 'cur' ? 'step' : null }, h('i'), h('span', {}, CAT_NAME[c], state === 'cur' && h('pre', { class: 'ascii', 'aria-hidden': 'true', 'data-ascii': '' }))))),
+						past.length > 0 && h('ol', { class: 'recent' }, past.map((s) => h('li', {}, h('p', { class: 'k' }, `${CAT_NAME[s.cat]} · ${hm(s.start)}`), h('p', { class: 'cap' }, upper(s.summary), s.result && h('span', { class: `muted${s.result.tone ? ' tone-' + s.result.tone : ''}` }, ': ', s.result.text))))),
+						h('div', { class: 'pfoot' }, h('span', {}, `${S.steps.length} ${S.steps.length === 1 ? 'passo' : 'passi'} · ${S.calls.length} azioni`), goLink())),
+				];
+			}
+
+			// ---- C: steps in a column, beside them the call in progress and the tail of the last answer.
+			function stageC(S) {
+				const lastDone = S.calls.filter((c) => c.result).pop();
+				const cur = S.pending;
+				const tailText = lastDone ? lastDone.result.text.split('\n').filter((l) => l.trim()).slice(-4).map((l) => clip(l.trim(), 90)).join('\n') : '';
+				return [
+					gtabs(),
+					h('section', { class: 'panel hue-live' },
+						h('header', { class: 'phead panel-rule' }, h('h2', { class: 'panel-label' }, `Sessione #${S.id}`), h('span', { class: 'aside', 'data-clock': 'clock', 'data-from': S.start })),
+						h('div', { class: 'cardc' },
+							h('ol', { class: 'mini', 'aria-label': 'Passi' }, S.steps.map((s, i) => {
+								const isCur = cur && i === S.steps.length - 1;
+								return h('li', { class: isCur ? 'cur' : '' }, h('i'), h('span', {}, CAT_NAME[s.cat]), h('span', {}, isCur ? h('span', { 'data-clock': 'clock', 'data-from': s.start }) : span((s.end ?? s.start) - s.start)));
+							})),
+							h('div', { style: 'display:grid;gap:10px;min-width:0;align-content:start' },
+								h('p', { class: 'klab' }, cur ? 'Adesso' : 'Fra un’azione e l’altra'),
+								h('p', { class: 'nowline', style: 'font-size:17px' }, cur ? upper(cur.desc.text) : 'Sceglie il prossimo passo'),
+								cur && waitInfo(cur),
+								cur && h('pre', { class: 'code clamp' }, callText(cur)),
+								lastDone && h('p', { class: 'klab' }, `Ultima risposta · ${hms(lastDone.result.at)}`),
+								lastDone && h('pre', { class: 'code tailbox' }, tailText || '(vuota)'))),
+						h('div', { class: 'pfoot' }, h('span', {}, countLine(S)), goLink())),
+				];
+			}
+
+			// ---- The session page, shared head.
+			function pageHead(S, intro) {
+				const meta = [
+					S.live && !S.submitted ? h('span', { class: 'state tone-live' }, h('i', { class: 'dot-live' }), 'in corso') : h('span', { class: 'state' }, 'conclusa'),
+					h('span', {}, `iniziata alle ${hm(S.start)}`),
+					h('span', {}, `parte da gen-${S.exp.base_generation_id}`),
+					h('span', {}, `${S.calls.length} azioni su ${MAX_CALLS}`),
+					h('span', {}, S.thoughts ? `${S.thoughts} ${S.thoughts === 1 ? 'pensiero' : 'pensieri'}` : 'nessun pensiero'),
+					S.live && !S.submitted && h('span', {}, 'da ', h('span', { 'data-clock': 'since', 'data-from': S.start }), ' su 40'),
+					!S.live && S.exp.status === 'accepted' && h('span', { class: 'tone-good' }, `consegnata alle ${hm(S.calls.find((c) => c.tool === 'submit')?.at ?? S.last)} · promossa alle ${hm(S.exp.finished)}: è gen-9`),
+				];
+				return h('header', { class: 'page-head' },
+					h('div', { class: 'sessnav', role: 'group', 'aria-label': 'Sessioni' },
+						[29, 30].map((id) => h('button', { 'aria-pressed': String(UI.session === id), 'data-key': `s:${id}`, onclick: () => { UI.session = id; render(); } }, `#${id}`, id === 30 && h('i', { class: 'dot-live', style: 'color:var(--live)' })))),
+					h('h1', {}, `Sessione #${S.id}`),
+					h('p', { class: 'intro' }, intro),
+					h('p', { class: 'how' }, 'Le frasi le scrive il sito con regole fisse a partire dal comando, non l’agente: il comando vero è sempre a un clic.'),
+					h('p', { class: 'meta' }, meta));
+			}
+
+			function pageA(S) {
+				const rows = S.items.map((it) => (it.type === 'call' ? logRow(it) : it.type === 'thought' ? thoughtRow(it) : statusRow(it, S)));
+				if (S.live && !S.submitted) rows.push(h('li', { class: 'cursor' }, h('span', { 'data-clock': 'hms' }), h('span', {}, h('b', { 'aria-hidden': 'true' }, '▍'))));
+				return [
+					pageHead(S, 'Tutto quello che l’agente fa in questa sessione, un’azione per riga, mentre lo fa. Apri una riga per vedere il comando esatto e cosa gli ha risposto.'),
+					h('section', { class: 'panel log' }, h('ol', { class: 'logl' }, rows)),
+				];
+			}
+
+			function pageB(S) {
+				const cards = S.steps.map((st, i) => {
+					const key = `b:${S.id}:${i}`;
+					const open = UI.steps.has(key);
+					const isCur = S.live && S.pending && i === S.steps.length - 1;
+					const duration = st.end === null ? h('span', { 'data-clock': 'since', 'data-from': st.start, 'data-prefix': 'da ' }) : span(st.end - st.start);
+					return h('li', {}, h('section', { class: `panel step${isCur ? ' hue-live' : ''}` },
+						h('div', { class: 'shead' }, h('p', { class: 'panel-label' }, `${i + 1} · ${CAT_NAME[st.cat]}${isCur ? ' · in corso' : ''}`), h('span', { class: 'aside' }, hm(st.start))),
+						h('h3', {}, st.summary),
+						h('p', { class: 'facts' }, `${st.calls.length} ${st.calls.length === 1 ? 'azione' : 'azioni'} · `, duration),
+						isCur && waitInfo(S.pending),
+						st.result && h('p', { class: `res${st.result.tone ? ' tone-' + st.result.tone : ''}${st.result.mono ? ' mono' : ''}` }, upper(st.result.text)),
+						st.thoughts.map((th) => h('div', { class: 'quote' }, h('p', { class: 'k' }, `Scrive · ${hm(th.at)}`), thoughtBody(th))),
+						st.calls.length > 0 && h('button', { class: 'open', 'data-key': key, 'aria-expanded': String(open), onclick: () => toggle(UI.steps, key) }, chevron(), open ? 'Nascondi le azioni' : st.calls.length === 1 ? 'Vedi l’azione' : `Vedi le ${st.calls.length} azioni`),
+						open && h('ol', { class: 'logl' }, st.calls.map(logRow))));
+				});
+				return [
+					pageHead(S, 'La sessione raccontata un passo alla volta: cosa ha cercato di capire, cosa ha cambiato, come l’ha messo alla prova. Ogni passo si apre sulle singole azioni.'),
+					h('ol', { class: 'steps' }, cards),
+				];
+			}
+
+			const narrow = matchMedia('(max-width: 959px)');
+			narrow.addEventListener('change', () => render());
+			function pageC(S) {
+				const entries = S.items.filter((i) => i.type !== 'status');
+				const follow = UI.follow && S.live;
+				let sel = follow ? entries[entries.length - 1]?.id : UI.sel[S.id];
+				if (!entries.some((e) => e.id === sel)) sel = entries[entries.length - 1]?.id;
+				const chosen = entries.find((e) => e.id === sel);
+				const detail = (inline) => chosen && h('div', { class: `detail${inline ? ' inline-detail' : ' side'}` },
+					chosen.type === 'thought'
+						? [h('p', { class: 'klab', style: 'color:var(--c-gens)' }, `Pensa · ${hms(chosen.at)}`), thoughtBody(chosen)]
+						: [h('p', { class: 'klab' }, `${CAT_NAME[chosen.desc.cat]} · ${hms(chosen.at)}`), h('h3', {}, chosen.desc.text), h('div', { class: 'raw' }, rawBlock(chosen))]);
+				const list = [];
+				S.steps.forEach((st, i) => {
+					const isCur = S.live && S.pending && i === S.steps.length - 1;
+					list.push(h('li', { class: `sh${isCur ? ' cur' : ''}` }, h('span', {}, `${i + 1} · ${CAT_NAME[st.cat]}`), h('span', {}, `${st.calls.length} · `, st.end === null ? h('span', { 'data-clock': 'clock', 'data-from': st.start }) : span(st.end - st.start))));
+					const its = [...st.calls, ...st.thoughts].sort((a, b) => a.at - b.at);
+					for (const it of its) {
+						const isSel = it.id === sel;
+						list.push(h('li', {}, h('button', {
+							class: `it${it.type === 'thought' ? ' th' : it.result ? '' : ' pending'}`, 'aria-current': isSel ? 'true' : null, 'data-key': `c:${it.id}`,
+							onclick: () => { UI.follow = it === entries[entries.length - 1] && S.live; UI.sel[S.id] = it.id; render(); },
+						}, h('span', { class: 't' }, hm(it.at)), h('span', { class: 'w cap' }, it.type === 'thought' ? 'pensa: ' + clip(plainText(it.it || it.text), 60) : upper(it.desc.text)))));
+						if (isSel && narrow.matches) list.push(h('li', {}, detail(true)));
+					}
+				});
+				return [
+					pageHead(S, 'A sinistra i passi e le azioni in ordine, a destra il dettaglio di quella scelta: il comando, la modifica al codice, la risposta.'),
+					S.live && !follow && h('button', { class: 'follow', 'data-key': 'follow', onclick: () => { UI.follow = true; render(); } }, 'Torna all’ultima azione, e seguila'),
+					h('div', { class: 'cgrid' },
+						h('section', { class: 'panel tl' }, h('ol', {}, list)),
+						!narrow.matches && h('section', { class: 'panel' }, detail(false))),
+				];
+			}
+
+			// ---- Render.
+			const stageSlot = document.querySelector('[data-stage]');
+			const pageSlot = document.querySelector('[data-page]');
+			function render() {
+				const v = baseV(document.body.dataset.v || 'x');
+				const focusKey = document.activeElement?.dataset?.key;
+				const live = build(30, R.t);
+				stageSlot.replaceChildren(...[v === 'a' ? stageA(live) : v === 'b' ? stageB(live) : v === 'c' ? stageC(live) : stageX()].flat(9).filter(Boolean));
+				if (v !== 'x') {
+					const S = UI.session === 30 ? live : build(29, Infinity);
+					pageSlot.replaceChildren(h('div', { class: 'page' }, (v === 'a' ? pageA(S) : v === 'b' ? pageB(S) : pageC(S)).flat(9).filter(Boolean)));
+				} else pageSlot.replaceChildren();
+				if (focusKey) document.querySelector(`[data-key="${CSS.escape(focusKey)}"]`)?.focus({ preventScroll: true });
+				paintAscii();
+				clocks();
+			}
+
+			function clocks() {
+				document.querySelectorAll('[data-clock]').forEach((el) => {
+					const m = el.dataset.clock;
+					const p = el.dataset.prefix || '';
+					if (m === 'clock') el.textContent = p + clockStr(R.t - +el.dataset.from);
+					else if (m === 'since') el.textContent = p + since(R.t - +el.dataset.from);
+					else if (m === 'hms') el.textContent = hms(R.t);
+					else if (m === 'left') { const left = +el.dataset.until - R.t; el.textContent = left > 0 ? `ne mancano ${since(left)}` : 'tempo finito: aspetta la risposta'; }
+				});
+				document.querySelectorAll('[data-bar-from]').forEach((el) => {
+					const a = +el.dataset.barFrom;
+					const b = +el.dataset.barTo;
+					el.style.width = `${Math.max(0, Math.min(1, (R.t - a) / (b - a))) * 100}%`;
+				});
+				const vc = document.querySelector('[data-vclock]');
+				const rate = R.t >= SNAP ? 'tempo reale' : R.t > LAST ? 'verso adesso' : 'replay';
+				vc.textContent = `${hms(R.t)} · ${R.playing ? rate : 'in pausa'}`;
+			}
+
+			// ---- Replay: session 30 at 8x, long silences in 2.5 s, then real time from the snapshot on.
+			const R = { t: T0, playing: true, last: performance.now(), seen: -1 };
+			const TIMES = S30.map((e) => e.ms);
+			function frame(now) {
+				const dt = Math.min(1000, now - R.last);
+				R.last = now;
+				if (R.playing) {
+					const next = TIMES.find((x) => x > R.t);
+					const prev = [...TIMES].reverse().find((x) => x <= R.t) ?? T0;
+					let speed;
+					if (next !== undefined) speed = next - prev > 20000 ? (next - prev) / 2500 : 8;
+					else if (R.t < SNAP) speed = Math.max(8, (SNAP - LAST) / 2500);
+					else speed = 1;
+					const before = R.t;
+					R.t += dt * speed;
+					if (next === undefined && before < SNAP && R.t > SNAP) R.t = SNAP;
+				}
+				const seen = TIMES.filter((x) => x <= R.t).length;
+				if (seen !== R.seen) { R.seen = seen; render(); }
+				else clocks();
+				requestAnimationFrame(frame);
+			}
+			function restart() { R.t = T0; R.playing = true; UI.follow = true; R.seen = -1; setPause(); }
+			function toEnd() { R.t = Math.max(R.t, SNAP); R.seen = -1; setPause(); }
+			function setPause() { document.querySelector('[data-replay="pause"]').textContent = R.playing ? 'pausa' : 'riprendi'; }
+			document.querySelector('.replay').addEventListener('click', (e) => {
+				const b = e.target.closest('[data-replay]');
+				if (!b) return;
+				if (b.dataset.replay === 'restart') restart();
+				else if (b.dataset.replay === 'end') toEnd();
+				else { R.playing = !R.playing; setPause(); }
+			});
+
+			// ---- Static bits: the Elo chart (simplified), "Leggi tutto" on the commentaries.
+			(function eloChart() {
+				const pts = [[4, 1162, 118], [5, 1129, 136], [6, 1183, 142], [7, 1259, 119], [8, 1488, 115], [9, 1679, 272]];
+				const W = 260, H = 104, lo = 950, hi = 1980;
+				const y = (v) => H - 6 - ((v - lo) / (hi - lo)) * (H - 12);
+				const x = (i) => 18 + i * ((W - 36) / (pts.length - 1));
+				const svg = document.createElementNS(SVGNS, 'svg');
+				svg.setAttribute('viewBox', `0 0 ${W} ${H + 16}`);
+				svg.setAttribute('width', '100%');
+				svg.setAttribute('role', 'img');
+				svg.setAttribute('aria-label', 'Elo contro Stockfish per generazione, con il margine di ogni misura');
+				const add = (tag, attrs, text) => { const el = document.createElementNS(SVGNS, tag); Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v)); if (text) el.textContent = text; svg.append(el); };
+				pts.forEach(([g, e, err], i) => {
+					add('line', { x1: x(i), x2: x(i), y1: y(e - err), y2: y(e + err), stroke: 'var(--c-strength)', 'stroke-opacity': 0.35, 'stroke-width': 2, 'stroke-linecap': 'round' });
+					add('circle', { cx: x(i), cy: y(e), r: i === pts.length - 1 ? 4.5 : 3.5, fill: 'var(--c-strength)' });
+					add('text', { x: x(i), y: H + 13, 'text-anchor': 'middle', 'font-size': 10, 'font-family': 'var(--mono)', fill: 'var(--muted-foreground)' }, `gen-${g}`);
+				});
+				document.querySelector('[data-elo]').append(svg);
+			})();
+			document.querySelectorAll('[data-clamp]').forEach((b) => b.addEventListener('click', () => {
+				const p = b.previousElementSibling;
+				const open = p.classList.toggle('clamp2');
+				b.textContent = open ? 'Leggi tutto' : 'Mostra meno';
+			}));
+		</script>
+
+		<script>
+			// Variant bar, keys, hash and theme (from the mockup template).
+			const DESC = {
+				x: 'oggi: scacchiera ferma e "L’agente pensa" con un pensiero vecchio o nessuno; nessuna pagina della sessione',
+				a: 'registro: una riga per azione, in ordine, il comando vero a un clic; in Diretta la coda del registro',
+				b: 'racconto: la sessione in passi con una frase ciascuno, dettagli chiusi; in Diretta una frase e la fila dei passi',
+				c: 'due colonne: cronologia a sinistra, dettaglio (diff, comando, risposta) a destra, come un debugger',
+			};
+			const KEY = `concept:${location.pathname}`;
+			const root = document.documentElement;
+			const body = document.body;
+			const baseV = (v) => v.replace(/\d+$/, '');
+			const load = () => { try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { return {}; } };
+			const save = (state) => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {} };
+			const vname = (v) => DESC[v].split(':')[0];
+			document.querySelector('[data-buttons]').innerHTML = Object.keys(DESC).map((v) => `<button data-v="${v}">${v.toUpperCase()} ${vname(v)}</button>`).join(' ');
+
+			const pick = (v) => {
+				if (!DESC[v]) return;
+				body.dataset.v = v;
+				body.dataset.base = baseV(v);
+				document.querySelectorAll('.switch [data-v]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === v)));
+				document.querySelector('[data-desc]').textContent = DESC[v];
+				document.querySelectorAll('[data-only]').forEach((el) => {
+					const list = el.dataset.only.split(/\s+/);
+					el.hidden = !list.includes(v) && !list.includes(baseV(v));
+				});
+				history.replaceState(null, '', `${location.search}#${v}`);
+				render();
+			};
+			const setTheme = (t) => { root.dataset.theme = t; save({ ...load(), theme: t }); };
+
+			document.querySelector('.switch').addEventListener('click', (e) => {
+				const b = e.target.closest('[data-v]');
+				if (b) pick(b.dataset.v);
+			});
+			document.querySelector('[data-theme-toggle]').addEventListener('click', () => setTheme(root.dataset.theme === 'dark' ? 'light' : 'dark'));
+			addEventListener('keydown', (e) => {
+				if (e.metaKey || e.ctrlKey || e.altKey || e.target.closest('input, textarea, select, [contenteditable]')) return;
+				const k = e.key.toLowerCase();
+				if (k === 't') setTheme(root.dataset.theme === 'dark' ? 'light' : 'dark');
+				else if (k === 'p') body.dataset.chrome = body.dataset.chrome === 'off' ? 'on' : 'off';
+				else if (k === 'r') restart();
+				else if (k === 'f') toEnd();
+				else pick(k);
+			});
+
+			root.dataset.theme = load().theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+			pick(DESC[location.hash.slice(1)] ? location.hash.slice(1) : 'x');
+			requestAnimationFrame(frame);
+		</script>
+	</body>
+</html>

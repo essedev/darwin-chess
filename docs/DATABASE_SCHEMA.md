@@ -162,6 +162,17 @@ The bot's games on Lichess, each with the champion that played it.
 | analysis | JSON | losses only: the move after which the evaluation drops the most (see `referee/analysis.py`) |
 | created_at / finished_at | DATETIME | |
 
+### lichess_challenges
+
+Every challenge the bot sent to another bot. Lichess caps the challenges an account sends in a day (refused ones count too), so matchmaking counts the last 24 hours here.
+
+| Field | Type | Notes |
+|---|---|---|
+| id | INTEGER | PK |
+| opponent | TEXT | the bot challenged |
+| outcome | TEXT | `created`, `refused` (Lichess turned it down at once), `rate_limited` (answered 429, not counted) |
+| created_at | DATETIME | indexed |
+
 ### commentaries
 
 Texts for the site's visitors, in Italian and English. The agent never reads them.
