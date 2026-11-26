@@ -158,18 +158,19 @@ async def events_after(ledger: Ledger, after_id: int, limit: int = 200) -> list[
         italian = await commentary.of(
             s, commentary.THOUGHT, [e.id for e in rows if e.kind == "thought"]
         )
-    return [
-        {
-            "id": e.id,
-            "experiment_id": e.experiment_id,
-            "kind": e.kind,
-            "payload": e.payload,
-            # A thought's Italian arrives a few seconds after it: a later read carries it.
-            "text_it": commentary.italian(italian.get(e.id)),
-            "at": e.created_at.isoformat(),
-        }
-        for e in rows
-    ]
+    return [event_view(e, italian.get(e.id)) for e in rows]
+
+
+def event_view(event: m.AgentEvent, italian: m.Commentary | None) -> dict[str, Any]:
+    return {
+        "id": event.id,
+        "experiment_id": event.experiment_id,
+        "kind": event.kind,
+        "payload": event.payload,
+        # A thought's Italian arrives a few seconds after it: a later read carries it.
+        "text_it": commentary.italian(italian),
+        "at": event.created_at.isoformat(),
+    }
 
 
 async def last_event_id(ledger: Ledger) -> int:

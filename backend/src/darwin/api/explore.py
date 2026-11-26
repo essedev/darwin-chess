@@ -1,5 +1,5 @@
-"""Read-only routes to explore the lab's history: generations, experiments, matches, code,
-memory.
+"""Read-only routes to explore the lab's history: generations, experiments, sessions, matches,
+code, memory.
 
 Errors from the mirror (`code.BadRequest`, `code.NotFound`, `code.GitError`) become HTTP
 responses through the handlers registered in `app.py`.
@@ -8,12 +8,12 @@ responses through the handlers registered in `app.py`.
 import asyncio
 from typing import Annotated, Any
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Path, Query, Request
 
 from darwin.api.code import BadRequest, Mirror, NotFound
 from darwin.api.mind import read_changelog, read_mind
 from darwin.config import get_settings
-from darwin.ledger import commentary, history
+from darwin.ledger import commentary, history, sessions
 from darwin.ledger.store import Ledger
 from darwin.orchestrator.prompts import SYSTEM
 
@@ -45,6 +45,16 @@ async def experiments(
     """`status` is a comma-separated list: "rejected,stale,abandoned"."""
     statuses = status.split(",") if status else []
     return await history.experiments_page(_ledger(request), limit, before_id, statuses)
+
+
+@router.get("/sessions/{experiment_id}")
+async def session(request: Request, experiment_id: Annotated[int, Path(ge=1)]) -> dict[str, Any]:
+    """One session (an experiment of any kind) with its events in order, its outcome and
+    the ids of the sessions before and after it."""
+    found = await sessions.session_view(_ledger(request), experiment_id)
+    if found is None:
+        raise HTTPException(404, "no such session")
+    return found
 
 
 @router.get("/matches")
