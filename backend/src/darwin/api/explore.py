@@ -49,12 +49,17 @@ async def experiments(
 
 @router.get("/sessions/{experiment_id}")
 async def session(request: Request, experiment_id: Annotated[int, Path(ge=1)]) -> dict[str, Any]:
-    """One session (an experiment of any kind) with its events in order, its outcome and
-    the ids of the sessions before and after it."""
+    """One session (an experiment of any kind) with its events in order, its outcome, the
+    ids of the sessions before and after it, and today's limits of a session."""
     found = await sessions.session_view(_ledger(request), experiment_id)
     if found is None:
         raise HTTPException(404, "no such session")
-    return found
+    settings = get_settings()
+    limits = {
+        "minutes": settings.session_max_minutes,
+        "tool_calls": settings.session_max_tool_calls,
+    }
+    return {**found, "limits": limits}
 
 
 @router.get("/matches")

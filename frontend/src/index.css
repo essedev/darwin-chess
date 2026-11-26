@@ -195,3 +195,6 @@
 .panel-rule { border-bottom: 1px dashed color-mix(in oklab, var(--hue, var(--border)) 30%, var(--border)); }
 
 @keyframes king-shake { 0%, 100% { transform: translateX(0) rotate(0); } 25% { transform: translateX(-3px) rotate(-6deg); } 75% { transform: translateX(3px) rotate(6deg); } }
+
+/* The cursor at the end of a live session log. */
+@keyframes cursor-blink { 50% { opacity: 0; } }

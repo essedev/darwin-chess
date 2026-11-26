@@ -98,6 +98,9 @@ function Details({ experiment: e }: { experiment: Experiment }) {
       <p className="flex flex-wrap items-center gap-x-4 gap-y-1">
         {e.cost_usd !== null && <Fact label={t('detail.cost')}>{f.preciseMoney(e.cost_usd)}</Fact>}
         <Fact label={t('detail.when')}>{f.dateTime(e.created_at)}</Fact>
+        <a href={href('sessione', { id: String(e.id) })} className="cursor-pointer font-medium text-live underline-offset-4 hover:underline">
+          {t('experiment.seeSession')}
+        </a>
         {e.candidate_commit && (
           <a href={href('codice', { diff: `exp-${e.id}` })} className="cursor-pointer font-medium text-live underline-offset-4 hover:underline">
             {t('experiment.seeChanges')}

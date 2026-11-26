@@ -4,6 +4,7 @@ import { AgentMarkdown } from '@/components/markdown'
 import { ErrorNote, LoadingNote, PageShell, StateNote, card } from '@/components/page'
 import { useI18n } from '@/i18n/context'
 import { LangBadge } from '@/i18n/parts'
+import { WorkingNow } from '@/features/session/working-now'
 import { useMind } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
@@ -16,6 +17,7 @@ export default function MindPage() {
   const mind = useMind()
   return (
     <PageShell title={t('nav.mente')} intro={t('mind.intro')}>
+      <WorkingNow />
       {mind.isPending ? (
         <LoadingNote what={t('what.mind')} />
       ) : mind.isError ? (

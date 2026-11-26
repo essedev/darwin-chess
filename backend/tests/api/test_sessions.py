@@ -82,6 +82,7 @@ def test_an_old_session_with_its_legacy_payloads_and_its_verdict(
                               "detail": {"problem": "wrong_count", "move": "e2e4"}}]  # fmt: skip
     assert body["cost_usd"] == pytest.approx(0.004) and body["finished_at"] is not None
     assert body["truncated"] is False
+    assert body["limits"] == {"minutes": 40, "tool_calls": 80}
     kinds = [e["kind"] for e in body["events"]]
     assert kinds == ["status", "tool_call", "tool_result", "thought"]
     call = body["events"][1]

@@ -8,13 +8,13 @@ import { cn } from '@/lib/utils'
 const STATUS_WORD: Record<string, string> = { A: 'added', M: 'modified', D: 'deleted', R: 'renamed' }
 
 /** "gen-3" or "exp-12" from the link; anything else is not a diff we can ask for. */
-function parse({ t }: I18n, diff: string): { query: string; title: string; ref: string } | null {
+function parse({ t }: I18n, diff: string): { query: string; title: string; ref: string; session: string | null } | null {
   const match = /^(gen|exp)-(\d+)$/.exec(diff)
   if (!match) return null
   const [, kind, id] = match
   return kind === 'gen'
-    ? { query: `gen=${id}`, title: t('diff.titleGen', { id: id ?? '' }), ref: diff }
-    : { query: `exp=${id}`, title: t('diff.titleExp', { id: id ?? '' }), ref: diff }
+    ? { query: `gen=${id}`, title: t('diff.titleGen', { id: id ?? '' }), ref: diff, session: null }
+    : { query: `exp=${id}`, title: t('diff.titleExp', { id: id ?? '' }), ref: diff, session: id ?? null }
 }
 
 export function DiffView({ diff }: { diff: string }) {
@@ -35,6 +35,11 @@ export function DiffView({ diff }: { diff: string }) {
         <a href={href('codice', { ref: spec.ref })} className="cursor-pointer text-[13px] font-medium text-live underline-offset-4 hover:underline">
           {t('diff.browse')}
         </a>
+        {spec.session && (
+          <a href={href('sessione', { id: spec.session })} className="cursor-pointer text-[13px] font-medium text-live underline-offset-4 hover:underline">
+            {t('diff.session', { id: spec.session })}
+          </a>
+        )}
       </div>
       {result.isPending ? (
         <LoadingNote what={t('what.changes')} />

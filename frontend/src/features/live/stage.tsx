@@ -2,6 +2,8 @@ import { ExternalLink } from 'lucide-react'
 import { type I18n, useI18n } from '@/i18n/context'
 import type { AgentEvent, Lichess, LiveGame, Overview } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { AgentLine } from '@/features/session/agent-line'
+import { WorkCard } from '@/features/session/work-card'
 import { ArenaGame } from './arena-game'
 import { matchLabel, plainText, titleText } from './format'
 import { LichessPanel } from './lichess-game'
@@ -10,7 +12,10 @@ type Ready = Extract<Overview, { ready: true }>
 export type Tab = 'arena' | 'lichess'
 type LichessQuery = { isPending: boolean; isError: boolean; data: Lichess | undefined }
 
-/** The middle column: which game, what it is about, the board, the agent's last thought. */
+/**
+ * The middle column: which game, what it is about, the board, what the agent is doing. With
+ * no referee game the arena shows the agent's session instead of an empty board.
+ */
 export function Stage(props: {
   data: Ready
   game: LiveGame | null
@@ -22,6 +27,8 @@ export function Stage(props: {
   const { data, game, lichess, tab } = props
   const { t } = useI18n()
   const live = lichess.data?.live ?? null
+  const running = data.current?.status === 'running' ? data.current : null
+  const work = tab === 'arena' && !game && !data.on_trial ? data.current : null
   return (
     <div className="order-1 grid min-w-0 content-start gap-3.5 xl:order-none">
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
@@ -38,9 +45,19 @@ export function Stage(props: {
                  detail={`gen-${live.generation} · ${live.time_control}`} />
       )}
       <div id={`stage-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`} className="min-w-0">
-        {tab === 'arena' ? <ArenaGame data={data} game={game} /> : <LichessPanel query={lichess} />}
+        {work ? (
+          <WorkCard experimentId={work.id} running={running !== null} streamed={props.events} />
+        ) : tab === 'arena' ? (
+          <ArenaGame data={data} game={game} />
+        ) : (
+          <LichessPanel query={lichess} />
+        )}
       </div>
-      <Caption events={props.events} agent={data.agent} />
+      {work ? null : running ? (
+        <AgentLine experimentId={running.id} events={props.events} />
+      ) : (
+        <Caption events={props.events} agent={data.agent} />
+      )}
     </div>
   )
 }

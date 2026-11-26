@@ -34,6 +34,9 @@ export function makeFormat(lang: Lang) {
     shortDate: (iso: string) => new Date(iso).toLocaleDateString(locale, { day: 'numeric', month: 'short' }),
     /** "14:30". */
     time: (iso: string) => new Date(iso).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }),
+    /** "14:30:05": the lines of a session log. */
+    timeSeconds: (iso: string | number) =>
+      new Date(iso).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
   }
 }
 

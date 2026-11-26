@@ -67,7 +67,8 @@ export type Generation = {
 export type AgentEvent = {
   id: number
   experiment_id: number
-  kind: 'thought' | 'tool_call' | 'tool_result' | 'status'
+  /** `reasoning` is the model's summarized thinking, kept in English (DATABASE_SCHEMA.md). */
+  kind: 'thought' | 'reasoning' | 'tool_call' | 'tool_result' | 'status'
   payload: Record<string, unknown>
   /** A thought's Italian, a few seconds after it: the overview carries it, the stream does not. */
   text_it?: string | null
@@ -234,7 +235,7 @@ export function useMatches() {
  * Live agent events and the game on the board, pushed by the API over SSE. The Lichess game
  * arrives on the same stream and goes into the ['lichess'] query; when it ends the query is
  * refetched, so the finished game shows up among the recent ones. A status event of the agent
- * (a session starts, a candidate goes to judgement) refetches the judged matches.
+ * (a session starts, a candidate goes to judgement) refetches the judged matches and that session.
  */
 export function useLiveStream(initial: AgentEvent[]) {
   const queryClient = useQueryClient()
@@ -249,7 +250,10 @@ export function useLiveStream(initial: AgentEvent[]) {
     source.addEventListener('agent', (message) => {
       const event = JSON.parse((message as MessageEvent<string>).data) as AgentEvent
       setEvents((previous) => [...previous.slice(-199), event])
-      if (event.kind === 'status') void queryClient.invalidateQueries({ queryKey: ['matches'] })
+      if (event.kind === 'status') {
+        void queryClient.invalidateQueries({ queryKey: ['matches'] })
+        void queryClient.invalidateQueries({ queryKey: ['session', event.experiment_id] })
+      }
     })
     source.addEventListener('game', (message) => {
       setGame(JSON.parse((message as MessageEvent<string>).data) as LiveGame | null)
@@ -419,6 +423,48 @@ export function useCodeDiff(spec: string | null) {
     queryFn: () => getJson<CodeDiff>(`/api/code/diff?${spec ?? ''}`),
     enabled: spec !== null,
     staleTime: Infinity,
+    retry: retryUnlessClientError,
+  })
+}
+
+/** One agent session with its events in order, its outcome and its neighbours. */
+export type SessionDetail = {
+  id: number
+  kind: 'iteration' | 'reflection'
+  phase: Phase
+  status: string
+  trigger: string
+  base_generation_id: number | null
+  generation_id: number | null
+  title: Commentary | null
+  hypothesis: string | null
+  hypothesis_it: string | null
+  rejected_at_gate: string | null
+  candidate_commit: string | null
+  created_at: string
+  finished_at: string | null
+  cost_usd: number
+  gates: Gate[]
+  match: MatchSummary | null
+  events: AgentEvent[]
+  /** More events than the endpoint returns: these are the first ones. */
+  truncated: boolean
+  previous: number | null
+  next: number | null
+  /** Today's limits of a session (an older one may have had others). */
+  limits: { minutes: number; tool_calls: number }
+}
+
+/**
+ * A session, refetched every `everyMs` while it runs (the stream fills the gaps in between;
+ * a refetch brings the Italian of the thoughts and the final status). Null id: disabled.
+ */
+export function useSession(id: number | null, everyMs: number | false) {
+  return useQuery({
+    queryKey: ['session', id],
+    queryFn: () => getJson<SessionDetail>(`/api/sessions/${id ?? ''}`),
+    enabled: id !== null,
+    refetchInterval: (query) => (query.state.data && query.state.data.status !== 'running' ? false : everyMs),
     retry: retryUnlessClientError,
   })
 }

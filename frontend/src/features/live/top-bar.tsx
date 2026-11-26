@@ -1,5 +1,6 @@
 import { useI18n } from '@/i18n/context'
 import type { Overview } from '@/lib/api'
+import { href } from '@/lib/use-route'
 import { cn } from '@/lib/utils'
 import { PHASES } from './format'
 
@@ -12,6 +13,7 @@ export function TopBar({ data, connected }: { data: Ready; connected: boolean })
   const champion = data.champion.id
   const racing = data.on_trial ?? (data.current && ['running', 'judging'].includes(data.current.status) ? data.current : null)
   const live = connected && data.agent !== 'paused'
+  const session = data.current?.status === 'running' ? data.current : null
   return (
     <header className="col-span-full flex flex-wrap items-center gap-x-4 gap-y-2.5">
       <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-3">
@@ -33,6 +35,12 @@ export function TopBar({ data, connected }: { data: Ready; connected: boolean })
         <i className={cn('size-[7px] rounded-full bg-current', live && 'animate-pulse')} />
         {!connected ? t('top.disconnected') : data.agent === 'paused' ? t('agent.paused') : t('top.live')}
       </span>
+      {session && (
+        <a href={href('sessione', { id: String(session.id) })}
+           className="cursor-pointer font-mono text-[12px] font-medium text-live underline-offset-4 hover:underline">
+          {t('top.session', { id: session.id })}
+        </a>
+      )}
       <ol aria-label={t('top.phases')} className="flex items-center font-mono text-[11px] tracking-[0.04em] text-muted-foreground sm:ml-auto">
         {PHASES.map((p, i) => (
           <li

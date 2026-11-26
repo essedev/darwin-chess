@@ -1,17 +1,20 @@
 import { useEffect, useState } from 'react'
 
-export type Page = 'diretta' | 'evoluzione' | 'codice' | 'mente' | 'laboratorio'
+export type Page = 'diretta' | 'evoluzione' | 'codice' | 'mente' | 'laboratorio' | 'sessione'
 
 export type Route = { page: Page; params: URLSearchParams }
 
 /** The tabs in order. The slugs stay Italian in both languages: shared links keep working. */
 export const PAGES: readonly Page[] = ['diretta', 'evoluzione', 'codice', 'mente', 'laboratorio']
 
+/** Every page with an address: the tabs, plus one agent session (`#/sessione?id=30`). */
+const ROUTES: readonly Page[] = [...PAGES, 'sessione']
+
 /** "#/codice?ref=gen-3&path=src/main.rs" → codice + its params; anything unknown is the live view. */
 function parse(hash: string): Route {
   const [path = '', query = ''] = hash.replace(/^#\/?/, '').split('?', 2)
   const name = path.replace(/\/+$/, '')
-  const page = PAGES.find((p) => p === name) ?? 'diretta'
+  const page = ROUTES.find((p) => p === name) ?? 'diretta'
   return { page, params: new URLSearchParams(query) }
 }
 

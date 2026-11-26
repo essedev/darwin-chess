@@ -10,6 +10,7 @@ const EvolutionPage = lazy(() => import('@/features/evolution/evolution-page'))
 const CodePage = lazy(() => import('@/features/code/code-page'))
 const MindPage = lazy(() => import('@/features/mind/mind-page'))
 const LabPage = lazy(() => import('@/features/lab/lab-page'))
+const SessionPage = lazy(() => import('@/features/session/session-page'))
 
 export default function App() {
   const { page, params } = useRoute()
@@ -40,6 +41,7 @@ export default function App() {
         {page === 'codice' && <CodePage params={params} />}
         {page === 'mente' && <MindPage />}
         {page === 'laboratorio' && <LabPage />}
+        {page === 'sessione' && <SessionPage params={params} />}
       </Suspense>
     </div>
   )
