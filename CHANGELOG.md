@@ -2,6 +2,12 @@
 
 Le novità del laboratorio, dalla più recente.
 
+## 0.5.0, 26 novembre 2026
+
+- **Guarda l'agente al lavoro**: ogni sessione ha la sua pagina, con tutto quello che l'agente fa, un'azione per riga e in parole semplici ("legge main.rs", "compila", "gioca un match di prova: 60 partite", "aspetta 15 minuti"). Il comando vero e quello che gli ha risposto sono a un clic; in mezzo i suoi pensieri e il suo ragionamento, che resta in inglese. Mentre la sessione è in corso la pagina si aggiorna da sola, e alla fine dice com'è andata.
+- **Niente più scacchiera vuota**: quando l'arbitro non sta giocando, al centro della diretta c'è la sessione in corso, con l'azione di adesso, il conto alla rovescia quando l'agente aspetta e le ultime righe. Con una partita in corso, sotto la scacchiera una riga dice cosa sta facendo.
+- **Sempre a portata di mano**: alla sessione si arriva dalla barra in alto della diretta, da ogni tentativo in Evoluzione, dalle modifiche nel Codice e da Mente, che mostra a cosa sta lavorando l'agente in questo momento.
+
 ## 0.4.0, 25 novembre 2026
 
 - **Un sito più vivo**: ogni cosa ha il suo colore, uguale in tutte le pagine (la forza del campione in blu, le generazioni in viola, il verdetto in verde, la spesa in ambra, la diretta in corallo).

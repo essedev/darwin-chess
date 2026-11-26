@@ -2,6 +2,12 @@
 
 What is new in the lab, most recent first.
 
+## 0.5.0, 26 November 2026
+
+- **Watch the agent at work**: every session has its own page with everything the agent does, one action per line in plain words ("reads main.rs", "builds", "plays a test match: 60 games", "waits 15 minutes"). The real command and what came back are a click away; in between, its thoughts and its reasoning, which stays in English. While the session runs the page updates by itself, and at the end it says how it went.
+- **No more empty board**: when the referee is not playing, the middle of the live page shows the session in progress, with the action of the moment, a countdown when the agent waits and the latest lines. With a game on, a line under the board says what the agent is doing.
+- **Always at hand**: the session opens from the top bar of the live page, from every attempt in Evolution, from the changes on the Code page and from Mind, which shows what the agent is working on right now.
+
 ## 0.4.0, 25 November 2026
 
 - **A livelier site**: each thing has its own colour, the same on every page (the champion's strength in blue, the generations in violet, the verdict in green, the spend in amber, what is live in coral).
