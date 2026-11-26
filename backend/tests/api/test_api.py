@@ -42,7 +42,7 @@ def seed(ledger_url: str) -> None:
         await ledger.set_submission(exp, "Write the move generator", "a" * 40, {"files": 3})
         await ledger.add_llm_call(
             exp, "claude-haiku-5-5", input_tokens=300, cached_tokens=900, output_tokens=50,
-            cost_usd=0.004,
+            cost_usd=0.004, cache_write_tokens=100,
         )  # fmt: skip
         thought = await ledger.add_event(exp, "thought", {"text": "Bitboards first."})
         await commentary.add(
@@ -74,7 +74,12 @@ def test_overview_tells_the_story(client: TestClient, ledger_url: str) -> None:
         {"gate": "perft", "passed": False, "detail": {"problem": "wrong_count"}}
     ]
     assert body["experiments"]["total"] == 1
-    assert body["spend"]["tokens"] == {"input": 300, "cached": 900, "output": 50}
+    assert body["spend"]["tokens"] == {
+        "input": 300,
+        "cached": 900,
+        "cache_write": 100,
+        "output": 50,
+    }
     assert body["spend"]["model"] and body["spend"]["effort"]
     assert body["events"][-1]["payload"] == {"text": "Bitboards first."}
     assert body["events"][-1]["text_it"] == "Prima le bitboard."

@@ -112,7 +112,8 @@ function SpendPanel({ spend }: { spend: Ready['spend'] }) {
   const { t, tn, f } = useI18n()
   const share = Math.min(1, spend.usd / spend.budget)
   const full = spend.usd >= spend.budget
-  const read = spend.tokens.input + spend.tokens.cached
+  // Every input token the model read, however it was billed: the cache share is out of this.
+  const read = spend.tokens.input + spend.tokens.cached + spend.tokens.cache_write
   return (
     <Panel title={t('spend.title')} hue="spend">
       <p className="flex items-baseline gap-2">

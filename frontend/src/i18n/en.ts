@@ -124,7 +124,7 @@ export const en: Messages = {
   'spend.model': 'Model',
   'spend.effortOf': '{effort} effort',
   'spend.tokens': 'Tokens',
-  'spend.tokensValue': '{read} read ({cached} cached) · {written} written',
+  'spend.tokensValue': '{read} read · {cached} from cache · {written} generated',
   'spend.perSession': 'Per session',
   'effort.off': 'no',
   'effort.minimal': 'minimal',

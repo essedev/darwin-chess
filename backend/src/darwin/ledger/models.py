@@ -110,7 +110,8 @@ class LlmCall(Timestamped, Base):
     experiment_id: Mapped[int] = mapped_column(ForeignKey("experiments.id"), index=True)
     model: Mapped[str] = mapped_column(String(128))
     input_tokens: Mapped[int] = mapped_column(default=0)
-    cached_tokens: Mapped[int] = mapped_column(default=0)
+    cached_tokens: Mapped[int] = mapped_column(default=0)  # read from the prompt cache
+    cache_write_tokens: Mapped[int] = mapped_column(default=0, server_default="0")
     output_tokens: Mapped[int] = mapped_column(default=0)
     cost_usd: Mapped[float] = mapped_column(Float, default=0.0)
 

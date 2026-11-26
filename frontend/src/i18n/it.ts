@@ -127,7 +127,7 @@ export const it = {
   'spend.model': 'Modello',
   'spend.effortOf': 'sforzo {effort}',
   'spend.tokens': 'Token',
-  'spend.tokensValue': '{read} letti ({cached} dalla cache) · {written} scritti',
+  'spend.tokensValue': '{read} letti · {cached} dalla cache · {written} generati',
   'spend.perSession': 'A sessione',
   'effort.off': 'nessuno',
   'effort.minimal': 'minimo',

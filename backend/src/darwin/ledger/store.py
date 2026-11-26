@@ -278,6 +278,7 @@ class Ledger:
         cached_tokens: int,
         output_tokens: int,
         cost_usd: float,
+        cache_write_tokens: int = 0,
     ) -> None:
         async with self.session() as s:
             s.add(
@@ -286,6 +287,7 @@ class Ledger:
                     model=model,
                     input_tokens=input_tokens,
                     cached_tokens=cached_tokens,
+                    cache_write_tokens=cache_write_tokens,
                     output_tokens=output_tokens,
                     cost_usd=cost_usd,
                 )

@@ -96,8 +96,8 @@ export type Overview =
         /** The agent's model id and reasoning effort, e.g. "claude-haiku-5-5", "high". */
         model: string
         effort: string
-        /** Today's tokens: read at full price, read from the prompt cache, written. */
-        tokens: { input: number; cached: number; output: number }
+        /** Today's tokens. Input: at full price, read from the prompt cache, written to it. */
+        tokens: { input: number; cached: number; cache_write: number; output: number }
       }
       events: AgentEvent[]
       jobs: Jobs

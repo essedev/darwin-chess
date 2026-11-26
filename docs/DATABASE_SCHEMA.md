@@ -110,7 +110,7 @@ Basis of the spending cap: the day's spend is the sum of `cost_usd` since midnig
 | id | INTEGER | PK |
 | experiment_id | INTEGER | FK |
 | model | TEXT | e.g. `anthropic/claude-haiku-5.5` |
-| input_tokens / cached_tokens / output_tokens | INTEGER | |
+| input_tokens / cached_tokens / cache_write_tokens / output_tokens | INTEGER | input at full price, read from the prompt cache, written to it, generated. `cache_write_tokens` is pi's `cacheWrite`; for Haiku 5.5 calls made before the column existed it was derived from `cost_usd` with pi's prices (per million: 0.10 input, 0.01 cache read, 0.125 cache write, 0.50 output) |
 | cost_usd | REAL | actual cost reported by the provider |
 | created_at | DATETIME | index for the daily sum |
 

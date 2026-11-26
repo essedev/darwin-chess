@@ -141,15 +141,16 @@ def match_view(match: m.Match) -> dict[str, Any]:
 
 
 async def spend(ledger: Ledger, since: datetime) -> dict[str, Any]:
-    """The agent's model calls since `since`: cost, sessions and tokens. `input_tokens` are
-    the ones read at full price, `cached_tokens` the ones read from the prompt cache."""
+    """The agent's model calls since `since`: cost, sessions and tokens. Input splits in three:
+    read at full price, read from the prompt cache, written to it."""
     async with ledger.session() as s:
-        total, fresh, cached, written = (
+        total, fresh, cached, cache_write, written = (
             await s.execute(
                 select(
                     func.coalesce(func.sum(m.LlmCall.cost_usd), 0.0),
                     func.coalesce(func.sum(m.LlmCall.input_tokens), 0),
                     func.coalesce(func.sum(m.LlmCall.cached_tokens), 0),
+                    func.coalesce(func.sum(m.LlmCall.cache_write_tokens), 0),
                     func.coalesce(func.sum(m.LlmCall.output_tokens), 0),
                 ).where(m.LlmCall.created_at >= since)
             )
@@ -160,7 +161,12 @@ async def spend(ledger: Ledger, since: datetime) -> dict[str, Any]:
     return {
         "usd": float(total or 0.0),
         "sessions": int(sessions or 0),
-        "tokens": {"input": int(fresh), "cached": int(cached), "output": int(written)},
+        "tokens": {
+            "input": int(fresh),
+            "cached": int(cached),
+            "cache_write": int(cache_write),
+            "output": int(written),
+        },
     }
 
 

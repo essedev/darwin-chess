@@ -179,6 +179,7 @@ class SessionRunner:
                     s.llm_model,
                     input_tokens=int(usage.get("input") or 0),
                     cached_tokens=int(usage.get("cacheRead") or 0),
+                    cache_write_tokens=int(usage.get("cacheWrite") or 0),
                     output_tokens=int(usage.get("output") or 0),
                     cost_usd=call_cost,
                 )
