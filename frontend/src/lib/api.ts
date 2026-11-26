@@ -88,7 +88,17 @@ export type Overview =
       on_trial?: Experiment | null
       previous: Experiment | null
       agent: 'working' | 'idle' | 'paused'
-      spend: { usd: number; sessions: number; budget: number; quota_now: number }
+      spend: {
+        usd: number
+        sessions: number
+        budget: number
+        quota_now: number
+        /** The agent's model id and reasoning effort, e.g. "claude-haiku-5-5", "high". */
+        model: string
+        effort: string
+        /** Today's tokens: read at full price, read from the prompt cache, written. */
+        tokens: { input: number; cached: number; output: number }
+      }
       events: AgentEvent[]
       jobs: Jobs
     }

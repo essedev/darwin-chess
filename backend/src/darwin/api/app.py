@@ -142,7 +142,13 @@ async def overview(request: Request) -> dict[str, Any]:
         if len(previous) > 1
         else None,
         "agent": "paused" if paused and not running else ("working" if running else "idle"),
-        "spend": {**spent, "budget": settings.daily_budget_usd, "quota_now": quota},
+        "spend": {
+            **spent,
+            "budget": settings.daily_budget_usd,
+            "quota_now": quota,
+            "model": settings.llm_model,
+            "effort": settings.llm_thinking,
+        },
         "events": await queries.recent_events(ledger, 30),
         "jobs": await queries.jobs_view(ledger),
     }

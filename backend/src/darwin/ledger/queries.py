@@ -141,16 +141,27 @@ def match_view(match: m.Match) -> dict[str, Any]:
 
 
 async def spend(ledger: Ledger, since: datetime) -> dict[str, Any]:
+    """The agent's model calls since `since`: cost, sessions and tokens. `input_tokens` are
+    the ones read at full price, `cached_tokens` the ones read from the prompt cache."""
     async with ledger.session() as s:
-        total = await s.scalar(
-            select(func.coalesce(func.sum(m.LlmCall.cost_usd), 0.0)).where(
-                m.LlmCall.created_at >= since
+        total, fresh, cached, written = (
+            await s.execute(
+                select(
+                    func.coalesce(func.sum(m.LlmCall.cost_usd), 0.0),
+                    func.coalesce(func.sum(m.LlmCall.input_tokens), 0),
+                    func.coalesce(func.sum(m.LlmCall.cached_tokens), 0),
+                    func.coalesce(func.sum(m.LlmCall.output_tokens), 0),
+                ).where(m.LlmCall.created_at >= since)
             )
-        )
+        ).one()
         sessions = await s.scalar(
             select(func.count(m.Experiment.id)).where(m.Experiment.created_at >= since)
         )
-    return {"usd": float(total or 0.0), "sessions": int(sessions or 0)}
+    return {
+        "usd": float(total or 0.0),
+        "sessions": int(sessions or 0),
+        "tokens": {"input": int(fresh), "cached": int(cached), "output": int(written)},
+    }
 
 
 async def events_after(ledger: Ledger, after_id: int, limit: int = 200) -> list[dict[str, Any]]:

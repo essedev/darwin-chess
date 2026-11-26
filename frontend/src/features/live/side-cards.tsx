@@ -112,6 +112,7 @@ function SpendPanel({ spend }: { spend: Ready['spend'] }) {
   const { t, tn, f } = useI18n()
   const share = Math.min(1, spend.usd / spend.budget)
   const full = spend.usd >= spend.budget
+  const read = spend.tokens.input + spend.tokens.cached
   return (
     <Panel title={t('spend.title')} hue="spend">
       <p className="flex items-baseline gap-2">
@@ -124,6 +125,42 @@ function SpendPanel({ spend }: { spend: Ready['spend'] }) {
       <p className="mt-2.5 text-[12px] text-muted-foreground">
         {full ? t('spend.full') : t('spend.sessions', { sessions: tn('count.sessions', spend.sessions) })}
       </p>
+      <dl className="mt-3.5 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1.5 border-t pt-3 text-[12px]">
+        <dt className="text-muted-foreground">{t('spend.model')}</dt>
+        <dd className="min-w-0">
+          {modelName(spend.model)}
+          <span className="text-muted-foreground"> · {t('spend.effortOf', { effort: effortLabel(t, spend.effort) })}</span>
+        </dd>
+        <dt className="text-muted-foreground">{t('spend.tokens')}</dt>
+        <dd className="min-w-0 font-mono tabular-nums">
+          {t('spend.tokensValue', {
+            read: f.compact(read),
+            cached: read > 0 ? `${Math.round((spend.tokens.cached / read) * 100)}%` : '0%',
+            written: f.compact(spend.tokens.output),
+          })}
+        </dd>
+        {spend.sessions > 0 && (
+          <>
+            <dt className="text-muted-foreground">{t('spend.perSession')}</dt>
+            <dd className="font-mono tabular-nums">{f.preciseMoney(spend.usd / spend.sessions)}</dd>
+          </>
+        )}
+      </dl>
     </Panel>
   )
+}
+
+/** "claude-haiku-5-5" reads "Claude Haiku 5.5"; an id of another shape is shown as it is. */
+function modelName(id: string) {
+  const match = /^claude-([a-z]+)-(\d+)-(\d+)$/.exec(id.split('/').pop() ?? id)
+  if (!match) return id
+  const [, family = '', major, minor] = match
+  return `Claude ${family.charAt(0).toUpperCase()}${family.slice(1)} ${major}.${minor}`
+}
+
+const EFFORTS = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh'] as const
+
+function effortLabel(t: ReturnType<typeof useI18n>['t'], effort: string) {
+  const known = EFFORTS.find((e) => e === effort)
+  return known ? t(`effort.${known}`) : effort
 }
