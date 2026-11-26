@@ -296,8 +296,12 @@ export type GenerationDetail = {
   created_at: string
   elo_vs_parent: number | null
   elo_vs_parent_error?: number | null
+  /** The joint estimate: games against Stockfish and matches between champions together. */
   elo_absolute: number | null
   elo_absolute_error?: number | null
+  /** The latest measure from the Stockfish games alone, as recorded. */
+  elo_anchors?: number | null
+  elo_anchors_error?: number | null
   below_ladder: boolean
   experiment_id: number | null
   title?: Commentary | null

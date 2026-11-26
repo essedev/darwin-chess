@@ -124,11 +124,16 @@ function GenerationDetails({ generation: g }: { generation: GenerationDetail }) 
         </p>
       )}
       <p className="flex flex-wrap gap-x-4 gap-y-1">
-        <Fact label={t('detail.stockfish')}>
+        <Fact label={t('detail.elo')}>
           {g.elo_absolute !== null
             ? `${f.num(Math.round(g.elo_absolute))}${g.elo_absolute_error == null ? '' : ` ± ${f.num(Math.round(g.elo_absolute_error))}`}`
             : g.below_ladder ? t('generations.belowLadder') : t('generations.notRated')}
         </Fact>
+        {g.elo_anchors != null && (
+          <Fact label={t('detail.stockfish')}>
+            {`${f.num(Math.round(g.elo_anchors))}${g.elo_anchors_error == null ? '' : ` ± ${f.num(Math.round(g.elo_anchors_error))}`}`}
+          </Fact>
+        )}
         {gain && (
           <span className="inline-flex items-center gap-1.5">
             <Fact label={g.id === 1 ? t('detail.vsRandom') : t('detail.vsParent')}>{gain}</Fact>

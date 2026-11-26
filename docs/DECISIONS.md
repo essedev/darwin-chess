@@ -204,3 +204,21 @@ Entry points: on the Live page the middle column shows the tail of the log when 
 The ledger changes that went with it: tool arguments are stored as a JSON object with each string cut on its own (a repr cut at 2,000 characters lost the end of long edits), every call and result carries pi's `toolCallId`, and the model's reasoning is stored as `reasoning`. pi asks Anthropic for adaptive thinking with `display: "summarized"` (its default, no option changes it), so every reply carries the summarized thinking; it is shown in English with its caption and not translated, because it comes with every reply and would multiply the commentary spend. Old rows keep their format and the page reads both.
 
 Rejected: B "Racconto" (the session cut into five steps, the calls closed inside them), which hides the order of what happened behind a grouping that the rules would get wrong on unusual sessions; C "Due colonne" (timeline and detail side by side, like a debugger), which needs a wide screen and a selection to read anything, and on a phone collapses into A with an extra click. Not done: the full output of a command, which is not stored anywhere beyond its first 2,000 characters.
+
+## #29 One joint Elo estimate for every generation
+
+Status: active. Date: 2026-11-26.
+
+gen-14 scored 0.95 against Stockfish 1600, so the ladder climbed to 2000 (0.65) and rated it 2,108 ± 130. gen-15 scored 0.863 against 1600, the ladder stopped there because it climbs only from 0.9, and rated it 1,919 ± 166, although gen-15 had beaten gen-14 by +84 ± 34 in the match that promoted it. With 40 games per rung, which rung decides a rating was left to noise around 0.9, every generation was measured alone, and the chart showed a drop of almost 200 Elo that the games do not support.
+
+The Elo the site shows is now one maximum-likelihood fit over all the evidence: every rung of every rating snapshot, with the anchors fixed at their nominal Elo, and the SPRT match that promoted each champion over its parent. Logistic model, a draw as half a point, 95% margins from the inverse Hessian. On the production ledger it puts gen-15 at 2,079 ± 75 above gen-14 at 2,006 ± 57, and every margin from gen-3 on falls to ± 50-80, because each generation borrows the games of its neighbours through matches of hundreds of games. It is derived, not history: computed when the API reads it and kept in the process until a new snapshot or generation appears. `rating_snapshots` keep each measure as it was taken, and the site shows it next to the estimate as "against Stockfish alone".
+
+The data that enters:
+- a match counts as points out of games, not as its pentanomial: the rungs kept only their score, and one model for all the evidence keeps the fit consistent. The cost is margins about a sixth wider on drawish matches;
+- gen-1's match was against the random player, which has no Elo, and a rejected candidate would add an unknown with nothing to say about the generations: both stay out;
+- gen-1 and gen-2 were promoted before the ladder existed and never met an anchor. Their only link is a chain of near-whitewash matches (22-2-0 and 23-1-0) that gives them -97 ± 601 and 448 ± 490 and adds nothing to the others, so the matches older than the first rated generation stay out and the two remain "not rated";
+- a generation that only ever won, or only ever lost, against everything it met has no finite estimate, like one with no path to an anchor: neither gets one.
+
+The limit: the fit takes a gain over the parent to be worth the same against Stockfish. Self-play gains often shrink against other opponents, and an SPRT stopped early at H1 overstates the gain it measured; the margins do not include that. On today's ledger the evidence fits the model roughly, with more spread than it assumes (chi-square 33 over 19 degrees of freedom): the largest misfits are gen-14 losing 3.5 points to the 1320 rung where the fit expects 0.8, and gen-15 scoring 34.5 against 1600 where it expects 37.6. To be checked as the chain grows.
+
+Rejected: more games per rung only, which narrows each measure at the cost of hours of CPU per champion but still lets noise around 0.9 choose the rung and still measures every generation alone; weighing each match by its pentanomial variance, a second model for a sixth of margin.

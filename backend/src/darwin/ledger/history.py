@@ -7,7 +7,7 @@ from typing import Any
 
 from sqlalchemy import func, select
 
-from darwin.ledger import commentary
+from darwin.ledger import commentary, strength
 from darwin.ledger import models as m
 from darwin.ledger.lichess import performance
 from darwin.ledger.queries import gate_view, match_view
@@ -15,7 +15,9 @@ from darwin.ledger.store import Ledger
 
 
 async def generations_detail(ledger: Ledger) -> list[dict[str, Any]]:
-    """Every champion, newest first, with the experiment that won it and its ratings."""
+    """Every champion, newest first, with the experiment that won it and its ratings: the joint
+    estimate as `elo_absolute`, the latest anchor-only measure as `elo_anchors`."""
+    joint = await strength.joint_elo(ledger)
     async with ledger.session() as s:
         gens = (await s.scalars(select(m.Generation).order_by(m.Generation.id))).all()
         winners = [g.experiment_id for g in gens if g.experiment_id is not None]
@@ -80,8 +82,10 @@ async def generations_detail(ledger: Ledger) -> list[dict[str, Any]]:
                 "elo_vs_parent_error": match_error.get(gen.experiment_id)
                 if gen.experiment_id is not None
                 else None,
-                "elo_absolute": anchors[gen.id].elo if gen.id in anchors else None,
-                "elo_absolute_error": anchors[gen.id].elo_error if gen.id in anchors else None,
+                "elo_absolute": joint[gen.id].elo if gen.id in joint else None,
+                "elo_absolute_error": joint[gen.id].error if gen.id in joint else None,
+                "elo_anchors": anchors[gen.id].elo if gen.id in anchors else None,
+                "elo_anchors_error": anchors[gen.id].elo_error if gen.id in anchors else None,
                 "below_ladder": gen.id in below and gen.id not in anchors,
                 "experiment_id": gen.experiment_id,
                 "title": commentary.view(titles.get(winner.id)) if winner else None,

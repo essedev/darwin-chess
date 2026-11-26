@@ -6,14 +6,16 @@ from typing import Any
 
 from sqlalchemy import func, select
 
-from darwin.ledger import commentary
+from darwin.ledger import commentary, strength
 from darwin.ledger import models as m
 from darwin.ledger.lichess import performance
 from darwin.ledger.store import Ledger
 
 
 async def generations_with_story(ledger: Ledger) -> list[dict[str, Any]]:
-    """Every champion with the hypothesis that won it and how many attempts it took."""
+    """Every champion with the hypothesis that won it, how many attempts it took and its joint
+    Elo estimate (`darwin.ledger.strength`)."""
+    joint = await strength.joint_elo(ledger)
     async with ledger.session() as s:
         gens = (await s.scalars(select(m.Generation).order_by(m.Generation.id))).all()
         rows: list[dict[str, Any]] = []
@@ -37,19 +39,14 @@ async def generations_with_story(ledger: Ledger) -> list[dict[str, Any]]:
                     or 0
                 )
                 previous_experiment = gen.experiment_id
-            rating = await s.scalar(
-                select(m.RatingSnapshot)
-                .where(m.RatingSnapshot.generation_id == gen.id)
-                .where(m.RatingSnapshot.source == "anchors")
-                .order_by(m.RatingSnapshot.id.desc())
-            )
+            rating = joint.get(gen.id)
             rows.append(
                 {
                     "id": gen.id,
                     "commit": gen.commit_sha,
                     "elo_vs_parent": gen.elo_vs_parent,
                     "elo_absolute": rating.elo if rating else None,
-                    "elo_absolute_error": rating.elo_error if rating else None,
+                    "elo_absolute_error": rating.error if rating else None,
                     "hypothesis": hypothesis,
                     "title": commentary.view(title),
                     "tried": tried,

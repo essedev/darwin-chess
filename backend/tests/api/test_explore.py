@@ -1,6 +1,7 @@
 """History, code, memory and lab endpoints, against a real ledger and a real bare mirror."""
 
 import asyncio
+import math
 import os
 import subprocess
 from collections.abc import Iterator
@@ -107,7 +108,8 @@ def seed_ledger(ledger_url: str, gen0: str, gen1: str) -> None:
         failed = GateResult(Gate.PERFT, False, {"problem": "wrong_count"}, 9)
         await ledger.record_verdict(third, Verdict(False, [failed], None, None))
         await ledger.add_rating(0, "anchors_below", 1320.0, None, {})
-        await ledger.add_rating(1, "anchors", 1500.0, 40.0, {})
+        rung = {"elo": 1500, "score": 0.5, "elo_diff": 0.0, "error": 40.0}
+        await ledger.add_rating(1, "anchors", 1500.0, 40.0, {"anchors": [rung]})
         await commentary.add(ledger, commentary.Subject(commentary.TITLE, first),
                              text_it="Una ricerca", text_en="A search", model="m",
                              input_tokens=1, output_tokens=1, cost_usd=0.0)  # fmt: skip
@@ -280,8 +282,13 @@ def test_mind_carries_the_italian_of_the_current_version(
 def test_generations_detail_newest_first(client: TestClient, lab: Lab) -> None:
     gen1, gen0 = client.get("/api/generations/detail").json()
     assert gen1["id"] == 1 and gen1["parent_commit"] == lab.gen0
-    assert (gen1["elo_absolute"], gen1["below_ladder"], gen1["tried"]) == (1500.0, False, 1)
-    assert (gen1["elo_absolute_error"], gen1["elo_vs_parent_error"]) == (40.0, 80.0)
+    assert (gen1["elo_anchors"], gen1["elo_anchors_error"]) == (1500.0, 40.0)
+    # The joint estimate: an even score over 40 games against the 1500 rung, nothing else
+    assert gen1["elo_absolute"] == pytest.approx(1500.0)
+    assert gen1["elo_absolute_error"] == pytest.approx(
+        1.96 * 400 / math.log(10) / math.sqrt(10), rel=1e-4
+    )
+    assert (gen1["below_ladder"], gen1["tried"], gen1["elo_vs_parent_error"]) == (False, 1, 80.0)
     assert gen1["title"] == {"it": "Una ricerca", "en": "A search"}
     assert (gen1["hypothesis"], gen1["lesson"], gen1["experiment_id"]) == (
         "Add a search", "Search pays.", 1)  # fmt: skip
@@ -290,7 +297,7 @@ def test_generations_detail_newest_first(client: TestClient, lab: Lab) -> None:
                                "performance": 1800}  # fmt: skip
     assert (gen0["parent_commit"], gen0["below_ladder"], gen0["elo_absolute"]) == (
         None, True, None)  # fmt: skip
-    assert (gen0["elo_absolute_error"], gen0["title"]) == (None, None)
+    assert (gen0["elo_absolute_error"], gen0["elo_anchors"], gen0["title"]) == (None, None, None)
     assert gen0["lichess"] is None
 
 
