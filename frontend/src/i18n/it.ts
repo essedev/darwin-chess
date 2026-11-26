@@ -199,7 +199,7 @@ export const it = {
   'elo.chartLabel': 'Elo contro Stockfish per generazione, con il margine di ogni misura',
   'elo.chartTitle': 'Elo contro Stockfish, margine al 95%',
   'generations.panel': 'Generazioni',
-  'generations.all': 'Tutte le {n} prove',
+  'generations.all': 'Tutte le {n} sessioni',
   'generations.racing': 'in gara contro gen-{gen}',
   'generations.queued': 'in coda per il giudizio',
   'generations.belowLadderShort': 'sotto la scala',

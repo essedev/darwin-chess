@@ -197,7 +197,7 @@ export const en: Messages = {
   'elo.chartLabel': 'Elo against Stockfish per generation, with the margin of each measure',
   'elo.chartTitle': 'Elo against Stockfish, 95% margin',
   'generations.panel': 'Generations',
-  'generations.all': 'All {n} attempts',
+  'generations.all': 'All {n} sessions',
   'generations.racing': 'competing with gen-{gen}',
   'generations.queued': 'waiting to be judged',
   'generations.belowLadderShort': 'below the ladder',

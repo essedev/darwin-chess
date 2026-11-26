@@ -1,6 +1,8 @@
 import { Panel } from '@/components/panel'
 import { useI18n } from '@/i18n/context'
-import type { LichessPerformance, Overview } from '@/lib/api'
+import { useMemo } from 'react'
+import { upper, useSessionModel } from '@/features/session/use-session-model'
+import type { AgentEvent, LichessPerformance, Overview } from '@/lib/api'
 import { href } from '@/lib/use-route'
 import { cn } from '@/lib/utils'
 import { EloChart } from './elo-chart'
@@ -11,11 +13,11 @@ type Ready = Extract<Overview, { ready: true }>
 const SHOWN = 5
 
 /** The left column: how strong the champion is, then the latest generations. */
-export function History({ data, lichess }: { data: Ready; lichess: LichessPerformance | undefined }) {
+export function History({ data, events, lichess }: { data: Ready; events: AgentEvent[]; lichess: LichessPerformance | undefined }) {
   return (
     <aside className="order-3 grid min-w-0 content-start gap-3.5 lg:col-span-full lg:grid-cols-2 xl:order-none xl:col-span-1 xl:grid-cols-1">
       <Strength data={data} lichess={lichess} />
-      <Generations data={data} />
+      <Generations data={data} events={events} />
     </aside>
   )
 }
@@ -73,7 +75,7 @@ function Strength({ data, lichess }: { data: Ready; lichess: LichessPerformance 
 }
 
 /** The candidate racing now, then the last few champions with their title and rating. */
-function Generations({ data }: { data: Ready }) {
+function Generations({ data, events }: { data: Ready; events: AgentEvent[] }) {
   const { t, lang, f } = useI18n()
   const promoted = data.generations.filter((g) => g.id >= 1).reverse().slice(0, SHOWN)
   const current = data.on_trial ?? (data.current && ['running', 'judging'].includes(data.current.status) ? data.current : null)
@@ -90,9 +92,10 @@ function Generations({ data }: { data: Ready }) {
       }
     >
       <ol className="-mx-2.5 grid gap-0.5">
-        {current && (
+        {current && current.status === 'running' && <RunningRow id={current.id} events={events} />}
+        {current && current.status !== 'running' && (
           <Row tag={`#${current.id}`} now title={currentTitle?.text ?? t('history.working')} lang={currentTitle?.lang}
-               subtitle={current.status === 'running' ? t('history.working') : current.progress ? t('generations.racing', { gen: data.champion.id }) : t('generations.queued')} />
+               subtitle={current.progress ? t('generations.racing', { gen: data.champion.id }) : t('generations.queued')} />
         )}
         {promoted.map((g) => {
           const title = titleText(lang, g.title, { en: g.hypothesis, it: g.hypothesis_it })
@@ -114,6 +117,18 @@ function Generations({ data }: { data: Ready }) {
   )
 }
 
+/** The session at work: what it is doing now, in words, and the way to its page. */
+function RunningRow({ id, events }: { id: number; events: AgentEvent[] }) {
+  const { t } = useI18n()
+  const mine = useMemo(() => events.filter((e) => e.experiment_id === id), [events, id])
+  const model = useSessionModel(mine)
+  const call = model.pending ?? model.calls[model.calls.length - 1] ?? null
+  return (
+    <Row tag={`#${id}`} now title={t('history.working')} subtitle={call ? upper(call.desc.text) : t('work.choosing')}
+         href={href('sessione', { id: String(id) })} />
+  )
+}
+
 function Row(props: {
   tag: string
   title: string
@@ -122,9 +137,26 @@ function Row(props: {
   value?: string | null
   error?: string | null
   now?: boolean
+  href?: string
 }) {
+  const grid = 'grid grid-cols-[50px_minmax(0,1fr)_auto] items-center gap-2.5 rounded-[10px] px-2.5 py-[9px]'
+  const cells = <RowCells {...props} />
   return (
-    <li className={cn('grid grid-cols-[50px_minmax(0,1fr)_auto] items-center gap-2.5 rounded-[10px] px-2.5 py-[9px]', props.now && 'bg-live/10')}>
+    <li className={cn(!props.href && grid, props.now && 'bg-live/10', props.href && 'rounded-[10px]')}>
+      {props.href ? (
+        <a href={props.href} className={cn(grid, 'cursor-pointer transition-colors hover:bg-live/15 focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none')}>
+          {cells}
+        </a>
+      ) : (
+        cells
+      )}
+    </li>
+  )
+}
+
+function RowCells(props: Parameters<typeof Row>[0]) {
+  return (
+    <>
       <span className={cn('font-mono text-xs font-medium text-muted-foreground', props.now && 'text-live')}>{props.tag}</span>
       <span className="min-w-0">
         <b className="block truncate text-[13.5px] font-medium" title={props.title} lang={props.lang}>{props.title}</b>
@@ -134,6 +166,6 @@ function Row(props: {
         {props.value ?? (props.now ? '' : <span className="text-muted-foreground">–</span>)}
         {props.error && <small className="block text-[10.5px] font-normal text-muted-foreground">{props.error}</small>}
       </span>
-    </li>
+    </>
   )
 }

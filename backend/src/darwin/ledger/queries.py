@@ -60,8 +60,10 @@ async def generations_with_story(ledger: Ledger) -> list[dict[str, Any]]:
 
 
 async def experiment_counts(ledger: Ledger) -> dict[str, int]:
+    """Sessions by status, reflections included: they share the numbering (#25 is one), and
+    Evolution counts them the same way."""
     async with ledger.session() as s:
-        query = select(m.Experiment.status, func.count()).where(m.Experiment.kind == "iteration")
+        query = select(m.Experiment.status, func.count())
         result = await s.execute(query.group_by(m.Experiment.status))
         counts = {status: int(count) for status, count in result}
     return {"total": sum(counts.values()), **counts}

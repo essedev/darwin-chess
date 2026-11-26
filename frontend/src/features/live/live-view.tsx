@@ -32,7 +32,7 @@ export function LiveView() {
   return (
     <main className="mx-auto grid w-full max-w-[1440px] flex-1 grid-cols-1 content-start gap-x-8 gap-y-7 px-4 pt-4 pb-10 sm:px-8 sm:pt-6 lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[280px_minmax(0,1fr)_320px]">
       <TopBar data={data} connected={connected} />
-      <History data={data} lichess={lichess.data?.performance[data.champion.id]} />
+      <History data={data} events={events} lichess={lichess.data?.performance[data.champion.id]} />
       <Stage data={data} game={game} events={events} lichess={lichess} tab={tab} onTab={choose} />
       <SideCards data={data} tab={tab} lichess={lichess} />
     </main>
