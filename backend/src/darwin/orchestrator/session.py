@@ -12,7 +12,7 @@ from darwin.ledger import lichess
 from darwin.ledger.commentary import THOUGHT
 from darwin.ledger.store import LabState, Ledger
 from darwin.orchestrator import events as payloads
-from darwin.orchestrator import prompts, sandbox
+from darwin.orchestrator import memory, prompts, sandbox
 from darwin.orchestrator.jobs import Jobs
 from darwin.orchestrator.pi import PiError, PiProcess
 from darwin.orchestrator.sandbox import Sandbox
@@ -98,6 +98,7 @@ class SessionRunner:
                 s,
                 system_prompt=system,
                 workdir=s.data_dir / "agent" / "cwd",
+                session_dir=s.data_dir / "agent" / "sessions" / f"exp-{experiment_id}",
                 extra_env={
                     "DARWIN_SANDBOX": box.name,
                     "DARWIN_DOCKER": s.docker_bin,
@@ -138,6 +139,7 @@ class SessionRunner:
             if tools.submitted is None and kind == "iteration":
                 await self._keep_unsubmitted(box, experiment_id, state.base_commit)
             await box.stop()
+            await memory.keep(s, f"exp-{experiment_id}: after the {kind} session")
         if tools.submitted is not None:
             return Outcome(experiment_id, tools.submitted, "judging", cost)
         status = "reflected" if kind == "reflection" else "abandoned"

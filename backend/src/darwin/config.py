@@ -25,6 +25,8 @@ class Settings(BaseSettings):
     # Defaults are relative to backend/, where the code runs in development; the data lives
     # at the repository root, where Compose mounts it.
     ledger_url: str = "sqlite+aiosqlite:///../data/ledger.sqlite"
+    # A consistent copy of the ledger in data/backup, for the host's backup (ledger.backup).
+    ledger_backup_every_h: float = 24.0
     genome_dir: Path = Path("../genome")
     # Binaries, matches and artifacts. Containers spawned by the referee mount it at the same
     # path it has on the host, so it must be absolute (relative values are resolved here).

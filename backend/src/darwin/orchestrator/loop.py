@@ -21,13 +21,14 @@ import uvicorn
 
 from darwin.commentary.worker import CommentaryWorker
 from darwin.config import Settings
-from darwin.ledger import strength
+from darwin.ledger import backup, strength
 from darwin.ledger.commentary import LICHESS_GAME
 from darwin.ledger.elo_fit import FitError
 from darwin.ledger.store import Ledger
 from darwin.lichess.bot import LichessBot
 from darwin.lichess.client import LichessClient
 from darwin.orchestrator import budget, sandbox
+from darwin.orchestrator import memory as agent_memory
 from darwin.orchestrator.drain import CHECK_EVERY_S, Drain
 from darwin.orchestrator.jobs import Jobs
 from darwin.orchestrator.session import SessionRunner
@@ -79,6 +80,7 @@ class Orchestrator:
         for name in ("NOTES.md", "STRATEGY.md"):
             if not (memory / name).exists():
                 (memory / name).write_text((SEED_MEMORY / name).read_text())
+        await agent_memory.keep(self.settings, "startup")
         await self.jobs.recover()
         for row in await self.ledger.unfinished_experiments():
             if row.status == "judging" and row.candidate_commit:
@@ -145,6 +147,7 @@ class Orchestrator:
         catching_up = asyncio.create_task(self._catch_up_rating())
         commenting = asyncio.create_task(self.commentary.run())
         translating_memory = asyncio.create_task(self.commentary.run_memory())
+        backing_up = asyncio.create_task(backup.run(self.settings))
         lichess = self.lichess_client()
         playing = None
         bot = None
@@ -166,7 +169,9 @@ class Orchestrator:
                 await self.settle(bot)
                 await asyncio.Event().wait()  # drained: wait to be stopped
         finally:
-            for task in (judging, playing, catching_up, commenting, translating_memory, watching):
+            tasks = (judging, playing, catching_up, commenting, translating_memory, backing_up,
+                     watching)  # fmt: skip
+            for task in tasks:
                 if task is not None:
                     task.cancel()
                     with contextlib.suppress(asyncio.CancelledError):

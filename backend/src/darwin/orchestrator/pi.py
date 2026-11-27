@@ -2,7 +2,9 @@
 
 pi runs in an empty working folder with every kind of automatic loading off (project
 config, extensions, skills, prompt templates, context files, MCP), so nothing the agent
-writes can ever be loaded by it: only our extension is.
+writes can ever be loaded by it: only our extension is. Each session is saved by pi as a
+JSONL transcript in its own folder (prompts, full reasoning, every tool call and result):
+the ledger's events are cut for the site, the transcript is the complete record.
 """
 
 import asyncio
@@ -28,11 +30,11 @@ class PiError(Exception):
     pass
 
 
-def pi_argv(settings: Settings, system_prompt: Path) -> list[str]:
+def pi_argv(settings: Settings, system_prompt: Path, session_dir: Path) -> list[str]:
     agent = settings.agent_dir
     return [
         str(agent / "node_modules" / ".bin" / "pi"),
-        "--mode", "rpc", "--no-session",
+        "--mode", "rpc", "--session-dir", str(session_dir),
         "--no-approve", "--no-extensions", "-e", str(agent / "darwin-extension.ts"),
         "--no-skills", "--no-prompt-templates", "--no-context-files", "--no-mcp", "--no-themes",
         "--tools", TOOLS,
@@ -44,8 +46,10 @@ def pi_argv(settings: Settings, system_prompt: Path) -> list[str]:
 
 class PiProcess:
     def __init__(self, settings: Settings, *, system_prompt: Path, workdir: Path,
-                 extra_env: dict[str, str]) -> None:  # fmt: skip
-        self._argv = pi_argv(settings, system_prompt)
+                 session_dir: Path, extra_env: dict[str, str]) -> None:  # fmt: skip
+        # A folder per session and never --continue: pi always starts a new transcript.
+        session_dir.mkdir(parents=True, exist_ok=True)
+        self._argv = pi_argv(settings, system_prompt, session_dir)
         self._workdir = workdir
         home = settings.data_dir / "agent" / "pi-home"
         self._env = {

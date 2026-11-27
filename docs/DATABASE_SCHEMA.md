@@ -126,7 +126,7 @@ The stream shown on the dashboard.
 | payload | JSON | by `kind`, below |
 | created_at | DATETIME | |
 
-Payloads. Every text is capped at 2,000 characters, cut with a trailing `...`; `cut` says whether it was.
+Payloads. Every text is capped at 2,000 characters, cut with a trailing `...`; `cut` says whether it was. From 27 November the uncut text is in pi's transcript of the session, `data/agent/sessions/exp-<experiment_id>`.
 
 | kind | payload |
 |---|---|

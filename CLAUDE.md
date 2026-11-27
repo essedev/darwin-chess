@@ -37,7 +37,7 @@ An LLM agent (Haiku 5.5, through Anthropic or OpenRouter) writes a chess engine 
 - `uv init --package` does not create `py.typed`: mypy uses `files = ["src", "tests"]`.
 - In the `rust` image `CARGO_HOME` is `/usr/local/cargo`, not `~/.cargo`; the sandbox is offline (`CARGO_NET_OFFLINE`), so no crates are downloaded.
 - Alembic on SQLite: `render_as_batch=True` is already on in `alembic/env.py`.
-- Data and configuration live at the root: `data/` (ledger, mirror, binaries, games, agent memory, jobs) and a single `.env` (from `.env.example`), read both in development from `backend/` and by Compose.
+- Data and configuration live at the root: `data/` (ledger, mirror, binaries, games, agent memory and its history, pi's transcripts, the daily ledger copy, jobs) and a single `.env` (from `.env.example`), read both in development from `backend/` and by Compose.
 - Containers created by the referee mount the data at the same path as on the host (`DARWIN_DATA_DIR`, absolute): a relative or different path breaks the bind mounts when `core` runs in a container.
 - The server is a fanless MacBook Air M4, not a Mac mini: under sustained load it slows down.
 - pi resolves relative paths against its own folder on the host: the extension (`agent/darwin-extension.ts`) maps them to `/genome` before every `docker exec`. Always start pi with the flags in `orchestrator/pi.py` (no automatic loading).

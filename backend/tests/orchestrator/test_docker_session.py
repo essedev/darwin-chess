@@ -80,6 +80,13 @@ def mirror_show(mirror: Path, spec: str) -> str:
     return done.stdout
 
 
+def bare_git(repo: Path, *args: str) -> str:
+    done = subprocess.run(
+        ["git", "--git-dir", str(repo), *args], capture_output=True, text=True, check=True
+    )
+    return done.stdout
+
+
 def genome_gen0(repo: Path) -> str:
     done = subprocess.run(
         ["git", "-C", str(repo), "rev-parse", "gen-0"], capture_output=True, text=True, check=True
@@ -233,6 +240,23 @@ async def test_a_scripted_session_reaches_a_verdict(
     notes = (settings.data_dir / "agent" / "memory" / "NOTES.md").read_text()
     assert "seed engine is not UCI yet" in notes  # memory outlives the rejected experiment
     assert seen and "darwin" in json.dumps(seen[0]["messages"][0])  # our system prompt
+
+    # pi's transcript is the complete record: the session prompt and every result, uncut.
+    (transcript,) = (settings.data_dir / "agent" / "sessions" / f"exp-{experiment.id}").glob(
+        "*.jsonl"
+    )
+    entries = [json.loads(line) for line in transcript.read_text().splitlines()]
+    messages = [e["message"] for e in entries if e.get("type") == "message"]
+    user = next(msg for msg in messages if msg["role"] == "user")
+    assert f"Last verdict (#{earlier}: rejected)" in json.dumps(user)
+    assert sum(msg["role"] == "toolResult" for msg in messages) == len(tool_calls)
+
+    # The memory's history: the state at startup, then the one the session left.
+    history = settings.data_dir / "agent" / "memory.git"
+    log = bare_git(history, "log", "--format=%s", "main").splitlines()
+    assert log == [f"exp-{experiment.id}: after the iteration session", "startup"]
+    assert bare_git(history, "show", "main:NOTES.md") == notes
+    assert "seed engine is not UCI yet" not in bare_git(history, "show", "main~1:NOTES.md")
 
 
 async def test_work_left_unsubmitted_is_kept_as_a_wip_ref(
