@@ -3,6 +3,7 @@ take and which bot to challenge. No I/O, so each one is tested on its own."""
 
 import random
 from collections.abc import Iterable, Mapping, Sequence
+from datetime import datetime, timedelta
 from typing import Any
 
 import chess
@@ -15,6 +16,7 @@ WIDE_RATING_WINDOW = 600
 DEFAULT_RATING = 1500
 SETTLED_GAMES = 20  # Lichess drops the provisional mark later; this is our own bar
 CLOSEST_FALLBACK = 5
+DAY = timedelta(days=1)
 UNFINISHED = frozenset({"created", "started"})
 ABORTED = frozenset({"aborted", "noStart"})
 
@@ -95,6 +97,27 @@ def decline_reason(challenge: Mapping[str, Any], *, busy: bool) -> str | None:
     if busy:
         return "later"
     return None
+
+
+def pace_wait_s(spent: Sequence[datetime], now: datetime, *, per_day: int) -> float:
+    """Seconds until one more fits a daily budget spread over the hours, 0 when it fits now.
+
+    A bucket refilled at `per_day` a day that holds at most an hour's share, replayed over
+    `spent` (oldest first) from a full bucket a day ago. Without it the bot spent the whole
+    day's challenges in five hours and sat idle for the other nineteen.
+    """
+    rate = per_day / DAY.total_seconds()
+    if rate <= 0:
+        return float("inf")
+    size = max(1.0, per_day / 24)
+    tokens, last = size, now - DAY
+    for at in spent:
+        if at < last:
+            continue
+        tokens = min(size, tokens + (at - last).total_seconds() * rate) - 1
+        last = at
+    tokens = min(size, tokens + (now - last).total_seconds() * rate)
+    return 0.0 if tokens >= 1 else (1 - tokens) / rate
 
 
 def matchmaking_rating(account: Mapping[str, Any], speed: str, start: int) -> int:

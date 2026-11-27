@@ -89,6 +89,10 @@ class Settings(BaseSettings):
     # against other bots), so the bot never runs into them and stays blocked for hours.
     lichess_challenges_per_day: int = 150
     lichess_bot_games_per_day: int = 90
+    # Both budgets are spread over the day in hourly shares (rules.pace_wait_s).
+    # Challenges from one opponent beyond this in 24 hours are declined, so a single
+    # account cannot keep the bot for itself.
+    lichess_games_per_opponent_per_day: int = 10
     # Opponents are sought around this rating until ours settles (Lichess starts bots at
     # 3000). A first guess for a young engine; the anchors' Elo is a better one later.
     lichess_start_rating: int = 1200

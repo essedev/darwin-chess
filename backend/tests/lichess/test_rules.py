@@ -1,4 +1,5 @@
 import random
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import chess
@@ -158,3 +159,41 @@ def test_a_bot_below_everyone_still_finds_the_closest_opponents() -> None:
         for seed in range(40)
     }
     assert picked == {"A", "B", "C", "D", "E"}
+
+
+NOW = datetime(2026, 11, 27, 12, tzinfo=UTC)
+
+
+def test_pacing_allows_an_hours_share_at_once_then_waits_for_the_refill() -> None:
+    burst = [NOW] * 6  # 144 a day: a share of 6 an hour, one every 10 minutes
+    assert rules.pace_wait_s(burst[:5], NOW, per_day=144) == 0
+    assert rules.pace_wait_s(burst, NOW, per_day=144) == pytest.approx(600)
+    later = NOW + timedelta(minutes=10)
+    assert rules.pace_wait_s(burst, later, per_day=144) == pytest.approx(0, abs=1e-6)
+
+
+def test_pacing_keeps_no_more_than_an_hours_share_in_reserve() -> None:
+    quiet_morning = [NOW - timedelta(hours=10)]
+    spent = quiet_morning + [NOW] * 6  # ten idle hours do not buy a burst of sixty
+    assert rules.pace_wait_s(spent, NOW, per_day=144) > 0
+
+
+def test_pacing_forgets_what_was_spent_more_than_a_day_ago() -> None:
+    old = [NOW - timedelta(hours=25)] * 100
+    assert rules.pace_wait_s(old, NOW, per_day=144) == 0
+
+
+def test_pacing_spreads_a_day_of_steady_demand_over_the_day() -> None:
+    spent: list[datetime] = []
+    at = NOW - timedelta(days=1)
+    while at < NOW:  # the bot asks every minute, all day long
+        if rules.pace_wait_s(spent, at, per_day=150) == 0:
+            spent.append(at)
+        at += timedelta(minutes=1)
+    assert 148 <= len(spent) <= 157  # the day's budget, plus the reserve it started with
+    in_first_hour = sum(s < NOW - timedelta(hours=23) for s in spent)
+    assert in_first_hour <= 13  # the reserve and one hour's share, not the whole day
+
+
+def test_pacing_with_no_budget_never_allows() -> None:
+    assert rules.pace_wait_s([], NOW, per_day=0) == float("inf")

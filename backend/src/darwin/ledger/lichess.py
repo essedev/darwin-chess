@@ -125,11 +125,24 @@ async def challenges_since(ledger: Ledger, since: datetime) -> Sequence[datetime
         return rows.all()
 
 
-async def bot_games_since(ledger: Ledger, since: datetime) -> int:
+async def bot_games_since(ledger: Ledger, since: datetime) -> Sequence[datetime]:
+    """When each game against a BOT started, oldest first: Lichess caps them per day."""
+    async with ledger.session() as s:
+        rows = await s.scalars(
+            select(m.LichessGame.created_at)
+            .where(m.LichessGame.created_at >= since)
+            .where(m.LichessGame.opponent_title == "BOT")
+            .order_by(m.LichessGame.created_at)
+        )
+        return rows.all()
+
+
+async def games_against_since(ledger: Ledger, opponent: str, since: datetime) -> int:
+    """Games started against `opponent` (any case: Lichess ids are lowercase names)."""
     async with ledger.session() as s:
         count = await s.scalar(
             select(func.count(m.LichessGame.id))
             .where(m.LichessGame.created_at >= since)
-            .where(m.LichessGame.opponent_title == "BOT")
+            .where(func.lower(m.LichessGame.opponent) == opponent.lower())
         )
         return int(count or 0)

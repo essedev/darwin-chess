@@ -3,12 +3,14 @@ No game is played here, so no container runs."""
 
 import asyncio
 import itertools
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 import pytest
 
 from darwin.ledger import lichess
+from darwin.ledger import models as m
 from darwin.ledger.store import Ledger
 from darwin.lichess import bot as bot_module
 from darwin.lichess import rules
@@ -180,18 +182,39 @@ async def test_rate_limits_without_a_wait_back_off_more_each_time(
     assert second >= 1.0  # doubled
 
 
-async def test_challenges_stop_at_the_daily_cap_refused_ones_included(
+async def test_challenges_wait_for_the_hours_share_refused_ones_included(
     tmp_path: Path, fake: FakeLichess, lichess_url: str, ledger: Ledger
 ) -> None:
     fake.bots += [blitz_user(f"Busy{i}", 1600) for i in range(4)]
     fake.refusing |= {f"Busy{i}" for i in range(4)}  # Lichess still counts a refused one
     settings = bot_settings(tmp_path, lichess_url, challenge_every_s=0.2).model_copy(
-        update={"lichess_challenges_per_day": 2}
+        update={"lichess_challenges_per_day": 48}  # a share of 2 an hour
     )
-    async with running_bot(settings, ledger, champion):
+    async with running_bot(settings, ledger, champion) as bot:
         await until(lambda: len(fake.challenged) >= 2, 10)
         await asyncio.sleep(1.5)  # several more rounds
+        assert bot.paced and not bot.capped
     assert len(fake.challenged) == 2
+
+
+async def test_challenges_stop_at_the_daily_cap(
+    tmp_path: Path, fake: FakeLichess, lichess_url: str, ledger: Ledger
+) -> None:
+    fake.bots.append(blitz_user("Near", 1600))
+    # The whole budget, spent almost a day ago: the hourly share has refilled, the cap not.
+    then = datetime.now(UTC) - timedelta(hours=23, minutes=54)
+    async with ledger.session() as s:
+        s.add_all(
+            m.LichessChallenge(opponent="Near", outcome="created", created_at=then)
+            for _ in range(48)
+        )
+    settings = bot_settings(tmp_path, lichess_url, challenge_every_s=0.2).model_copy(
+        update={"lichess_challenges_per_day": 48}
+    )
+    async with running_bot(settings, ledger, champion) as bot:
+        await asyncio.sleep(1.5)
+        assert bot.capped
+    assert fake.challenged == []
 
 
 async def test_no_challenge_after_the_daily_bot_games(
@@ -210,3 +233,23 @@ async def test_no_challenge_after_the_daily_bot_games(
     async with running_bot(settings, ledger, champion):
         await asyncio.sleep(1.5)
     assert fake.challenged == []
+
+
+async def test_declines_an_opponent_that_had_its_games_today(
+    tmp_path: Path, fake: FakeLichess, lichess_url: str, ledger: Ledger
+) -> None:
+    await ledger.seed("a" * 40)
+    for i in range(2):
+        await lichess.start_game(
+            ledger, lichess_id=f"g{i}", generation_id=0, color="white", opponent="Eager",
+            opponent_rating=1650, opponent_title=None, rated=False, time_control="480+0",
+        )  # fmt: skip
+    fake.events.put_nowait(offer("again", "Eager"))
+    fake.events.put_nowait(offer("new", "Fresh"))
+    settings = bot_settings(tmp_path, lichess_url).model_copy(
+        update={"lichess_games_per_opponent_per_day": 2}
+    )
+    async with running_bot(settings, ledger, champion):
+        await until(lambda: bool(fake.accepted), 10)
+    assert fake.declined == [("again", "later")]
+    assert fake.accepted == ["new"]
