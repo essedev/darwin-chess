@@ -1,11 +1,12 @@
-import { ChevronRight, ExternalLink } from 'lucide-react'
-import { useState } from 'react'
+import { ChevronRight, ExternalLink, Search, SlidersHorizontal, X } from 'lucide-react'
+import { type ReactNode, useEffect, useState } from 'react'
+import { FilterSelect } from '@/components/filter-select'
 import { ErrorNote, LoadingNote, PageShell, StateNote } from '@/components/page'
 import { PageButton } from '@/components/page-button'
 import { panel } from '@/components/panel'
 import { MIN_PERFORMANCE_GAMES, RESULT_TONE } from '@/features/live/format'
 import { type I18n, pickText, useI18n } from '@/i18n/context'
-import { type LichessFilter, type LichessGamesPage, type LichessHistoryGame, useLichessGames } from '@/lib/api'
+import { type LichessFilter, type LichessGamesPage, type LichessHistoryGame, type Speed, useLichessGames } from '@/lib/api'
 import { href } from '@/lib/use-route'
 import { cn } from '@/lib/utils'
 import { Spark } from './eval-chart'
@@ -13,71 +14,137 @@ import { MARK, MARK_TONE } from './review'
 
 const PER_PAGE = 20
 const RESULTS = [null, 'win', 'draw', 'loss'] as const
+const OPPONENTS = [null, 'bot', 'human'] as const
+const SPEEDS: readonly Speed[] = ['ultrabullet', 'bullet', 'blitz', 'rapid', 'classical', 'correspondence']
+const SEARCH_DELAY_MS = 300
+
+/**
+ * The filters and the pages seen so far live in the address (`#/partite?gen=17&q=maia`):
+ * back from a game, the list is where it was, and a filtered list can be shared.
+ */
+function readFilter(params: URLSearchParams): { filter: LichessFilter; cursors: (number | null)[] } {
+  const gen = params.get('gen')
+  const result = params.get('result')
+  const opponent = params.get('opp')
+  const speed = params.get('speed')
+  const pages = (params.get('pages') ?? '').split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0)
+  return {
+    filter: {
+      generation: gen !== null && /^\d+$/.test(gen) ? Number(gen) : null,
+      result: result === 'win' || result === 'draw' || result === 'loss' ? result : null,
+      rated: params.get('rated') === '1',
+      q: (params.get('q') ?? '').slice(0, 64),
+      opponent: opponent === 'bot' || opponent === 'human' ? opponent : null,
+      speed: SPEEDS.find((s) => s === speed) ?? null,
+    },
+    cursors: [null, ...pages],
+  }
+}
+
+function writeFilter(filter: LichessFilter, cursors: (number | null)[]) {
+  const target = href('partite', {
+    gen: filter.generation === null ? null : String(filter.generation),
+    result: filter.result,
+    rated: filter.rated ? '1' : null,
+    q: filter.q.trim() || null,
+    opp: filter.opponent,
+    speed: filter.speed,
+    pages: cursors.filter((c) => c !== null).join(',') || null,
+  })
+  // Replaced, not pushed: the back button leaves the list instead of undoing a filter.
+  if (window.location.hash !== target) window.location.replace(target)
+}
 
 /** Every finished Lichess game of the bot, newest first, grouped by day, filtered. */
-export default function GamesPage() {
+export default function GamesPage({ params }: { params: URLSearchParams }) {
   const { t, f } = useI18n()
-  const [filter, setFilter] = useState<LichessFilter>({ generation: null, result: null, rated: false })
-  // The cursors of the pages seen so far, as on the list of experiments.
-  const [cursors, setCursors] = useState<(number | null)[]>([null])
+  const { filter, cursors } = readFilter(params)
   const cursor = cursors.at(-1) ?? null
   const page = useLichessGames(filter, cursor, PER_PAGE)
   const data = page.data
   const items = data?.items ?? []
-  const change = (next: Partial<LichessFilter>) => {
-    setFilter((current) => ({ ...current, ...next }))
-    setCursors([null])
-  }
+  const [open, setOpen] = useState(false)
+  const change = (next: Partial<LichessFilter>) => writeFilter({ ...filter, ...next }, [null])
   const shown = data ? (filter.result ? data.counts[filter.result] : data.counts.total) : null
   const first = (cursors.length - 1) * PER_PAGE + 1
-  const unfiltered = filter.generation === null && filter.result === null && !filter.rated
+  const active = [filter.generation !== null, filter.result !== null, filter.rated, filter.opponent !== null, filter.speed !== null]
+    .filter(Boolean).length
+  const unfiltered = active === 0 && !filter.q.trim()
+
+  const generations = [
+    { value: 'all', label: t('games.generation.all') },
+    ...(data?.generations ?? []).map((g) => ({ value: String(g.id), label: `gen-${g.id}`, count: f.num(g.games) })),
+  ]
+  // The generation in the address stays choosable while the list loads or if it has no games.
+  if (filter.generation !== null && !generations.some((g) => g.value === String(filter.generation))) {
+    generations.push({ value: String(filter.generation), label: `gen-${filter.generation}` })
+  }
+  const speeds = [
+    { value: 'all', label: t('games.speed.all') },
+    ...(data?.speeds ?? []).map((s) => ({ value: s.id, label: t(`speed.${s.id}`), count: f.num(s.games) })),
+  ]
+  if (filter.speed && !speeds.some((s) => s.value === filter.speed)) {
+    speeds.push({ value: filter.speed, label: t(`speed.${filter.speed}`) })
+  }
+
   return (
     <PageShell title={t('games.title')} intro={t('games.intro')}>
       {data && <Summary page={data} generation={filter.generation} />}
-      <div className="flex flex-wrap items-center gap-2.5">
-        <label className="sr-only" htmlFor="games-generation">{t('games.generation.label')}</label>
-        <select
-          id="games-generation"
-          value={filter.generation ?? ''}
-          onChange={(event) => change({ generation: event.target.value === '' ? null : Number(event.target.value) })}
-          className="h-[34px] cursor-pointer rounded-[14px] bg-muted px-3 text-[13px] font-medium text-foreground focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none"
-        >
-          <option value="">{t('games.generation.all')}</option>
-          {data?.generations.map((g) => (
-            <option key={g.id} value={g.id}>{t('games.generation.one', { gen: g.id, n: f.num(g.games) })}</option>
-          ))}
-        </select>
-        <div role="group" aria-label={t('games.filter.label')} className="inline-flex w-fit max-w-full flex-wrap rounded-[14px] bg-muted p-[3px]">
-          {RESULTS.map((result) => {
-            const count = data ? data.counts[result ?? 'total'] : null
-            return (
-              <button
-                key={result ?? 'all'}
-                type="button"
-                aria-pressed={filter.result === result}
-                onClick={() => change({ result })}
-                className={cn(
-                  'inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-[11px] px-3 text-[13px] font-medium transition-colors',
-                  filter.result === result ? 'bg-card text-foreground shadow-[0_1px_2px_rgb(0_0_0/0.12)]' : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {t(`games.filter.${result ?? 'all'}`)}
-                {count !== null && <span className="font-mono text-[11px] text-muted-foreground tabular-nums">{f.num(count)}</span>}
-              </button>
-            )
-          })}
+      <div className="grid gap-2.5">
+        <div className="flex gap-2.5">
+          <SearchBox value={filter.q} onChange={(q) => change({ q })} />
+          <button
+            type="button"
+            aria-expanded={open}
+            aria-controls="games-filters"
+            onClick={() => setOpen((value) => !value)}
+            className="inline-flex h-[34px] flex-none cursor-pointer items-center gap-2 rounded-[14px] bg-muted px-3 text-[13px] font-medium text-foreground sm:hidden"
+          >
+            <SlidersHorizontal aria-hidden className="size-3.5" />
+            {t('games.filters')}
+            {active > 0 && <span className="font-mono text-[11px] text-muted-foreground tabular-nums">{active}</span>}
+          </button>
         </div>
-        <button
-          type="button"
-          aria-pressed={filter.rated}
-          onClick={() => change({ rated: !filter.rated })}
-          className={cn(
-            'inline-flex h-[34px] cursor-pointer items-center gap-2 rounded-[14px] px-3 text-[13px] font-medium transition-colors',
-            filter.rated ? 'bg-foreground text-background' : 'bg-muted text-muted-foreground hover:text-foreground',
-          )}
-        >
-          {t('games.rated')}
-        </button>
+        <div id="games-filters" className={cn('flex-wrap items-center gap-2.5', open ? 'flex' : 'hidden sm:flex')}>
+          <FilterSelect
+            label={t('games.generation.label')}
+            value={filter.generation === null ? 'all' : String(filter.generation)}
+            options={generations}
+            onChange={(value) => change({ generation: value === 'all' ? null : Number(value) })}
+          />
+          <Segmented label={t('games.filter.label')}>
+            {RESULTS.map((result) => (
+              <SegmentButton key={result ?? 'all'} pressed={filter.result === result} onClick={() => change({ result })}
+                             count={data ? f.num(data.counts[result ?? 'total']) : null}>
+                {t(`games.filter.${result ?? 'all'}`)}
+              </SegmentButton>
+            ))}
+          </Segmented>
+          <Segmented label={t('games.opponent.label')}>
+            {OPPONENTS.map((opponent) => (
+              <SegmentButton key={opponent ?? 'all'} pressed={filter.opponent === opponent} onClick={() => change({ opponent })}>
+                {t(`games.opponent.${opponent ?? 'all'}`)}
+              </SegmentButton>
+            ))}
+          </Segmented>
+          <FilterSelect
+            label={t('games.speed.label')}
+            value={filter.speed ?? 'all'}
+            options={speeds}
+            onChange={(value) => change({ speed: SPEEDS.find((s) => s === value) ?? null })}
+          />
+          <button
+            type="button"
+            aria-pressed={filter.rated}
+            onClick={() => change({ rated: !filter.rated })}
+            className={cn(
+              'inline-flex h-[34px] cursor-pointer items-center gap-2 rounded-[14px] px-3 text-[13px] font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none',
+              filter.rated ? 'bg-foreground text-background' : 'bg-muted text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {t('games.rated')}
+          </button>
+        </div>
       </div>
       {page.isPending ? (
         <LoadingNote what={t('what.games')} />
@@ -107,14 +174,14 @@ export default function GamesPage() {
               {shown !== null && t('experiments.range', { from: f.num(first), to: f.num(first + items.length - 1), of: f.num(shown) })}
             </span>
             <span className="flex gap-1.5">
-              <PageButton disabled={cursors.length === 1} onClick={() => setCursors((all) => all.slice(0, -1))}>
+              <PageButton disabled={cursors.length === 1} onClick={() => writeFilter(filter, cursors.slice(0, -1))}>
                 {t('experiments.newer')}
               </PageButton>
               <PageButton
                 disabled={!data?.next_before_id || page.isPlaceholderData}
                 onClick={() => {
                   const next = data?.next_before_id
-                  if (next) setCursors((all) => [...all, next])
+                  if (next) writeFilter(filter, [...cursors, next])
                 }}
               >
                 {t('experiments.older')}
@@ -130,6 +197,69 @@ export default function GamesPage() {
         </a>
       )}
     </PageShell>
+  )
+}
+
+/** The opponent's name, sent a moment after the typing stops; the address keeps it. */
+function SearchBox({ value, onChange }: { value: string; onChange: (q: string) => void }) {
+  const { t } = useI18n()
+  const [text, setText] = useState(value)
+  useEffect(() => {
+    if (text.trim() === value.trim()) return
+    const timer = window.setTimeout(() => onChange(text.trim()), SEARCH_DELAY_MS)
+    return () => window.clearTimeout(timer)
+  }, [text, value, onChange])
+  return (
+    <div className="relative min-w-0 flex-1 sm:max-w-[400px]">
+      <Search aria-hidden className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground" />
+      <input
+        type="search"
+        value={text}
+        maxLength={64}
+        onChange={(event) => setText(event.target.value)}
+        placeholder={t('games.search.placeholder')}
+        aria-label={t('games.search.label')}
+        className="h-[34px] w-full rounded-[14px] bg-muted pr-9 pl-8 text-[13px] text-foreground placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none [&::-webkit-search-cancel-button]:hidden"
+      />
+      {text && (
+        <button
+          type="button"
+          aria-label={t('games.search.clear')}
+          onClick={() => {
+            setText('')
+            onChange('')
+          }}
+          className="absolute top-1/2 right-1 inline-flex size-[30px] -translate-y-1/2 cursor-pointer items-center justify-center rounded-[10px] text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none"
+        >
+          <X aria-hidden className="size-3.5" />
+        </button>
+      )}
+    </div>
+  )
+}
+
+function Segmented({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div role="group" aria-label={label} className="inline-flex w-fit max-w-full flex-wrap rounded-[14px] bg-muted p-[3px]">
+      {children}
+    </div>
+  )
+}
+
+function SegmentButton(props: { pressed: boolean; onClick: () => void; count?: string | null; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={props.pressed}
+      onClick={props.onClick}
+      className={cn(
+        'inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-[11px] px-3 text-[13px] font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none',
+        props.pressed ? 'bg-card text-foreground shadow-[0_1px_2px_rgb(0_0_0/0.12)]' : 'text-muted-foreground hover:text-foreground',
+      )}
+    >
+      {props.children}
+      {props.count != null && <span className="font-mono text-[11px] text-muted-foreground tabular-nums">{props.count}</span>}
+    </button>
   )
 }
 
@@ -172,7 +302,7 @@ function Row({ game }: { game: LichessHistoryGame }) {
   const commentary = pickText(lang, { it: game.commentary?.it, en: game.commentary?.en })
   const meta = [
     t('lichess.as', { gen: game.generation_id, colour: t(`colour.${game.color}`) }),
-    game.time_control,
+    `${t(`speed.${game.speed}`)} ${game.time_control}`,
     game.finished_at ? f.time(game.finished_at) : '',
     tn('count.fullMoves', Math.ceil(game.plies / 2)),
     game.rated ? '' : t('lichess.unrated'),

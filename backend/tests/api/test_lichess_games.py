@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 
 from darwin.api.app import app
 from darwin.config import get_settings
-from darwin.ledger import commentary, lichess
+from darwin.ledger import commentary, lichess, lichess_history
 from darwin.ledger.commentary import Subject
 from darwin.ledger.store import Ledger
 
@@ -39,10 +39,13 @@ async def game(
     color: str = "black",
     rated: bool = True,
     evals: list[int] | None = None,
+    opponent: str = "maia1",
+    title: str | None = "BOT",
+    time_control: str = "180+2",
 ) -> int:
     await lichess.start_game(
-        ledger, lichess_id=lichess_id, generation_id=0, color=color, opponent="maia1",
-        opponent_rating=1500, opponent_title="BOT", rated=rated, time_control="180+2",
+        ledger, lichess_id=lichess_id, generation_id=0, color=color, opponent=opponent,
+        opponent_rating=1500, opponent_title=title, rated=rated, time_control=time_control,
     )  # fmt: skip
     row_id = await lichess.finish_game(
         ledger, lichess_id, status="resign", result=result, moves=moves, rating_after=1520
@@ -54,8 +57,9 @@ async def game(
 
 @pytest.fixture
 def seeded(ledger_url: str) -> None:
-    """Oldest first: an analysed loss with a commentary, an aborted game, a short casual
-    win that Stockfish never evaluated, a rated draw, and a game still being played."""
+    """Oldest first: an analysed blitz loss to a bot with a commentary, an aborted game, a
+    short casual rapid win over a human that Stockfish never evaluated, a rated bullet draw
+    with another bot, and a game still being played."""
 
     async def go() -> None:
         ledger = Ledger(ledger_url)
@@ -66,8 +70,19 @@ def seeded(ledger_url: str) -> None:
             model="claude-haiku-5-5", input_tokens=1, output_tokens=1, cost_usd=0.0,
         )  # fmt: skip
         await game(ledger, "Abort001", result="aborted", moves="")
-        await game(ledger, "Win00001", result="win", moves="e2e4 e7e5", color="white", rated=False)
-        await game(ledger, "Draw0001", result="draw", moves="d2d4 d7d5")
+        await game(
+            ledger,
+            "Win00001",
+            result="win",
+            moves="e2e4 e7e5",
+            color="white",
+            rated=False,
+            opponent="Some_Human%",
+            title=None,
+            time_control="480+0",
+        )
+        await game(ledger, "Draw0001", result="draw", moves="d2d4 d7d5", opponent="MaiaBot",
+                   time_control="60+0")  # fmt: skip
         await lichess.start_game(
             ledger, lichess_id="Live0001", generation_id=0, color="white", opponent="maia5",
             opponent_rating=1600, opponent_title="BOT", rated=True, time_control="180+2",
@@ -83,6 +98,12 @@ def test_the_list_holds_finished_games_newest_first(client: TestClient, seeded: 
     assert body["next_before_id"] is None
     assert body["counts"] == {"win": 1, "draw": 1, "loss": 1, "total": 3}
     assert body["generations"] == [{"id": 0, "games": 3}]
+    assert body["speeds"] == [
+        {"id": "bullet", "games": 1},
+        {"id": "blitz", "games": 1},
+        {"id": "rapid", "games": 1},
+    ]
+    assert [g["speed"] for g in body["items"]] == ["bullet", "rapid", "blitz"]
     # The casual win is left out of the performance; the aborted game was never played.
     assert body["performance"]["0"]["games"] == 2
     assert body["profile_url"] == "https://lichess.org/@/darwin-chess-bot/all"
@@ -117,9 +138,41 @@ def test_the_list_filters_and_pages(client: TestClient, seeded: None) -> None:
     assert other["items"] == [] and other["counts"]["total"] == 0
 
 
+def ids(client: TestClient, **params: str) -> list[str]:
+    body = client.get("/api/lichess/games", params=params).json()
+    return [g["lichess_id"] for g in body["items"]]
+
+
+def test_the_list_finds_opponents_by_kind_name_and_speed(client: TestClient, seeded: None) -> None:
+    assert ids(client, opponent="bot") == ["Draw0001", "Loss0001"]
+    assert ids(client, opponent="human") == ["Win00001"]
+    # Any case, any part of the name; a % is a character, not a wildcard.
+    assert ids(client, q="MAIA") == ["Draw0001", "Loss0001"]
+    assert ids(client, q="human%") == ["Win00001"]
+    assert ids(client, q="ia%") == []
+    assert ids(client, q="  ") == ["Draw0001", "Win00001", "Loss0001"]
+    assert ids(client, speed="blitz") == ["Loss0001"]
+    assert ids(client, speed="classical") == []
+    both = client.get("/api/lichess/games", params={"q": "maia", "result": "loss"}).json()
+    assert [g["lichess_id"] for g in both["items"]] == ["Loss0001"]
+    assert both["counts"] == {"win": 0, "draw": 1, "loss": 1, "total": 2}
+
+
 @pytest.mark.parametrize(
-    "params", [{"result": "aborted"}, {"limit": 0}, {"limit": 51}, {"before_id": 0}]
-)
+    ("time_control", "expected"),
+    [("15+0", "ultrabullet"), ("60+0", "bullet"), ("120+1", "bullet"), ("120+2", "blitz"),
+     ("180+2", "blitz"), ("300+5", "rapid"), ("480+0", "rapid"), ("1800+0", "classical"),
+     ("-", "correspondence")],
+)  # fmt: skip
+def test_speeds_follow_the_estimated_duration(time_control: str, expected: str) -> None:
+    assert lichess_history.speed_of(time_control) == expected
+
+
+@pytest.mark.parametrize(
+    "params",
+    [{"result": "aborted"}, {"limit": 0}, {"limit": 51}, {"before_id": 0}, {"opponent": "cat"},
+     {"speed": "fast"}, {"q": "x" * 65}],
+)  # fmt: skip
 def test_the_list_refuses_bad_parameters(
     client: TestClient, seeded: None, params: dict[str, str | int]
 ) -> None:

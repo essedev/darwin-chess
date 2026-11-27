@@ -8,7 +8,7 @@ from collections.abc import Sequence
 from typing import Any
 
 import chess
-from sqlalchemy import func, select
+from sqlalchemy import ColumnElement, Integer, case, cast, func, select
 
 from darwin.ledger import commentary, game_review
 from darwin.ledger import models as m
@@ -17,6 +17,32 @@ from darwin.ledger.store import Ledger
 
 RESULTS = ("win", "draw", "loss")
 PLAYED = (m.LichessGame.finished_at.is_not(None), m.LichessGame.result.in_(RESULTS))
+OPPONENTS = ("bot", "human")
+
+# Lichess's speeds, by the estimated duration of a game: base time plus 40 increments, in
+# seconds, below each bound; "-" is a game without a clock.
+SPEED_BOUNDS = (("ultrabullet", 30), ("bullet", 180), ("blitz", 480), ("rapid", 1500))
+SPEEDS = (*(name for name, _ in SPEED_BOUNDS), "classical", "correspondence")
+
+
+def speed_of(time_control: str) -> str:
+    """The Lichess speed of a time control written "base+increment" in seconds."""
+    base, plus, increment = time_control.partition("+")
+    if not plus:
+        return "correspondence"
+    estimate = int(base) + 40 * int(increment)
+    return next((name for name, bound in SPEED_BOUNDS if estimate < bound), "classical")
+
+
+def _speed_sql() -> ColumnElement[str]:
+    """`speed_of()` in SQL, so the list can filter and count by it."""
+    tc = m.LichessGame.time_control
+    plus = func.instr(tc, "+")
+    estimate = cast(func.substr(tc, 1, plus - 1), Integer) + 40 * cast(
+        func.substr(tc, plus + 1), Integer
+    )
+    whens = [(estimate < bound, name) for name, bound in SPEED_BOUNDS]
+    return case((plus == 0, "correspondence"), *whens, else_="classical")
 
 
 def _base(row: m.LichessGame, site: str) -> dict[str, Any]:
@@ -33,6 +59,7 @@ def _base(row: m.LichessGame, site: str) -> dict[str, Any]:
         "rated": row.rated,
         "generation_id": row.generation_id,
         "time_control": row.time_control,
+        "speed": speed_of(row.time_control),
         "finished_at": row.finished_at.isoformat() if row.finished_at else None,
     }
 
@@ -61,17 +88,29 @@ async def games_page(
     generation: int | None,
     result: str | None,
     rated_only: bool,
+    search: str | None = None,
+    opponent: str | None = None,
+    speed: str | None = None,
 ) -> dict[str, Any]:
     """Finished games, newest first, `limit` at a time below `before_id`, filtered by
-    generation, result and rated. `counts` are per result under the same generation and
-    rated filters, so every result's tab shows its number; `generations` and `performance`
-    cover every game."""
+    generation, result, rated, a piece of the opponent's name, bot or human opponent and
+    speed. `counts` are per result under all the other filters, so every result's tab shows
+    its number; `generations`, `speeds` and `performance` cover every game."""
+    game = m.LichessGame
+    scope: list[ColumnElement[bool]] = []
+    if generation is not None:
+        scope.append(game.generation_id == generation)
+    if rated_only:
+        scope.append(game.rated.is_(True))
+    if search:
+        scope.append(func.lower(game.opponent).contains(search.lower(), autoescape=True))
+    if opponent == "bot":
+        scope.append(game.opponent_title == "BOT")
+    elif opponent == "human":
+        scope.append(func.coalesce(game.opponent_title, "") != "BOT")
+    if speed is not None:
+        scope.append(_speed_sql() == speed)
     async with ledger.session() as s:
-        scope = []
-        if generation is not None:
-            scope.append(m.LichessGame.generation_id == generation)
-        if rated_only:
-            scope.append(m.LichessGame.rated.is_(True))
         counts = {r: 0 for r in RESULTS}
         for found, n in await s.execute(
             select(m.LichessGame.result, func.count())
@@ -88,6 +127,12 @@ async def games_page(
                 .order_by(m.LichessGame.generation_id.desc())
             )
         ]
+        speed_counts = {
+            str(name): int(n)
+            for name, n in await s.execute(
+                select(_speed_sql().label("speed"), func.count()).where(*PLAYED).group_by("speed")
+            )
+        }
         # Only the columns the performance needs: the whole rows carry moves and evaluations.
         played = (
             await s.execute(
@@ -113,6 +158,7 @@ async def games_page(
         "next_before_id": rows[-1].id if more and rows else None,
         "counts": {**counts, "total": sum(counts.values())},
         "generations": generations,
+        "speeds": [{"id": n, "games": speed_counts[n]} for n in SPEEDS if n in speed_counts],
         "performance": performance(played),
     }
 

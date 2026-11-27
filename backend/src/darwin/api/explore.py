@@ -19,6 +19,8 @@ from darwin.orchestrator.prompts import SYSTEM
 
 router = APIRouter(prefix="/api")
 
+SPEED_PATTERN = f"^({'|'.join(lichess_history.SPEEDS)})$"
+
 
 def _ledger(request: Request) -> Ledger:
     ledger: Ledger = request.app.state.ledger
@@ -77,12 +79,17 @@ async def lichess_games(
     generation: Annotated[int | None, Query(ge=0)] = None,
     result: Annotated[str | None, Query(pattern=r"^(win|draw|loss)$")] = None,
     rated: bool = False,
+    q: Annotated[str | None, Query(max_length=64)] = None,
+    opponent: Annotated[str | None, Query(pattern=r"^(bot|human)$")] = None,
+    speed: Annotated[str | None, Query(pattern=SPEED_PATTERN)] = None,
 ) -> dict[str, Any]:
-    """The bot's finished games on Lichess, newest first; `rated=true` keeps only the rated."""
+    """The bot's finished games on Lichess, newest first; `rated=true` keeps only the rated,
+    `q` the opponents whose name contains it, `opponent` bots or humans, `speed` one speed."""
     settings = get_settings()
     page = await lichess_history.games_page(
         _ledger(request), settings.lichess_url, limit=limit, before_id=before_id,
-        generation=generation, result=result, rated_only=rated,
+        generation=generation, result=result, rated_only=rated, search=(q or "").strip() or None,
+        opponent=opponent, speed=speed,
     )  # fmt: skip
     account = settings.lichess_account
     profile = f"{settings.lichess_url.rstrip('/')}/@/{account}/all" if account else None

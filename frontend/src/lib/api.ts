@@ -179,10 +179,14 @@ export type Judgement = 'blunder' | 'mistake' | 'inaccuracy'
 /** One side's moves of a game: how many of each judgement, and the average centipawn loss. */
 export type SideReview = Record<Judgement, number> & { acpl: number | null }
 
+/** Lichess's speeds, by base time plus 40 increments. */
+export type Speed = 'ultrabullet' | 'bullet' | 'blitz' | 'rapid' | 'classical' | 'correspondence'
+
 /** A finished game in the history list; `curve` and `ours` only when Stockfish analysed it. */
 export type LichessHistoryGame = LichessGame & {
   id: number
   rated: boolean
+  speed: Speed
   plies: number
   /** The bot's winning chances over the game, -100 to 100, at most 32 points. */
   curve: number[] | null
@@ -195,6 +199,7 @@ export type LichessGamesPage = {
   /** Per result under the generation and rated filters, not the result one. */
   counts: Record<'win' | 'draw' | 'loss' | 'total', number>
   generations: { id: number; games: number }[]
+  speeds: { id: Speed; games: number }[]
   performance: Record<string, LichessPerformance>
   profile_url: string | null
 }
@@ -208,6 +213,7 @@ export type GameMove = { uci: string; san: string; ours: boolean; judgement: Jud
 export type LichessGameDetail = LichessGame & {
   id: number
   rated: boolean
+  speed: Speed
   rating_after: number | null
   analysed: boolean
   positions: GamePosition[]
@@ -455,7 +461,15 @@ export function useExperimentPage(statuses: readonly string[], beforeId: number 
   })
 }
 
-export type LichessFilter = { generation: number | null; result: 'win' | 'draw' | 'loss' | null; rated: boolean }
+export type LichessFilter = {
+  generation: number | null
+  result: 'win' | 'draw' | 'loss' | null
+  rated: boolean
+  /** A piece of the opponent's name. */
+  q: string
+  opponent: 'bot' | 'human' | null
+  speed: Speed | null
+}
 
 /** One page of finished Lichess games below `beforeId` (null: the newest). */
 export function useLichessGames(filter: LichessFilter, beforeId: number | null, limit = 20) {
@@ -463,6 +477,9 @@ export function useLichessGames(filter: LichessFilter, beforeId: number | null, 
   if (filter.generation !== null) params.set('generation', String(filter.generation))
   if (filter.result) params.set('result', filter.result)
   if (filter.rated) params.set('rated', 'true')
+  if (filter.q) params.set('q', filter.q)
+  if (filter.opponent) params.set('opponent', filter.opponent)
+  if (filter.speed) params.set('speed', filter.speed)
   if (beforeId !== null) params.set('before_id', String(beforeId))
   return useQuery({
     queryKey: ['lichess-games', params.toString()],

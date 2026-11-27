@@ -132,7 +132,7 @@ function Head({ game: g }: { game: LichessGameDetail }) {
       <p className="flex flex-wrap items-center gap-x-3.5 gap-y-1.5 text-[13px] text-muted-foreground tabular-nums">
         <b className={cn('font-semibold', RESULT_TONE[g.result ?? ''])}>{g.result ? label('result', g.result) : g.status}</b>
         <span>{t('lichess.as', { gen: g.generation_id, colour: t(`colour.${g.color}`) })}</span>
-        <span>{g.time_control}</span>
+        <span>{t(`speed.${g.speed}`)} {g.time_control}</span>
         <span>{g.rated ? t('game.rated') : t('lichess.unrated')}</span>
         {g.finished_at && <span>{f.dateTime(g.finished_at)}</span>}
         {g.rating_after !== null && <span>{t('game.ratingAfter', { rating: g.rating_after })}</span>}

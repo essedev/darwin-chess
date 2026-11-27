@@ -44,7 +44,7 @@ export default function App() {
         {page === 'mente' && <MindPage />}
         {page === 'laboratorio' && <LabPage />}
         {page === 'sessione' && <SessionPage params={params} />}
-        {page === 'partite' && <GamesPage />}
+        {page === 'partite' && <GamesPage params={params} />}
         {page === 'partita' && <GamePage params={params} />}
       </Suspense>
     </div>
