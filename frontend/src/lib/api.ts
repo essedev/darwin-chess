@@ -173,6 +173,52 @@ export type Lichess = {
   performance: Record<string, LichessPerformance>
 }
 
+/** How a move changed the winning chances, judged the way Lichess judges it. */
+export type Judgement = 'blunder' | 'mistake' | 'inaccuracy'
+
+/** One side's moves of a game: how many of each judgement, and the average centipawn loss. */
+export type SideReview = Record<Judgement, number> & { acpl: number | null }
+
+/** A finished game in the history list; `curve` and `ours` only when Stockfish analysed it. */
+export type LichessHistoryGame = LichessGame & {
+  id: number
+  rated: boolean
+  plies: number
+  /** The bot's winning chances over the game, -100 to 100, at most 32 points. */
+  curve: number[] | null
+  ours: SideReview | null
+}
+
+export type LichessGamesPage = {
+  items: LichessHistoryGame[]
+  next_before_id: number | null
+  /** Per result under the generation and rated filters, not the result one. */
+  counts: Record<'win' | 'draw' | 'loss' | 'total', number>
+  generations: { id: number; games: number }[]
+  performance: Record<string, LichessPerformance>
+  profile_url: string | null
+}
+
+/** A position after a move (the first one is the start); evaluation and chances from the bot's side. */
+export type GamePosition = { fen: string; eval_cp?: number; chances?: number }
+
+export type GameMove = { uci: string; san: string; ours: boolean; judgement: Judgement | null }
+
+/** One finished game move by move: `positions` has one more entry than `moves`. */
+export type LichessGameDetail = LichessGame & {
+  id: number
+  rated: boolean
+  rating_after: number | null
+  analysed: boolean
+  positions: GamePosition[]
+  moves: GameMove[]
+  sides: { us: SideReview; them: SideReview } | null
+  /** The index of the move where the game turned. */
+  turning_point: number | null
+  older: string | null
+  newer: string | null
+}
+
 /** A match the referee judged: a candidate against the random player or the champion. */
 export type JudgedMatch = {
   id: number
@@ -406,6 +452,35 @@ export function useExperimentPage(statuses: readonly string[], beforeId: number 
     queryFn: () => getJson<ExperimentPage>(`/api/experiments?${params.toString()}`),
     placeholderData: keepPreviousData,
     refetchInterval: 60000,
+  })
+}
+
+export type LichessFilter = { generation: number | null; result: 'win' | 'draw' | 'loss' | null; rated: boolean }
+
+/** One page of finished Lichess games below `beforeId` (null: the newest). */
+export function useLichessGames(filter: LichessFilter, beforeId: number | null, limit = 20) {
+  const params = new URLSearchParams({ limit: String(limit) })
+  if (filter.generation !== null) params.set('generation', String(filter.generation))
+  if (filter.result) params.set('result', filter.result)
+  if (filter.rated) params.set('rated', 'true')
+  if (beforeId !== null) params.set('before_id', String(beforeId))
+  return useQuery({
+    queryKey: ['lichess-games', params.toString()],
+    queryFn: () => getJson<LichessGamesPage>(`/api/lichess/games?${params.toString()}`),
+    placeholderData: keepPreviousData,
+    refetchInterval: 60000,
+    retry: retryUnlessClientError,
+  })
+}
+
+/** One finished game; it never changes, so it is read once. */
+export function useLichessGame(lichessId: string | null) {
+  return useQuery({
+    queryKey: ['lichess-game', lichessId],
+    queryFn: () => getJson<LichessGameDetail>(`/api/lichess/games/${encodeURIComponent(lichessId ?? '')}`),
+    enabled: lichessId !== null,
+    staleTime: Infinity,
+    retry: retryUnlessClientError,
   })
 }
 

@@ -2,7 +2,7 @@
 
 from collections.abc import Sequence
 from datetime import datetime
-from typing import Any
+from typing import Any, Protocol
 
 from sqlalchemy import func, select
 
@@ -83,11 +83,24 @@ async def games(ledger: Ledger, limit: int = 200) -> Sequence[m.LichessGame]:
         return (await s.scalars(query.order_by(m.LichessGame.id.desc()).limit(limit))).all()
 
 
-def performance(rows: Sequence[m.LichessGame]) -> dict[int, dict[str, Any]]:
+class Played(Protocol):
+    """What the performance reads of a game: a whole row, or only these columns."""
+
+    @property
+    def generation_id(self) -> int: ...
+    @property
+    def rated(self) -> bool: ...
+    @property
+    def result(self) -> str | None: ...
+    @property
+    def opponent_rating(self) -> int | None: ...
+
+
+def performance(rows: Sequence[Played]) -> dict[int, dict[str, Any]]:
     """Per generation: games, score and performance rating (average opponent rating plus
     400 times wins minus losses over games, the usual linear approximation). Rated games
     only: a casual opponent can play the bot dozens of times and lose them all."""
-    by_gen: dict[int, list[m.LichessGame]] = {}
+    by_gen: dict[int, list[Played]] = {}
     for row in rows:
         if row.rated and row.result in {"win", "loss", "draw"} and row.opponent_rating:
             by_gen.setdefault(row.generation_id, []).append(row)

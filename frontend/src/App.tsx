@@ -11,6 +11,8 @@ const CodePage = lazy(() => import('@/features/code/code-page'))
 const MindPage = lazy(() => import('@/features/mind/mind-page'))
 const LabPage = lazy(() => import('@/features/lab/lab-page'))
 const SessionPage = lazy(() => import('@/features/session/session-page'))
+const GamesPage = lazy(() => import('@/features/lichess/games-page'))
+const GamePage = lazy(() => import('@/features/lichess/game-page'))
 
 export default function App() {
   const { page, params } = useRoute()
@@ -42,6 +44,8 @@ export default function App() {
         {page === 'mente' && <MindPage />}
         {page === 'laboratorio' && <LabPage />}
         {page === 'sessione' && <SessionPage params={params} />}
+        {page === 'partite' && <GamesPage />}
+        {page === 'partita' && <GamePage params={params} />}
       </Suspense>
     </div>
   )

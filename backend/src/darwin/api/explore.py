@@ -1,5 +1,5 @@
 """Read-only routes to explore the lab's history: generations, experiments, sessions, matches,
-code, memory.
+Lichess games, code, memory.
 
 Errors from the mirror (`code.BadRequest`, `code.NotFound`, `code.GitError`) become HTTP
 responses through the handlers registered in `app.py`.
@@ -13,7 +13,7 @@ from fastapi import APIRouter, HTTPException, Path, Query, Request
 from darwin.api.code import BadRequest, Mirror, NotFound
 from darwin.api.mind import read_changelog, read_mind
 from darwin.config import get_settings
-from darwin.ledger import commentary, history, sessions
+from darwin.ledger import commentary, history, lichess_history, sessions
 from darwin.ledger.store import Ledger
 from darwin.orchestrator.prompts import SYSTEM
 
@@ -67,6 +67,39 @@ async def matches(
     request: Request, limit: Annotated[int, Query(ge=1, le=50)] = 10
 ) -> list[dict[str, Any]]:
     return await history.recent_matches(_ledger(request), limit)
+
+
+@router.get("/lichess/games")
+async def lichess_games(
+    request: Request,
+    limit: Annotated[int, Query(ge=1, le=50)] = 20,
+    before_id: Annotated[int | None, Query(ge=1)] = None,
+    generation: Annotated[int | None, Query(ge=0)] = None,
+    result: Annotated[str | None, Query(pattern=r"^(win|draw|loss)$")] = None,
+    rated: bool = False,
+) -> dict[str, Any]:
+    """The bot's finished games on Lichess, newest first; `rated=true` keeps only the rated."""
+    settings = get_settings()
+    page = await lichess_history.games_page(
+        _ledger(request), settings.lichess_url, limit=limit, before_id=before_id,
+        generation=generation, result=result, rated_only=rated,
+    )  # fmt: skip
+    account = settings.lichess_account
+    profile = f"{settings.lichess_url.rstrip('/')}/@/{account}/all" if account else None
+    return {**page, "profile_url": profile}
+
+
+@router.get("/lichess/games/{lichess_id}")
+async def lichess_game(
+    request: Request, lichess_id: Annotated[str, Path(pattern=r"^[A-Za-z0-9]{1,16}$")]
+) -> dict[str, Any]:
+    """One finished game move by move, with Stockfish's evaluations and their judgements."""
+    found = await lichess_history.game_detail(
+        _ledger(request), get_settings().lichess_url, lichess_id
+    )
+    if found is None:
+        raise HTTPException(404, "no such game")
+    return found
 
 
 async def _ref_or_champion(request: Request, ref: str | None) -> str:
