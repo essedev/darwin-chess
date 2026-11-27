@@ -2,7 +2,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from darwin.ledger import queries
+from darwin.ledger import lichess, queries
 from darwin.ledger.store import Ledger
 from darwin.referee.judge import Phase, Verdict
 from darwin.referee.match import MatchResult
@@ -156,3 +156,19 @@ async def test_iterations_since_reflection_survive_a_restart(ledger: Ledger) -> 
     assert await ledger.iterations_since_reflection() == 0
     await session("iteration")
     assert await ledger.iterations_since_reflection() == 1
+
+
+async def test_lichess_performance_counts_rated_games_only(ledger: Ledger) -> None:
+    await ledger.seed(SEED)
+    games = [("r1", True, "win"), ("r2", True, "loss"), ("c1", False, "win"), ("c2", False, "win")]
+    for lichess_id, rated, result in games:
+        await lichess.start_game(
+            ledger, lichess_id=lichess_id, generation_id=0, color="white", opponent="maia1",
+            opponent_rating=1600, opponent_title=None, rated=rated, time_control="180+2",
+        )  # fmt: skip
+        await lichess.finish_game(
+            ledger, lichess_id, status="mate", result=result, moves="", rating_after=None
+        )
+    assert lichess.performance(await lichess.games(ledger)) == {
+        0: {"games": 2, "wins": 1, "draws": 0, "losses": 1, "performance": 1600}
+    }

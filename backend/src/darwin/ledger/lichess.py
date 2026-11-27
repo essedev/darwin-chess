@@ -85,10 +85,11 @@ async def games(ledger: Ledger, limit: int = 200) -> Sequence[m.LichessGame]:
 
 def performance(rows: Sequence[m.LichessGame]) -> dict[int, dict[str, Any]]:
     """Per generation: games, score and performance rating (average opponent rating plus
-    400 times wins minus losses over games, the usual linear approximation)."""
+    400 times wins minus losses over games, the usual linear approximation). Rated games
+    only: a casual opponent can play the bot dozens of times and lose them all."""
     by_gen: dict[int, list[m.LichessGame]] = {}
     for row in rows:
-        if row.result in {"win", "loss", "draw"} and row.opponent_rating:
+        if row.rated and row.result in {"win", "loss", "draw"} and row.opponent_rating:
             by_gen.setdefault(row.generation_id, []).append(row)
     out: dict[int, dict[str, Any]] = {}
     for gen, played in by_gen.items():
