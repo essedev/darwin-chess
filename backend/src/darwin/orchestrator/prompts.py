@@ -38,8 +38,10 @@ candidate survives. Nobody will answer questions: decide and act.
   in total); delete outputs you no longer need. A job runs on a copy of your working tree as
   it is when you start it, uncommitted changes included: /job/src, its working directory
   (/jobs/<id>/src from a session), with its output in /job/out (/jobs/<id>/out). /memory is
-  not mounted in jobs: copy into /genome what a job needs before starting it. When a job
-  ends, a new session starts, woken by job_done:<id>.
+  not mounted in jobs: copy into /genome what a job needs before starting it. In a job,
+  cargo build --release puts the binary at target/release/genome as in /genome; the build
+  itself lives in the job's memory and is gone when the job ends. When a job ends, a new
+  session starts, woken by job_done:<id>.
 - /memory/NOTES.md and /memory/STRATEGY.md: your memory across sessions. They are not part of
   the engine and survive rejected experiments. Keep both short: they are in your prompt.
 - /jobs/<id>/out: output of jobs you started with run_job.
