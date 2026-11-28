@@ -2,6 +2,22 @@
 
 One cycle per closed unit of work, most recent first. It keeps the last ~15 cycles; older ones move to `docs/archive/`.
 
+## Cycle 6: the bot's games on the site, jobs that run, the record kept (2026-11-27 to 2026-11-28)
+
+**Goal**: give the Lichess games the analysis Lichess does not show for them, make the agent's jobs work and readable, and stop losing what the experiment produces.
+
+**Done**:
+- Lichess games on the site (#30): `#/partite`, every finished game grouped by day, paged and filtered by generation, result, rated, opponent's name, bot or human and speed, with filters and page in the address; `#/partita?id=…`, the board to step through, the evaluation curve, moves judged on the winning chances they gave away with Lichess's thresholds, the turning point and the commentary. The last games on the Live page open them.
+- Jobs: the agent's first two self-play jobs (28 November, sessions 62 and 63) failed right after the build because jobs built into `/tmp/target` and the binary was never at the contract's path; the job's snapshot now links `target` there, and the prompt says the path holds inside a job. `run_job` requires a one-sentence purpose, shown under the agent's thought on the Live page and, with how the job ended and why it failed, on the page of the session that started it.
+- Lichess bot: challenges and bot games follow hourly shares with at most an hour in reserve (the day's 150 challenges ran out in five hours); an opponent with 10 games in 24 hours is declined; the performance per generation counts rated games only, after a casual opponent lost 43 of 45 games to gen-17 (#6).
+- The record: pi saves every session as a JSONL transcript, the memory folder is committed after every session to a bare repository only the orchestrator writes (#15), history before 27 November rebuilt from the tool calls; `core` copies the ledger every day with SQLite's online backup.
+- Site: no horizontal scroll on phones (the side column caps its track, the help opens in a popover kept on screen, the Elo chart thins its labels); screenshots of the live site in both READMEs. Site changelog 0.6.0.
+- Outcome: five more champions, gen-16 to gen-20 (passed pawns, time per move, more selective late move reductions, a faster engine with the same moves, the fastest mate); gen-20 at 2,265 ± 41 joint Elo on 28 November, gen-15 refitted at 2,132 ± 43. The referee rejects again: of the 20 iterations after gen-15, 5 accepted, 7 rejected, 5 abandoned, 1 stale, 2 under judgement. 63 sessions for 0.62 $ since the start.
+
+**Decisions**: #30 (the bot's games reviewed on the site, derived from the stored evaluations); #6 and #15 consolidated (rated games only, the memory's history).
+
+**Next step**: see whether the next jobs finish now that the build path works, and whether one ever trains the network of #1; look at the five abandoned sessions (no submission, work kept as `wip`), now more frequent than stale candidates (BACKLOG).
+
 ## Cycle 5: an agent that knows its limits, the session on the site, one Elo for all (2026-11-26)
 
 **Goal**: free the agent from the habit of one small change per session, let visitors see what it does between thoughts, and give the champions an Elo the games support.

@@ -36,7 +36,7 @@ An iteration estimated at 2 to 5 cents, to be measured (from #11), cap of 2 $/da
 
 Status: active. Date: 2026-11-24.
 
-Games on Lichess are too slow to decide generations (hundreds a day against the thousands needed), but they give a rating the agent cannot fake. Chess.com is ruled out: it does not allow bots.
+Games on Lichess are too slow to decide generations (hundreds a day against the thousands needed), but they give a rating the agent cannot fake. Chess.com is ruled out: it does not allow bots. The performance per generation counts rated games only (from cycle 6): the account mixes generations and a casual opponent can lose dozens of games in a row, as one did 43 of 45 against gen-17, lifting it by about 50 points.
 
 ## #7 Dashboard in the minimal live style (concept D)
 
@@ -90,7 +90,7 @@ The server runs two fixed services, `core` (orchestrator and referee in the same
 
 Status: active. Date: 2026-11-25.
 
-The genome repository belongs to the agent: it can rewrite tags, delete objects, add hooks or a `core.fsmonitor` that git would run on the host. That is why git never runs on the host against the genome, and the history that matters lives in a bare mirror written only by the orchestrator: the referee builds from there and every session restarts from there. `NOTES.md` and `STRATEGY.md` move out of the genome into `/memory`: inside the genome a lesson learned from a rejected experiment would vanish with the reset.
+The genome repository belongs to the agent: it can rewrite tags, delete objects, add hooks or a `core.fsmonitor` that git would run on the host. That is why git never runs on the host against the genome, and the history that matters lives in a bare mirror written only by the orchestrator: the referee builds from there and every session restarts from there. `NOTES.md` and `STRATEGY.md` move out of the genome into `/memory`: inside the genome a lesson learned from a rejected experiment would vanish with the reset. The agent overwrites them in place, so their history is kept the same way (from cycle 6): a bare repository only the orchestrator writes, committed from a container that mounts the memory read-only, never by git on the host against the agent's files.
 
 ## #16 Testing the full session with a fake model
 
@@ -224,3 +224,11 @@ The data that enters:
 The limit: the fit takes a gain over the parent to be worth the same against Stockfish. Self-play gains often shrink against other opponents, and an SPRT stopped early at H1 overstates the gain it measured; the margins do not include that. On today's ledger the evidence fits the model roughly, with more spread than it assumes (chi-square 33 over 19 degrees of freedom): the largest misfits are gen-14 losing 3.5 points to the 1320 rung where the fit expects 0.8, and gen-15 scoring 34.5 against 1600 where it expects 37.6. To be checked as the chain grows.
 
 Rejected: more games per rung only, which narrows each measure at the cost of hours of CPU per champion but still lets noise around 0.9 choose the rung and still measures every generation alone; leaving the climb rule as it was, which keeps spending the rating's games on the rungs a strong champion crushes (gen-15 won 40 of 40 against 1320) and lets the rung that decides be chosen by a few games either side of 0.9; weighing each match by its pentanomial variance, a second model for a sixth of margin.
+
+## #30 The bot's games are reviewed on the site, derived from the stored evaluations
+
+Status: active. Date: 2026-11-27.
+
+The site showed the bot's last three games and sent visitors to Lichess, where its games have no analysis. Every finished game now has its own page on the site, with a paged list to reach it. Moves are judged the way Lichess judges them, on the winning chances they gave away with Lichess's thresholds, so the marks read the same as on Lichess. The judgements, the totals and the turning point are derived when the API reads the game, from the Stockfish evaluations already stored for the commentary: nothing new is computed on the server or written to the ledger, and a change to the rule applies to every past game at once.
+
+Rejected: linking to Lichess only, which gives the visitor the moves without the analysis; storing the judgements, which duplicates what the evaluations already determine and would need a migration whenever the rule changes.
