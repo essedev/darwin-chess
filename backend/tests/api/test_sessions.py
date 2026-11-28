@@ -149,3 +149,43 @@ def test_a_session_shows_the_jobs_it_started_and_how_they_ended(
     assert (job["purpose"], job["status"], job["reason"]) == ("Self-play games", status, reason)
     assert job["command"] == "python3 tools/selfplay.py" and job["finished_at"] is not None
     assert client.get(f"/api/sessions/{reflection}").json()["jobs"] == []
+
+
+def test_sessions_that_read_a_job_and_the_job_that_was_read(
+    client: TestClient, ledger_url: str
+) -> None:
+    old, reflection, running = seed(ledger_url)
+
+    async def go() -> int:
+        ledger = Ledger(ledger_url)
+        job = await ledger.start_job(old, "python3 selfplay.py", "Self-play games", 2, 2)
+        await ledger.finish_job(job, "done", 0, "ok\n")
+        # The session that started it checks on it: that is not reading someone else's job.
+        await ledger.add_event(
+            old, "tool_call", {"tool": "bash", "args": {"command": f"ls /jobs/{job}/out"}}
+        )
+        await ledger.add_event(
+            running, "tool_call", {"tool": "read", "args": {"path": f"/jobs/{job}/out/g.txt"}}
+        )
+        await ledger.add_event(
+            reflection, "tool_call", {"tool": "bash", "args": {"command": "ls /jobs/99/out"}}
+        )
+        await ledger.close()
+        return job
+
+    job = asyncio.run(go())  # fmt: skip
+    started = client.get(f"/api/sessions/{old}").json()
+    assert started["jobs"][0]["read_by"] == [running] and started["jobs_read"] == []
+    reader = client.get(f"/api/sessions/{running}").json()
+    assert reader["jobs_read"] == [
+        {
+            "id": job,
+            "purpose": "Self-play games",
+            "command": "python3 selfplay.py",
+            "experiment_id": old,
+        }
+    ]
+    assert client.get(f"/api/sessions/{reflection}").json()["jobs_read"] == []  # no job 99
+    rows = {e["id"]: e for e in client.get("/api/experiments").json()["items"]}
+    assert (rows[old]["jobs_started"], rows[old]["jobs_read"]) == ([job], [])
+    assert (rows[running]["jobs_started"], rows[running]["jobs_read"]) == ([], [job])

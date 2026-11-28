@@ -7,7 +7,7 @@ from typing import Any
 
 from sqlalchemy import func, select
 
-from darwin.ledger import commentary, strength
+from darwin.ledger import commentary, job_links, strength
 from darwin.ledger import models as m
 from darwin.ledger.lichess import performance
 from darwin.ledger.queries import gate_view, match_view
@@ -143,6 +143,15 @@ async def experiments_page(
             .group_by(m.LlmCall.experiment_id)
         )
         cost_of = {exp_id: float(usd or 0.0) for exp_id, usd in costs}
+        started = {
+            exp_id: sorted(int(j) for j in job_ids.split(","))
+            for exp_id, job_ids in await s.execute(
+                select(m.Job.experiment_id, func.group_concat(m.Job.id))
+                .where(m.Job.experiment_id.in_(ids))
+                .group_by(m.Job.experiment_id)
+            )
+        }
+        read = await job_links.readers(s, ids)
         hypotheses_it = await commentary.of(s, commentary.HYPOTHESIS, ids)
         lessons_it = await commentary.of(s, commentary.LESSON, ids)
         titles = await commentary.of(s, commentary.TITLE, ids)
@@ -180,6 +189,8 @@ async def experiments_page(
             "cost_usd": cost_of.get(e.id, 0.0),
             "gates": gates_of.get(e.id, []),
             "match": match_of.get(e.id),
+            "jobs_started": started.get(e.id, []),
+            "jobs_read": sorted(read.get(e.id, set())),
         }
         for e in rows
     ]

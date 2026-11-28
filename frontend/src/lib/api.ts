@@ -127,7 +127,12 @@ export type SessionJob = {
   max_hours: number
   created_at: string
   finished_at: string | null
+  /** The later sessions whose tool calls read this job's files. */
+  read_by: number[]
 }
+
+/** A job started by another session whose files this session read. */
+export type ReadJob = { id: number; purpose: string | null; command: string; experiment_id: number }
 
 export type LiveGame = {
   match: string
@@ -403,6 +408,9 @@ export type ExperimentRow = {
   cost_usd: number | null
   gates: Gate[]
   match: MatchSummary | null
+  /** The long jobs it started, and those of other sessions whose files it read. */
+  jobs_started: number[]
+  jobs_read: number[]
 }
 
 export type ExperimentPage = {
@@ -571,6 +579,8 @@ export type SessionDetail = {
   match: MatchSummary | null
   /** The long jobs this session started, oldest first. */
   jobs: SessionJob[]
+  /** Jobs other sessions started whose files this one read (derived from its tool calls). */
+  jobs_read: ReadJob[]
   events: AgentEvent[]
   /** More events than the endpoint returns: these are the first ones. */
   truncated: boolean

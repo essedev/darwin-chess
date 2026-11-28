@@ -34,8 +34,15 @@ export function ExperimentRow({ experiment: e }: { experiment: Experiment }) {
             </b>
             <span className="block truncate text-[12px] text-muted-foreground">{summary(i18n, e) ?? f.dateTime(e.created_at)}</span>
           </span>
-          <span className={cn('rounded-full px-2 py-px text-[12px] font-semibold whitespace-nowrap', TONE[e.status] ?? 'bg-muted text-muted-foreground')}>
-            {status}
+          <span className="flex items-center gap-1.5">
+            {jobs(e).length > 0 && (
+              <span title={jobsText(i18n, e)} className="hidden rounded-full bg-muted px-2 py-px font-mono text-[11px] text-muted-foreground sm:inline">
+                {t('job.tag')}
+              </span>
+            )}
+            <span className={cn('rounded-full px-2 py-px text-[12px] font-semibold whitespace-nowrap', TONE[e.status] ?? 'bg-muted text-muted-foreground')}>
+              {status}
+            </span>
           </span>
         </>
       }
@@ -95,6 +102,11 @@ function Details({ experiment: e }: { experiment: Experiment }) {
       {['stale', 'error', 'abandoned', 'budget_stop'].includes(e.status) && (
         <p className="text-muted-foreground">{t(`experiment.why.${e.status as 'stale' | 'error' | 'abandoned' | 'budget_stop'}`)}</p>
       )}
+      {jobs(e).length > 0 && (
+        <p>
+          <Fact label={t('job.sessionTitle')}>{jobsText(i18n, e)}</Fact>
+        </p>
+      )}
       <p className="flex flex-wrap items-center gap-x-4 gap-y-1">
         {e.cost_usd !== null && <Fact label={t('detail.cost')}>{f.preciseMoney(e.cost_usd)}</Fact>}
         <Fact label={t('detail.when')}>{f.dateTime(e.created_at)}</Fact>
@@ -109,6 +121,17 @@ function Details({ experiment: e }: { experiment: Experiment }) {
       </p>
     </>
   )
+}
+
+const jobs = (e: Experiment) => [...e.jobs_started, ...e.jobs_read]
+
+/** "avviati #2 · file letti #1": the jobs it started and those whose files it read. */
+function jobsText({ t }: I18n, e: Experiment): string {
+  const ids = (list: number[]) => list.map((id) => `#${id}`).join(', ')
+  return [
+    e.jobs_started.length > 0 ? t('job.started', { ids: ids(e.jobs_started) }) : null,
+    e.jobs_read.length > 0 ? t('job.readShort', { ids: ids(e.jobs_read) }) : null,
+  ].filter(Boolean).join(' · ')
 }
 
 function opponent({ t }: I18n, name: string): string {

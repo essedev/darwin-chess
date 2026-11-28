@@ -5,7 +5,7 @@ from typing import Any
 
 from sqlalchemy import func, select
 
-from darwin.ledger import commentary
+from darwin.ledger import commentary, job_links
 from darwin.ledger import models as m
 from darwin.ledger.queries import event_view, gate_view, job_view, match_view
 from darwin.ledger.store import Ledger
@@ -55,6 +55,11 @@ async def session_view(ledger: Ledger, experiment_id: int) -> dict[str, Any] | N
         jobs = (
             await s.scalars(select(m.Job).where(m.Job.experiment_id == e.id).order_by(m.Job.id))
         ).all()
+        read_by = await job_links.readers(s)
+        read_ids = sorted(read_by.get(e.id, set()))
+        read = (
+            await s.scalars(select(m.Job).where(m.Job.id.in_(read_ids)).order_by(m.Job.id))
+        ).all()
         previous = await s.scalar(select(func.max(m.Experiment.id)).where(m.Experiment.id < e.id))
         following = await s.scalar(select(func.min(m.Experiment.id)).where(m.Experiment.id > e.id))
     return {
@@ -75,7 +80,19 @@ async def session_view(ledger: Ledger, experiment_id: int) -> dict[str, Any] | N
         "cost_usd": float(cost or 0.0),
         "gates": [gate_view(g) for g in gates],
         "match": None if match is None else match_view(match),
-        "jobs": [job_view(j) for j in jobs],
+        "jobs": [
+            {**job_view(j), "read_by": sorted(x for x, ids in read_by.items() if j.id in ids)}
+            for j in jobs
+        ],
+        "jobs_read": [
+            {
+                "id": j.id,
+                "purpose": j.purpose,
+                "command": j.command,
+                "experiment_id": j.experiment_id,
+            }
+            for j in read
+        ],
         "events": [event_view(r, thoughts.get(r.id)) for r in rows[:MAX_EVENTS]],
         "truncated": len(rows) > MAX_EVENTS,
         "previous": previous,

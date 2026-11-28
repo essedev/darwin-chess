@@ -125,7 +125,8 @@ export function describe(say: Say, tool: string, args: Record<string, unknown>, 
       const action = str(args.action)
       if (action === 'status') return { ...base, cat: 'understand', text: t('do.jobStatus') }
       if (action === 'delete') return { ...base, cat: 'understand', text: t('do.jobDelete', { id: str(args.job_id) }) }
-      return { ...base, cat: 'try', text: t('do.jobStart') }
+      const purpose = str(args.purpose)
+      return { ...base, cat: 'try', text: purpose ? t('do.jobStartPurpose', { purpose: clip(purpose, 90) }) : t('do.jobStart') }
     }
     default:
       return { ...base, cat: 'understand', text: t('do.tool', { name: tool }) }

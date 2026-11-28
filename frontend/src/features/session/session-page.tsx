@@ -13,7 +13,7 @@ import { CallRow } from './call-row'
 import { mergeEvents } from './model'
 import { CursorRow, NoteRow, StatusRow } from './note-rows'
 import { SessionEnd } from './session-end'
-import { SessionJobs } from './session-jobs'
+import { ReadJobs, SessionJobs } from './session-jobs'
 import { useSessionModel } from './use-session-model'
 import { useSessionStream } from './use-session-stream'
 
@@ -91,6 +91,7 @@ function Session({ session: s }: { session: SessionDetail }) {
       {s.truncated && <p className="text-[13px] text-muted-foreground">{t('session.truncated', { n: s.events.length })}</p>}
       <SessionEnd session={s} />
       <SessionJobs jobs={s.jobs} />
+      <ReadJobs jobs={s.jobs_read} />
       <SessionNav session={s} />
     </Shell>
   )
@@ -119,6 +120,7 @@ function Head(props: { session: SessionDetail; calls: number; thoughts: number; 
           {live ? t('session.live') : t('session.over')}
         </span>
         <span>{t('session.startedAt', { time: f.time(start) })}</span>
+        <WokenBy trigger={s.trigger} />
         {s.base_generation_id !== null && <span>{t('session.base', { gen: s.base_generation_id })}</span>}
         <span>{t('session.actionsOf', { n: f.num(props.calls), max: f.num(s.limits.tool_calls) })}</span>
         <span>{props.thoughts ? tn('count.thoughts', props.thoughts) : t('work.noThoughts')}</span>
@@ -129,6 +131,20 @@ function Head(props: { session: SessionDetail; calls: number; thoughts: number; 
         {s.cost_usd > 0 && <span>{t('session.cost', { cost: f.preciseMoney(s.cost_usd) })}</span>}
       </p>
     </header>
+  )
+}
+
+/** Why the session started, when it was an event worth following: a job's end, a verdict. */
+function WokenBy({ trigger }: { trigger: string }) {
+  const { t } = useI18n()
+  const [kind, id] = trigger.split(':')
+  if (!id || !/^\d+$/.test(id)) return null
+  if (kind === 'job_done') return <span>{t('session.wokenByJob', { id })}</span>
+  if (kind !== 'verdict') return null
+  return (
+    <a href={href('sessione', { id })} className="cursor-pointer underline-offset-4 hover:text-foreground hover:underline">
+      {t('session.wokenByVerdict', { id })}
+    </a>
   )
 }
 
