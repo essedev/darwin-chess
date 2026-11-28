@@ -15,7 +15,7 @@ export function SideCards({ data, tab, lichess }: { data: Ready; tab: Tab; liche
   const matches = useMatches()
   const last = matches.data?.[0] ?? null
   return (
-    <aside className="order-2 grid min-w-0 content-start gap-3.5 xl:order-none">
+    <aside className="order-2 grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-3.5 xl:order-none">
       <VerdictPanel trial={data.on_trial ?? null} last={last} />
       <JobCard jobs={data.jobs} />
       <SpendPanel spend={data.spend} />

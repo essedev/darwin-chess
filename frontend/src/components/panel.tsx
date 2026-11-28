@@ -1,3 +1,4 @@
+import { Popover } from '@base-ui/react/popover'
 import { type ReactNode, useId } from 'react'
 import { useT } from '@/i18n/context'
 import { type Hue, hueStyle } from '@/lib/hue'
@@ -33,32 +34,37 @@ export function Panel(props: {
   )
 }
 
-/** A "?" that shows a short explanation on hover, on focus and on tap. */
+/**
+ * A "?" that shows a short explanation on hover, on focus and on tap. The explanation sits in a
+ * portal and is shifted to stay on screen, so a "?" near an edge neither clips it nor widens
+ * the page.
+ */
 export function Help({ text }: { text: string }) {
   const t = useT()
-  const id = useId()
   return (
-    <span className="group relative inline-flex">
-      <button
-        type="button"
+    <Popover.Root>
+      <Popover.Trigger
+        openOnHover
+        delay={0}
+        closeDelay={0}
         aria-label={t('help.label')}
-        aria-describedby={id}
         className="inline-flex size-4 cursor-help items-center justify-center rounded-full bg-muted font-sans text-[10px] font-semibold text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none"
       >
         ?
-      </button>
-      <span
-        role="tooltip"
-        id={id}
-        className={cn(
-          'pointer-events-none invisible absolute bottom-[calc(100%+8px)] left-1/2 z-30 w-64 max-w-[calc(100vw-32px)] -translate-x-1/2',
-          'rounded-[10px] bg-foreground px-3 py-2.5 text-left font-sans text-[12px] leading-snug font-normal tracking-normal text-background normal-case opacity-0 transition-opacity',
-          'group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100',
-        )}
-      >
-        {text}
-      </span>
-    </span>
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Positioner side="top" sideOffset={8} collisionPadding={16} className="z-30">
+          <Popover.Popup
+            className={cn(
+              'w-64 max-w-[calc(100vw-32px)] rounded-[10px] bg-foreground px-3 py-2.5 text-left font-sans text-[12px] leading-snug font-normal tracking-normal text-background normal-case outline-none',
+              'transition-opacity duration-100 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0',
+            )}
+          >
+            {text}
+          </Popover.Popup>
+        </Popover.Positioner>
+      </Popover.Portal>
+    </Popover.Root>
   )
 }
 

@@ -32,6 +32,10 @@ export function EloChart({ points, height = 110, axis = false }: { points: EloPo
   const x = (i: number) => left + ((width - left - right) * (i + 0.5)) / points.length
   const y = (elo: number) => top + (height - top - bottom) * (1 - (elo - low) / Math.max(1, high - low))
   const ticks = axis ? gridTicks(low, high) : []
+  // "gen-20" in 10px mono is about 36px: on a narrow chart only every `every`-th point keeps its
+  // label, counting back from the newest so the champion is always named.
+  const slot = (width - left - right) / Math.max(1, points.length)
+  const every = Math.max(1, Math.ceil(LABEL_WIDTH / slot))
 
   return (
     <div ref={box} className="w-full">
@@ -61,9 +65,11 @@ export function EloChart({ points, height = 110, axis = false }: { points: EloPo
               <circle cx={x(i)} cy={y(p.elo)} r={4} className="fill-[var(--hue,var(--live))] stroke-none">
                 <title>{`gen-${p.id}: ${f.num(Math.round(p.elo))} ± ${f.num(Math.round(p.error))}`}</title>
               </circle>
-              <text x={x(i)} y={height - 6} textAnchor="middle" className="fill-muted-foreground stroke-none font-mono text-[10px]">
-                gen-{p.id}
-              </text>
+              {(points.length - 1 - i) % every === 0 && (
+                <text x={x(i)} y={height - 6} textAnchor="middle" className="fill-muted-foreground stroke-none font-mono text-[10px]">
+                  gen-{p.id}
+                </text>
+              )}
             </g>
           ))}
         </svg>
@@ -71,6 +77,9 @@ export function EloChart({ points, height = 110, axis = false }: { points: EloPo
     </div>
   )
 }
+
+/** The room one x-axis label needs, gap included. */
+const LABEL_WIDTH = 44
 
 /** Gridlines every 100 Elo, or every 200 when the range is wide. */
 function gridTicks(low: number, high: number): number[] {

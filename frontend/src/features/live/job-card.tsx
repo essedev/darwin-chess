@@ -5,7 +5,7 @@ import { panel } from '@/components/panel'
 import { cn } from '@/lib/utils'
 import { duration } from './format'
 
-const card = `${panel} p-5`
+const card = `${panel} min-w-0 p-5`
 const RECENT_MS = 24 * 60 * 60 * 1000
 
 /**
