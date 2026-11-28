@@ -235,38 +235,39 @@ async def lichess_summary(
 
 
 async def jobs_view(ledger: Ledger) -> dict[str, Any]:
-    """Long jobs started by the agent: the ones running and the last one that ended."""
+    """The long jobs running now: what the agent is doing in the background. How a job ended
+    belongs to the session that started it (`job_view` in `sessions`)."""
     async with ledger.session() as s:
         running = (
             await s.scalars(
                 select(m.Job).where(m.Job.status == "running").order_by(m.Job.id.desc())
             )
         ).all()
-        last = await s.scalar(
-            select(m.Job)
-            .where(m.Job.status != "running")
-            .order_by(m.Job.finished_at.desc(), m.Job.id.desc())
-            .limit(1)
-        )
     return {
         "running": [
             {
                 "id": j.id,
+                "experiment_id": j.experiment_id,
+                "purpose": j.purpose,
                 "command": j.command,
                 "created_at": j.created_at.isoformat(),
                 "max_hours": j.max_hours,
             }
             for j in running
-        ],
-        "last_finished": None
-        if last is None
-        else {
-            "id": last.id,
-            "command": last.command,
-            "status": last.status,
-            "exit_code": last.exit_code,
-            "created_at": last.created_at.isoformat(),
-            "finished_at": last.finished_at.isoformat() if last.finished_at else None,
-            "max_hours": last.max_hours,
-        },
+        ]
+    }
+
+
+def job_view(j: m.Job) -> dict[str, Any]:
+    """One job as the session that started it shows it, with how it ended."""
+    return {
+        "id": j.id,
+        "purpose": j.purpose,
+        "command": j.command,
+        "status": j.status,
+        "exit_code": j.exit_code,
+        "reason": j.reason,
+        "max_hours": j.max_hours,
+        "created_at": j.created_at.isoformat(),
+        "finished_at": j.finished_at.isoformat() if j.finished_at else None,
     }

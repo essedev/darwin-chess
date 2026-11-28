@@ -185,6 +185,13 @@ export default function (pi: ExtensionAPI) {
 				action: Type.Union([Type.Literal("start"), Type.Literal("status"), Type.Literal("delete")]),
 				job_id: Type.Optional(Type.Integer({ description: "Job whose files to delete (delete only)" })),
 				command: Type.Optional(Type.String({ description: "Shell command run in /job/src (start only)" })),
+				purpose: Type.Optional(
+					Type.String({
+						maxLength: 200,
+						description:
+							"What the job is for, in one plain sentence a reader of the public site understands, e.g. \"Self-play games to tune the evaluation weights\" (start only, required)",
+					}),
+				),
 				hours: Type.Optional(Type.Number({ minimum: 0.1, maximum: 12 })),
 			}),
 		),

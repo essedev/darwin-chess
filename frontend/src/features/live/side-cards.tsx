@@ -3,21 +3,19 @@ import { useI18n } from '@/i18n/context'
 import { type Experiment, type JudgedMatch, type Lichess, type MatchProgress, type Overview, useMatches } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { titleText } from './format'
-import { JobCard } from './job-card'
 import { JudgedMatches } from './judged-matches'
 import { RecentGames } from './lichess-recent'
 import type { Tab } from './stage'
 
 type Ready = Extract<Overview, { ready: true }>
 
-/** The right column: the question on trial, a long job if any, the spend, the last three results. */
+/** The right column: the question on trial, the spend, the last three results. */
 export function SideCards({ data, tab, lichess }: { data: Ready; tab: Tab; lichess: { isError: boolean; data: Lichess | undefined } }) {
   const matches = useMatches()
   const last = matches.data?.[0] ?? null
   return (
     <aside className="order-2 grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-3.5 xl:order-none">
       <VerdictPanel trial={data.on_trial ?? null} last={last} />
-      <JobCard jobs={data.jobs} />
       <SpendPanel spend={data.spend} />
       {tab === 'arena' ? <JudgedMatches query={matches} /> : <RecentGames query={lichess} />}
     </aside>

@@ -198,15 +198,21 @@ def test_lichess_shows_the_live_game_and_the_finished_ones(
     assert client.get("/api/lichess").json()["live"] is None
 
 
-def test_overview_lists_the_running_job_and_the_last_finished(
-    client: TestClient, ledger_url: str
-) -> None:
+def test_overview_lists_only_the_running_jobs(client: TestClient, ledger_url: str) -> None:
     seed(ledger_url)
 
     async def go() -> None:
         ledger = Ledger(ledger_url)
         async with ledger.session() as s:
-            s.add(m.Job(experiment_id=1, command="selfplay --games 100", cpus=2, max_hours=4))
+            s.add(
+                m.Job(
+                    experiment_id=1,
+                    command="selfplay --games 100",
+                    purpose="Self-play games for tuning",
+                    cpus=2,
+                    max_hours=4,
+                )
+            )
             s.add(
                 m.Job(
                     experiment_id=1,
@@ -222,10 +228,12 @@ def test_overview_lists_the_running_job_and_the_last_finished(
 
     asyncio.run(go())
     jobs = client.get("/api/overview").json()["jobs"]
-    assert [(j["command"], j["max_hours"]) for j in jobs["running"]] == [
-        ("selfplay --games 100", 4)
+    assert [(j["purpose"], j["command"], j["max_hours"]) for j in jobs["running"]] == [
+        ("Self-play games for tuning", "selfplay --games 100", 4)
     ]
-    assert (jobs["last_finished"]["command"], jobs["last_finished"]["exit_code"]) == ("train", 2)
+    assert jobs["running"][0]["experiment_id"] == 1
+    # How a job ended belongs to its session's page, not to the live view.
+    assert jobs.keys() == {"running"}
 
 
 def test_the_board_follows_one_game_to_its_end_then_holds_it() -> None:

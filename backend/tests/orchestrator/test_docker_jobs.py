@@ -49,7 +49,7 @@ async def run_to_end(jobs: Jobs, experiment: int, command: str) -> int:
         finished.set()
 
     jobs.on_done = done
-    job_id = await jobs.start(experiment, command, hours=0.05)
+    job_id = await jobs.start(experiment, command, "A test job", hours=0.05)
     await asyncio.wait_for(finished.wait(), 120)
     return job_id
 
@@ -113,7 +113,7 @@ async def test_a_full_storage_refuses_new_jobs(tmp_path: Path, ledger: Ledger) -
     (settings.data_dir / "jobs" / "1" / "out" / "old").write_bytes(b"x" * 10_000)
     jobs = Jobs(settings, ledger, on_done=ignore)
     with pytest.raises(JobError, match="storage is full"):
-        await jobs.start(await started_experiment(ledger), "true", hours=0.1)
+        await jobs.start(await started_experiment(ledger), "true", "A test job", hours=0.1)
 
 
 async def ignore(_job_id: int) -> None:

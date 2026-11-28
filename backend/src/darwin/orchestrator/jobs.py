@@ -71,7 +71,7 @@ class Jobs:
         await asyncio.to_thread(shutil.rmtree, target)
         return freed / GB
 
-    async def start(self, experiment_id: int, command: str, hours: float) -> int:
+    async def start(self, experiment_id: int, command: str, purpose: str, hours: float) -> int:
         if len(await self.ledger.jobs(running_only=True)) >= MAX_RUNNING:
             raise JobError(f"at most {MAX_RUNNING} job at a time: wait for the running one")
         used, ceiling = await self.storage()
@@ -80,7 +80,7 @@ class Jobs:
                 f"job storage is full ({used:.1f} of {ceiling:g} GB): delete old "
                 "outputs with run_job action delete"
             )
-        job_id = await self.ledger.start_job(experiment_id, command, MAX_CPUS, hours)
+        job_id = await self.ledger.start_job(experiment_id, command, purpose, MAX_CPUS, hours)
         snapshot = await sandbox.helper(
             self.settings,
             f"""

@@ -147,8 +147,9 @@ Long CPU-only jobs started by the agent with `run_job`.
 | id | INTEGER | PK |
 | experiment_id | INTEGER | FK, the iteration that started it |
 | command | TEXT | command run in the job's container |
+| purpose | TEXT | what the job is for, one sentence by the agent; null on jobs started before it was asked |
 | cpus / max_hours | REAL | caps imposed |
-| status | TEXT | `running`, `done`, `failed`, `killed` (time or disk quota: the reason opens `log_tail`) |
+| status | TEXT | `running`, `done`, `failed`, `killed` (time or disk quota: the reason opens `log_tail`; for a failure, the last line of `log_tail` says why) |
 | exit_code | INTEGER | |
 | log_tail | TEXT | last lines of the output |
 | created_at / finished_at | DATETIME | |

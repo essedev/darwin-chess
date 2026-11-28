@@ -1,5 +1,5 @@
-"""One agent session as its page reads it: the experiment, its events in order, its outcome
-and the sessions on either side. Read-only."""
+"""One agent session as its page reads it: the experiment, its events in order, its outcome,
+the jobs it started and the sessions on either side. Read-only."""
 
 from typing import Any
 
@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 
 from darwin.ledger import commentary
 from darwin.ledger import models as m
-from darwin.ledger.queries import event_view, gate_view, match_view
+from darwin.ledger.queries import event_view, gate_view, job_view, match_view
 from darwin.ledger.store import Ledger
 
 # A session stops at 80 tool calls, so it holds a few hundred events at most; the cap only
@@ -52,6 +52,9 @@ async def session_view(ledger: Ledger, experiment_id: int) -> dict[str, Any] | N
         match = await s.scalar(
             select(m.Match).where(m.Match.experiment_id == e.id).order_by(m.Match.id.desc())
         )
+        jobs = (
+            await s.scalars(select(m.Job).where(m.Job.experiment_id == e.id).order_by(m.Job.id))
+        ).all()
         previous = await s.scalar(select(func.max(m.Experiment.id)).where(m.Experiment.id < e.id))
         following = await s.scalar(select(func.min(m.Experiment.id)).where(m.Experiment.id > e.id))
     return {
@@ -72,6 +75,7 @@ async def session_view(ledger: Ledger, experiment_id: int) -> dict[str, Any] | N
         "cost_usd": float(cost or 0.0),
         "gates": [gate_view(g) for g in gates],
         "match": None if match is None else match_view(match),
+        "jobs": [job_view(j) for j in jobs],
         "events": [event_view(r, thoughts.get(r.id)) for r in rows[:MAX_EVENTS]],
         "truncated": len(rows) > MAX_EVENTS,
         "previous": previous,

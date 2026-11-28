@@ -157,7 +157,8 @@ class SessionTools:
             return "\n".join(
                 [storage]
                 + [
-                    f"job {j.id}: {j.status} (exit {j.exit_code}) `{j.command[:100]}`"
+                    f"job {j.id}: {j.status} (exit {j.exit_code}) "
+                    f"{j.purpose or '(no purpose)'}: `{j.command[:100]}`"
                     + (f"\n  log: {j.log_tail[-600:]}" if j.log_tail else "")
                     for j in jobs[:5]
                 ]
@@ -171,9 +172,14 @@ class SessionTools:
         command = str(params.get("command") or "").strip()
         if not command:
             raise ToolError("start needs a command")
+        purpose = " ".join(str(params.get("purpose") or "").split())
+        if not purpose:
+            raise ToolError("start needs a purpose: one sentence on what the job is for")
         hours = min(float(params.get("hours") or 1.0), 12.0)
         try:
-            job_id = await self.jobs.start(self.experiment_id, command, hours)
+            job_id = await self.jobs.start(
+                self.experiment_id, command, purpose[:MAX_PURPOSE], hours
+            )
         except JobError as exc:
             raise ToolError(str(exc)) from exc
         return f"Job {job_id} started. Its output will be in /jobs/{job_id}/out."
@@ -187,6 +193,7 @@ class SessionTools:
         return "\n\n".join([head, *(_describe_loss(row) for row in rows)])
 
 
+MAX_PURPOSE = 200  # one sentence, shown on the public site
 LOSS_PLIES = 40  # the tail of the game is where the loss happened; the opening costs tokens
 MATE_CP = 10000  # how the analysis encodes a forced mate
 WORST_KEYS = {"move_number", "move", "eval_before_cp", "eval_after_cp", "fen_before"}

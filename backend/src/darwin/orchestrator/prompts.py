@@ -38,7 +38,8 @@ candidate survives. Nobody will answer questions: decide and act.
   in total); delete outputs you no longer need. A job runs on a copy of your working tree as
   it is when you start it, uncommitted changes included: /job/src, its working directory
   (/jobs/<id>/src from a session), with its output in /job/out (/jobs/<id>/out). /memory is
-  not mounted in jobs: copy into /genome what a job needs before starting it. In a job,
+  not mounted in jobs: copy into /genome what a job needs before starting it. Give every job
+  a purpose: one plain sentence on what it is for, shown on the public site. In a job,
   cargo build --release puts the binary at target/release/genome as in /genome; the build
   itself lives in the job's memory and is gone when the job ends. When a job ends, a new
   session starts, woken by job_done:<id>.
@@ -157,7 +158,12 @@ def session_prompt(ctx: SessionContext) -> str:
         parts += [_experiment_line(row) for row in ctx.recent]
     if ctx.jobs:
         parts.append("\n## Jobs")
-        parts += [f"- job {j.id}: {j.status} `{j.command[:80]}`" for j in ctx.jobs[:5]]
+        parts += [
+            f"- job {j.id}: {j.status}"
+            + (f" ({j.reason})" if j.reason else "")
+            + f", {j.purpose or 'no purpose given'}: `{j.command[:80]}`"
+            for j in ctx.jobs[:5]
+        ]
     parts.append(f"\n## /memory/STRATEGY.md\n{ctx.strategy[:STRATEGY_CHARS]}")
     parts.append(f"\n## /memory/NOTES.md (tail)\n{ctx.notes[-NOTES_TAIL_CHARS:]}")
     if ctx.kind == "reflection":

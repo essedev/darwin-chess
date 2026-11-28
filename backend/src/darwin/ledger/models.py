@@ -124,6 +124,9 @@ class AgentEvent(Timestamped, Base):
     payload: Mapped[dict[str, Any]] = mapped_column(JSON)
 
 
+JOB_REASON_CHARS = 200
+
+
 class Job(Timestamped, Base):
     """A long CPU-only run started by the agent with `run_job` (self-play, training)."""
 
@@ -131,12 +134,24 @@ class Job(Timestamped, Base):
 
     experiment_id: Mapped[int] = mapped_column(ForeignKey("experiments.id"), index=True)
     command: Mapped[str] = mapped_column(Text)
+    # What the job is for, in the agent's words; null for jobs started before it was asked.
+    purpose: Mapped[str | None] = mapped_column(Text)
     cpus: Mapped[float] = mapped_column(Float)
     max_hours: Mapped[float] = mapped_column(Float)
     status: Mapped[str] = mapped_column(String(16), default="running", index=True)
     exit_code: Mapped[int | None]
     log_tail: Mapped[str | None] = mapped_column(Text)
     finished_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
+
+    @property
+    def reason(self) -> str | None:
+        """Why a job did not end well, in one line: the cause a kill writes first ("time
+        limit", "disk quota ..."), or the last line a failed job printed (the exception, for a
+        Python traceback). None for a job that is running or done."""
+        lines = [line.strip() for line in (self.log_tail or "").splitlines() if line.strip()]
+        if self.status not in ("failed", "killed") or not lines:
+            return None
+        return (lines[0] if self.status == "killed" else lines[-1])[:JOB_REASON_CHARS]
 
 
 class LichessGame(Timestamped, Base):

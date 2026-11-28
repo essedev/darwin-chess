@@ -12,6 +12,7 @@ import { CallRow } from './call-row'
 import { mergeEvents } from './model'
 import { CursorRow, NoteRow, StatusRow } from './note-rows'
 import { SessionEnd } from './session-end'
+import { SessionJobs } from './session-jobs'
 import { useSessionModel } from './use-session-model'
 import { useSessionStream } from './use-session-stream'
 
@@ -81,6 +82,7 @@ function Session({ session: s }: { session: SessionDetail }) {
       )}
       {s.truncated && <p className="text-[13px] text-muted-foreground">{t('session.truncated', { n: s.events.length })}</p>}
       <SessionEnd session={s} />
+      <SessionJobs jobs={s.jobs} />
       <SessionNav session={s} />
     </Shell>
   )

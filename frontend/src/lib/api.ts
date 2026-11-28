@@ -103,13 +103,30 @@ export type Overview =
       jobs: Jobs
     }
 
-export type Job = { id: number; command: string; created_at: string; max_hours: number }
+/** A long job running now. `purpose` is the agent's sentence, in English; null on old jobs. */
+export type Job = {
+  id: number
+  experiment_id: number
+  purpose: string | null
+  command: string
+  created_at: string
+  max_hours: number
+}
 
-export type Jobs = {
-  running: Job[]
-  last_finished:
-    | (Job & { status: 'done' | 'failed' | 'killed' | string; exit_code: number | null; finished_at: string | null })
-    | null
+/** The jobs running now: how a job ended is on the page of the session that started it. */
+export type Jobs = { running: Job[] }
+
+/** A job as the session that started it shows it. `reason`: why it failed or was stopped. */
+export type SessionJob = {
+  id: number
+  purpose: string | null
+  command: string
+  status: 'running' | 'done' | 'failed' | 'killed' | string
+  exit_code: number | null
+  reason: string | null
+  max_hours: number
+  created_at: string
+  finished_at: string | null
 }
 
 export type LiveGame = {
@@ -552,6 +569,8 @@ export type SessionDetail = {
   cost_usd: number
   gates: Gate[]
   match: MatchSummary | null
+  /** The long jobs this session started, oldest first. */
+  jobs: SessionJob[]
   events: AgentEvent[]
   /** More events than the endpoint returns: these are the first ones. */
   truncated: boolean

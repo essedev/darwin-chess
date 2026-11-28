@@ -314,11 +314,15 @@ class Ledger:
     # Jobs
 
     async def start_job(
-        self, experiment_id: int, command: str, cpus: float, max_hours: float
+        self, experiment_id: int, command: str, purpose: str, cpus: float, max_hours: float
     ) -> int:
         async with self.session() as s:
             row = m.Job(
-                experiment_id=experiment_id, command=command, cpus=cpus, max_hours=max_hours
+                experiment_id=experiment_id,
+                command=command,
+                purpose=purpose,
+                cpus=cpus,
+                max_hours=max_hours,
             )
             s.add(row)
             await s.flush()

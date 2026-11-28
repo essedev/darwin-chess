@@ -69,3 +69,17 @@ def test_the_session_prompt_states_every_limit_and_the_start_time() -> None:
     text = session_prompt(ctx)
     assert "started at 22:51 UTC" in text
     assert "40 minutes, 80 tool calls, 0.25 $" in text
+
+
+def test_a_failed_job_comes_with_its_purpose_and_why_it_failed() -> None:
+    failed = m.Job(
+        id=2, status="failed", purpose="Self-play games", command="python3 selfplay.py",
+        log_tail="Traceback (most recent call last):\nFileNotFoundError: target/release/genome\n",
+    )  # fmt: skip
+    old = m.Job(id=1, status="done", purpose=None, command="python3 train.py", log_tail="ok\n")
+    prompt = session_prompt(replace(context(), jobs=[failed, old]))
+    assert (
+        "- job 2: failed (FileNotFoundError: target/release/genome), Self-play games: "
+        "`python3 selfplay.py`" in prompt
+    )
+    assert "- job 1: done, no purpose given: `python3 train.py`" in prompt

@@ -117,3 +117,35 @@ def test_the_events_are_capped(
     monkeypatch.setattr(sessions, "MAX_EVENTS", 1)
     body = client.get(f"/api/sessions/{running}").json()
     assert (len(body["events"]), body["truncated"]) == (1, True)
+
+
+TRACEBACK = """Traceback (most recent call last):
+  File "/job/src/tools/selfplay.py", line 10, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: 'target/release/genome'
+"""
+
+
+@pytest.mark.parametrize(
+    ("status", "log_tail", "reason"),
+    [("failed", TRACEBACK, "FileNotFoundError: [Errno 2] No such file or directory: "
+      "'target/release/genome'"),
+     ("killed", "time limit\nplayed 300 games\n", "time limit"),
+     ("failed", "", None),
+     ("done", "wrote 300 games\n", None)],
+)  # fmt: skip
+def test_a_session_shows_the_jobs_it_started_and_how_they_ended(
+    client: TestClient, ledger_url: str, status: str, log_tail: str, reason: str | None
+) -> None:
+    old, reflection, _ = seed(ledger_url)
+
+    async def go() -> None:
+        ledger = Ledger(ledger_url)
+        job = await ledger.start_job(old, "python3 tools/selfplay.py", "Self-play games", 2, 2)
+        await ledger.finish_job(job, status, 1 if status == "failed" else None, log_tail)
+        await ledger.close()
+
+    asyncio.run(go())
+    [job] = client.get(f"/api/sessions/{old}").json()["jobs"]
+    assert (job["purpose"], job["status"], job["reason"]) == ("Self-play games", status, reason)
+    assert job["command"] == "python3 tools/selfplay.py" and job["finished_at"] is not None
+    assert client.get(f"/api/sessions/{reflection}").json()["jobs"] == []

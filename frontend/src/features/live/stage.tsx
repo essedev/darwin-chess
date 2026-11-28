@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import { AgentLine } from '@/features/session/agent-line'
 import { WorkCard } from '@/features/session/work-card'
 import { ArenaGame } from './arena-game'
+import { JobLine } from './job-line'
 import { matchLabel, plainText, titleText } from './format'
 import { LichessPanel } from './lichess-game'
 
@@ -13,8 +14,9 @@ export type Tab = 'arena' | 'lichess'
 type LichessQuery = { isPending: boolean; isError: boolean; data: Lichess | undefined }
 
 /**
- * The middle column: which game, what it is about, the board, what the agent is doing. With
- * no referee game the arena shows the agent's session instead of an empty board.
+ * The middle column: which game, what it is about, the board, what the agent is doing and the
+ * long jobs it left running. With no referee game the arena shows the agent's session instead
+ * of an empty board.
  */
 export function Stage(props: {
   data: Ready
@@ -58,6 +60,7 @@ export function Stage(props: {
       ) : (
         <Caption events={props.events} agent={data.agent} />
       )}
+      <JobLine jobs={data.jobs.running} />
     </div>
   )
 }
