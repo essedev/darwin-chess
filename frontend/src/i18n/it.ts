@@ -108,6 +108,7 @@ export const it = {
   'job.sessionTitle': 'Lavori lunghi',
   'job.command': 'Comando',
   'job.openSession': 'Apri la sessione che l’ha avviato',
+  'back.to': 'Torna a: {page}',
   'job.running': 'in corso',
   'job.elapsed': '{duration} su {max}',
   'job.reason.time': 'Ha superato il tempo massimo.',

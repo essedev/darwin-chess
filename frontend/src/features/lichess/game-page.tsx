@@ -1,5 +1,6 @@
 import { ArrowLeft, ArrowRight, ChevronFirst, ChevronLast, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
+import { BackLink } from '@/components/back-link'
 import { ErrorNote, LoadingNote, StateNote, card } from '@/components/page'
 import { Panel } from '@/components/panel'
 import { Board } from '@/features/live/board'
@@ -45,7 +46,14 @@ export default function GamePage({ params }: { params: URLSearchParams }) {
 }
 
 function Shell({ children }: { children: ReactNode }) {
-  return <main className="grid content-start gap-6 px-4 pt-5 pb-10 sm:px-8 sm:pt-7">{children}</main>
+  return (
+    <main className="grid content-start gap-6 px-4 pt-3 pb-10 sm:px-8 sm:pt-5">
+      <div className="-mb-4">
+        <BackLink fallback="partite" />
+      </div>
+      {children}
+    </main>
+  )
 }
 
 function Game({ game: g }: { game: LichessGameDetail }) {

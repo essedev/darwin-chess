@@ -7,9 +7,10 @@ import { cn } from '@/lib/utils'
 export const card = 'panel rounded-[12px] p-5'
 
 /** A content page under the navigation: title, one plain line on what it shows, then the body. */
-export function PageShell(props: { title: string; intro: ReactNode; children: ReactNode; className?: string }) {
+export function PageShell(props: { title: string; intro: ReactNode; children: ReactNode; className?: string; back?: ReactNode }) {
   return (
-    <main className={cn('grid content-start gap-6 px-4 pt-5 pb-10 sm:px-8 sm:pt-7', props.className)}>
+    <main className={cn('grid content-start gap-6 px-4 pb-10', props.back ? 'pt-3 sm:px-8 sm:pt-5' : 'pt-5 sm:px-8 sm:pt-7', props.className)}>
+      {props.back && <div className="-mb-4">{props.back}</div>}
       <header className="grid gap-1.5">
         <h1 className="text-[26px] font-semibold tracking-tight sm:text-[30px]">{props.title}</h1>
         <p className="text-[15px] leading-relaxed text-pretty text-muted-foreground">{props.intro}</p>

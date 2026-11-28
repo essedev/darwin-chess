@@ -39,3 +39,25 @@ export function href(page: Page, params: Record<string, string | null | undefine
   // Slashes in file paths stay readable in a shared link.
   return tail ? `${base}?${tail.replaceAll('%2F', '/')}` : base
 }
+
+/**
+ * The pages visited in this tab, oldest first, so that a page outside the tabs can link back
+ * to where the visitor came from, with its filters. A change that keeps the page (a filter
+ * written with `replace`, the next session) updates the last entry instead of adding one,
+ * and going back with the browser drops it.
+ */
+const trail: string[] = [window.location.hash]
+window.addEventListener('hashchange', () => {
+  const hash = window.location.hash
+  const last = trail[trail.length - 1] ?? ''
+  if (trail.length > 1 && trail[trail.length - 2] === hash) trail.pop()
+  else if (parse(last).page === parse(hash).page) trail[trail.length - 1] = hash
+  else trail.push(hash)
+})
+
+/** Where the visitor came from: the hash and its page, or null on a page opened directly. */
+export function useCameFrom(): { hash: string; route: Route } | null {
+  useRoute() // re-render on every change, when the trail has moved
+  const hash = trail.length > 1 ? trail[trail.length - 2] : undefined
+  return hash === undefined ? null : { hash: hash || '#/', route: parse(hash) }
+}

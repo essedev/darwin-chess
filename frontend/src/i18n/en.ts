@@ -106,6 +106,7 @@ export const en: Messages = {
   'job.sessionTitle': 'Long jobs',
   'job.command': 'Command',
   'job.openSession': 'Open the session that started it',
+  'back.to': 'Back to {page}',
   'job.running': 'running',
   'job.elapsed': '{duration} of {max}',
   'job.reason.time': 'It ran past its time limit.',

@@ -1,5 +1,6 @@
 import { ChevronRight, ExternalLink, Search, SlidersHorizontal, X } from 'lucide-react'
 import { type ReactNode, useEffect, useState } from 'react'
+import { BackLink } from '@/components/back-link'
 import { FilterSelect } from '@/components/filter-select'
 import { ErrorNote, LoadingNote, PageShell, StateNote } from '@/components/page'
 import { PageButton } from '@/components/page-button'
@@ -88,7 +89,7 @@ export default function GamesPage({ params }: { params: URLSearchParams }) {
   }
 
   return (
-    <PageShell title={t('games.title')} intro={t('games.intro')}>
+    <PageShell title={t('games.title')} intro={t('games.intro')} back={<BackLink fallback="diretta" />}>
       {data && <Summary page={data} generation={filter.generation} />}
       <div className="grid gap-2.5">
         <div className="flex gap-2.5">
