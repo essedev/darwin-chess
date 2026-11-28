@@ -86,6 +86,7 @@ class Jobs:
             f"""
 mkdir -p /jobs/{job_id}/src /jobs/{job_id}/out
 tar -C /genome --exclude=./target -cf - . | tar -C /jobs/{job_id}/src -xf -
+ln -s /tmp/target /jobs/{job_id}/src/target
 """,
             extra_mounts=[(self.settings.data_dir / "jobs", "/jobs")],
         )
@@ -122,6 +123,8 @@ tar -C /genome --exclude=./target -cf - . | tar -C /jobs/{job_id}/src -xf -
             "HOME=/tmp",
             "-e",
             "CARGO_HOME=/tmp/cargo",
+            # Builds stay in memory, outside the quota; the `target` link in the snapshot keeps
+            # the contract's path, target/release/genome, working in a job too.
             "-e",
             "CARGO_TARGET_DIR=/tmp/target",
             "-e",

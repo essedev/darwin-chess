@@ -1,4 +1,5 @@
-"""Jobs in real containers: the disk quota, deleting outputs, the thread limits."""
+"""Jobs in real containers: the build path, the disk quota, deleting outputs, the thread
+limits."""
 
 import asyncio
 from pathlib import Path
@@ -29,6 +30,9 @@ def settings_for(tmp_path: Path, job_disk_gb: float = 10.0, jobs_disk_gb: float 
     genome = tmp_path / "genome"
     (genome / "src").mkdir(parents=True)
     (genome / "src" / "main.rs").write_text("fn main() {}\n")
+    (genome / "Cargo.toml").write_text(
+        '[package]\nname = "genome"\nversion = "0.1.0"\nedition = "2021"\n'
+    )
     return Settings(
         data_dir=tmp_path / "data",
         genome_dir=genome,
@@ -48,6 +52,23 @@ async def run_to_end(jobs: Jobs, experiment: int, command: str) -> int:
     job_id = await jobs.start(experiment, command, hours=0.05)
     await asyncio.wait_for(finished.wait(), 120)
     return job_id
+
+
+async def test_a_job_finds_the_binary_where_the_contract_puts_it(
+    tmp_path: Path, ledger: Ledger, images: None
+) -> None:
+    settings = settings_for(tmp_path)
+    jobs = Jobs(settings, ledger, on_done=ignore)
+    job_id = await run_to_end(
+        jobs,
+        await started_experiment(ledger),
+        "cargo build --release -q && test -x target/release/genome && touch /job/out/built",
+    )
+    [job] = await ledger.jobs()
+    assert job.status == "done", job.log_tail
+    assert (settings.data_dir / "jobs" / str(job_id) / "out" / "built").exists()
+    # The build itself stays in the container's memory: in the job's files only the link.
+    assert (settings.data_dir / "jobs" / str(job_id) / "src" / "target").is_symlink()
 
 
 async def test_a_job_writing_past_its_quota_is_killed(
