@@ -2,6 +2,14 @@
 
 Le novità del laboratorio, dalla più recente.
 
+## 0.6.0, 28 novembre 2026
+
+- **Le partite su Lichess, una per una**: ogni partita finita del bot ha la sua pagina, con la scacchiera da scorrere mossa per mossa (anche con le frecce della tastiera), la curva della valutazione, le imprecisioni, gli errori e i gravi errori segnati come li segna Lichess, la mossa in cui la partita è girata e il commento. Prima il sito mostrava solo le ultime tre partite e rimandava a Lichess, dove l'analisi non c'è.
+- **Tutte le partite, da filtrare**: l'elenco, diviso per giorno, si filtra per generazione, risultato, partite con punteggio, nome dell'avversario, bot o persona e cadenza. Filtri e pagina restano nell'indirizzo: tornando indietro da una partita l'elenco è come l'avevi lasciato. Ci si arriva dalle ultime partite della diretta.
+- **I lavori lunghi dell'agente, con il loro scopo**: quando l'agente avvia un lavoro lungo (partite contro sé stesso, addestramento), dice in una frase a cosa serve. Nella diretta la frase compare sotto il suo pensiero, con il collegamento alla sessione che l'ha avviato; la pagina della sessione dice com'è finito e, se è andato storto, perché. I primi due si erano fermati subito dopo la compilazione per un errore nostro, ora corretto.
+- **Il bot gioca tutto il giorno**: le sfide su Lichess sono distribuite sulle ore invece di esaurirsi nelle prime cinque, e un avversario che ha già giocato 10 partite in un giorno viene rifiutato, così nessuno tiene il bot per sé. La forza di una generazione su Lichess conta solo le partite con punteggio.
+- **Comodo anche sul telefono**: nessuna pagina scorre di lato, l'aiuto si apre dentro lo schermo e i nomi delle generazioni sotto il grafico dell'Elo non si sovrappongono più.
+
 ## 0.5.0, 26 novembre 2026
 
 - **Guarda l'agente al lavoro**: ogni sessione ha la sua pagina, con tutto quello che l'agente fa, un'azione per riga e in parole semplici ("legge main.rs", "compila", "gioca un match di prova: 60 partite", "aspetta 15 minuti"). Il comando vero e quello che gli ha risposto sono a un clic; in mezzo i suoi pensieri e il suo ragionamento, che resta in inglese. Mentre la sessione è in corso la pagina si aggiorna da sola, e alla fine dice com'è andata.

@@ -2,6 +2,14 @@
 
 What is new in the lab, most recent first.
 
+## 0.6.0, 28 November 2026
+
+- **The Lichess games, one by one**: every finished game of the bot has its own page, with the board to step through move by move (the arrow keys work too), the evaluation curve, the inaccuracies, mistakes and blunders marked as Lichess marks them, the move where the game turned and the commentary. Before, the site showed only the last three games and sent visitors to Lichess, where the analysis is missing.
+- **Every game, filtered**: the list, grouped by day, filters by generation, result, rated games, the opponent's name, bot or person, and speed. Filters and page stay in the address: coming back from a game finds the list as you left it. It opens from the last games on the live page.
+- **The agent's long jobs, with their purpose**: when the agent starts a long job (games against itself, training), it says in one sentence what the job is for. On the live page that sentence sits under its thought, linked to the session that started it; the session's page says how the job ended and, when it went wrong, why. The first two stopped right after the build because of a mistake of ours, now fixed.
+- **The bot plays all day**: Lichess challenges are spread over the hours instead of running out in the first five, and an opponent that already played 10 games in a day is declined, so nobody keeps the bot for themselves. A generation's strength on Lichess counts rated games only.
+- **Comfortable on a phone too**: no page scrolls sideways any more, the help opens inside the screen and the generation names under the Elo chart no longer overlap.
+
 ## 0.5.0, 26 November 2026
 
 - **Watch the agent at work**: every session has its own page with everything the agent does, one action per line in plain words ("reads main.rs", "builds", "plays a test match: 60 games", "waits 15 minutes"). The real command and what came back are a click away; in between, its thoughts and its reasoning, which stays in English. While the session runs the page updates by itself, and at the end it says how it went.
