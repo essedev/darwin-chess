@@ -14,12 +14,12 @@ Fin dove arriva un agente LLM economico e autonomo nel costruire un motore di sc
 
 ## Risposta breve
 
-Risultati al 26 novembre 2026, dopo circa 27 ore:
+Risultati al 28 novembre 2026, dopo circa tre giorni:
 
-- Il campione è **gen-15**, a circa **2.079 ± 75** di Elo assoluto contro Stockfish a forza limitata (margine al 95%, stima congiunta).
-- La salita da gen-8 (1.487 ± 81) a gen-15 ha preso una notte: sette generazioni, ognuna una tecnica di ricerca o di valutazione da manuale (ricerca di quiescenza, tabella delle trasposizioni, null move pruning, late move reductions, history heuristic, tabelle pezzo-casa graduate, patta per ripetizione). Prima di gen-8 l'agente aveva passato quattro generazioni a ritoccare la valutazione, fra 17 e 42 Elo l'uno.
-- L'agente è Claude Haiku 5.5 dentro pi, a sforzo `high`. Un'iterazione costa circa 0,01-0,03 $; le prime 44 sessioni sono costate 0,35 $ in tutto. Il collo di bottiglia è la CPU dell'arbitro, non il budget.
-- Non è ancora partito nessun job di addestramento: la valutazione la scrive ancora l'agente a mano, non la impara la rete prevista dal progetto.
+- Il campione è **gen-20**, a circa **2.265 ± 41** di Elo assoluto contro Stockfish a forza limitata (margine al 95%, stima congiunta).
+- La salita da gen-8 (1.489 ± 82) a gen-15 (2.132 ± 43) ha preso una notte: sette generazioni, ognuna una tecnica di ricerca o di valutazione da manuale (ricerca di quiescenza, tabella delle trasposizioni, null move pruning, late move reductions, history heuristic, tabelle pezzo-casa graduate, patta per ripetizione). Prima di gen-8 l'agente aveva passato quattro generazioni a ritoccare la valutazione, fra 17 e 42 Elo l'uno. Dopo gen-15 i passi si sono accorciati: cinque generazioni in due giorni, fra 17 e 32 Elo l'una.
+- L'agente è Claude Haiku 5.5 dentro pi, a sforzo `high`. Un'iterazione costa circa 0,01-0,03 $; le prime 67 sessioni sono costate 0,67 $ in tutto. Il collo di bottiglia è la CPU dell'arbitro, non il budget.
+- Nessun job ha ancora addestrato niente: la valutazione la scrive ancora l'agente a mano, non la impara la rete prevista dal progetto. L'agente ha avviato i primi due job il 28 novembre 2026, partite contro sé stesso per raccogliere posizioni da usare nella taratura, ed entrambi sono falliti per un nostro errore nel percorso della compilazione, poi corretto.
 
 ## Hardware e setup
 
@@ -51,18 +51,23 @@ L'Elo assoluto è la stima congiunta che mostra il sito (DECISIONS #29); il guad
 | Data | Campione | Elo assoluto | Modifica | Guadagno sul genitore |
 |---|---|---|---|---|
 | 2026-11-25 | da gen-3 a gen-7 | fra 1.117 e 1.213, ± 52-56 | piccoli ritocchi della valutazione | fra +17 e +42 l'uno |
-| 2026-11-25 | gen-8 | 1.487 ± 81 | approfondimento iterativo con ordinamento MVV-LVA | +416 ± 149 |
-| 2026-11-25 | gen-9 | 1.685 ± 64 | ricerca di quiescenza | +470 ± 1.047 (match quasi a senso unico) |
-| 2026-11-26 | gen-10 | 1.764 ± 53 | tabella delle trasposizioni | +94 ± 36 |
-| 2026-11-26 | gen-11 | 1.818 ± 50 | null move pruning | +61 ± 28 |
-| 2026-11-26 | gen-12 | 1.832 ± 50 | late move reductions | +16 ± 11 |
-| 2026-11-26 | gen-13 | 1.881 ± 52 | history heuristic per ordinare le mosse | +51 ± 24 |
-| 2026-11-26 | gen-14 | 2.006 ± 57 | tabelle pezzo-casa graduate | +119 ± 37 |
-| 2026-11-26 | gen-15 | 2.079 ± 75 | ripetizioni valutate come patta nella ricerca | +84 ± 34 |
+| 2026-11-25 | gen-8 | 1.489 ± 82 | approfondimento iterativo con ordinamento MVV-LVA | +416 ± 149 |
+| 2026-11-25 | gen-9 | 1.695 ± 64 | ricerca di quiescenza | +470 ± 1.047 (match quasi a senso unico) |
+| 2026-11-26 | gen-10 | 1.776 ± 52 | tabella delle trasposizioni | +94 ± 36 |
+| 2026-11-26 | gen-11 | 1.831 ± 48 | null move pruning | +61 ± 28 |
+| 2026-11-26 | gen-12 | 1.846 ± 48 | late move reductions | +16 ± 11 |
+| 2026-11-26 | gen-13 | 1.899 ± 48 | history heuristic per ordinare le mosse | +51 ± 24 |
+| 2026-11-26 | gen-14 | 2.035 ± 47 | tabelle pezzo-casa graduate | +119 ± 37 |
+| 2026-11-26 | gen-15 | 2.132 ± 43 | ripetizioni valutate come patta nella ricerca | +84 ± 34 |
+| 2026-11-26 | gen-16 | 2.169 ± 40 | bonus più alto ai pedoni passati avanzati | +32 ± 19 |
+| 2026-11-26 | gen-17 | 2.202 ± 38 | più tempo per mossa | +32 ± 19 |
+| 2026-11-27 | gen-18 | 2.222 ± 38 | ricerca più selettiva sulle ultime mosse | +17 ± 12 |
+| 2026-11-27 | gen-19 | 2.248 ± 39 | un motore più veloce che gioca le stesse mosse | +24 ± 15 |
+| 2026-11-28 | gen-20 | 2.265 ± 41 | preferisce il matto più rapido | +19 ± 13 |
 
 L'agente ha passato quattro generazioni a ritoccare la valutazione. Due cambiamenti sono arrivati subito prima del salto: lo sforzo di ragionamento portato a `high` (DECISIONS #25) e la riflessione periodica contata dal registro: il contatore in memoria si azzerava a ogni riavvio, quindi l'agente non aveva mai riflettuto. La prima riflessione vera (esperimento 25) è stata seguita dall'approfondimento iterativo (esperimento 26), diventato gen-8; i sette campioni successivi sono arrivati nella notte, una tecnica classica ciascuno.
 
-Da gen-8 l'arbitro non ha respinto nessun candidato che ha giudicato; il lavoro perso è quello rimasto indietro. 6 delle 17 iterazioni da allora hanno preparato il candidato mentre un altro era sotto giudizio, e la loro modifica non si applicava più quando quello è diventato campione.
+Da gen-8 a gen-15 l'arbitro non ha respinto nessun candidato che ha giudicato; il lavoro perso è stato quello rimasto indietro. 6 di quelle 17 iterazioni hanno preparato il candidato mentre un altro era sotto giudizio, e la loro modifica non si applicava più quando quello è diventato campione. Dopo gen-15 l'arbitro respinge di nuovo: delle 20 iterazioni successive, 5 sono state accettate, 7 respinte, 5 abbandonate (la sessione è finita senza sottoporre niente), 1 è rimasta indietro e 2 erano ancora sotto giudizio il 28 novembre 2026.
 
 Ogni campione viene misurato anche da solo contro la scala di Stockfish; il sito mostra quel numero accanto alla stima congiunta. gen-15 da solo fa 1.919 ± 166, sotto gen-14 da solo (2.108 ± 130), anche se ha battuto gen-14 di +84 ± 34: con 40 partite per gradino le misure singole sono rumorose, e la stima congiunta prende in prestito le centinaia di partite dei match fra campioni.
 
@@ -89,7 +94,7 @@ make dev                       # API su :4730, dashboard su :4731
 ## Limiti
 
 - Un solo run, un solo modello, una sola macchina: i risultati sono una traiettoria, non una distribuzione.
-- L'Elo assoluto è misurato contro Stockfish a forza limitata; non è un rating FIDE né Lichess. I margini di ± 50-80 vengono da una stima congiunta che dà al guadagno sul genitore lo stesso valore contro Stockfish: i guadagni ottenuti contro se stessi spesso si riducono contro altri avversari, e uno SPRT fermato presto sovrastima il guadagno, quindi i margini non contano questo errore.
+- L'Elo assoluto è misurato contro Stockfish a forza limitata; non è un rating FIDE né Lichess. I margini di ± 40-80 vengono da una stima congiunta che dà al guadagno sul genitore lo stesso valore contro Stockfish: i guadagni ottenuti contro se stessi spesso si riducono contro altri avversari, e uno SPRT fermato presto sovrastima il guadagno, quindi i margini non contano questo errore.
 - I match usano un controllo del tempo breve (8+0.08): i guadagni ottenuti lì potrebbero non valere nelle partite più lente.
 - Haiku conosce le tecniche dei motori dal suo addestramento: l'esperimento misura quanto bene un agente applica idee note sotto un arbitro severo, non la scoperta.
 - Il libro di aperture lo genera l'arbitro (mosse casuali a materiale pari), non è ancora filtrato da Stockfish.

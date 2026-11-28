@@ -14,12 +14,12 @@ How far does a cheap, autonomous LLM agent get at building a chess engine when e
 
 ## Short answer
 
-Results as of 2026-11-26, after about 27 hours:
+Results as of 2026-11-28, after about three days:
 
-- The champion is **gen-15**, at about **2,079 ± 75** absolute Elo against limited-strength Stockfish (95% margin, joint estimate).
-- The climb from gen-8 (1,487 ± 81) to gen-15 took one night: seven generations, each a textbook search or evaluation technique (quiescence, transposition table, null-move pruning, late move reductions, history heuristic, tapered piece-square tables, repetition draws). Before gen-8 the agent had spent four generations on evaluation tweaks worth 17 to 42 Elo each.
-- The agent is Claude Haiku 5.5 running in pi at effort `high`. An iteration costs about 0.01-0.03 $; the first 44 sessions cost 0.35 $ in all. The bottleneck is the referee's CPU, not the budget.
-- No training job has run yet: the evaluation is still written by the agent by hand, not learned by the network the design calls for.
+- The champion is **gen-20**, at about **2,265 ± 41** absolute Elo against limited-strength Stockfish (95% margin, joint estimate).
+- The climb from gen-8 (1,489 ± 82) to gen-15 (2,132 ± 43) took one night: seven generations, each a textbook search or evaluation technique (quiescence, transposition table, null-move pruning, late move reductions, history heuristic, tapered piece-square tables, repetition draws). Before gen-8 the agent had spent four generations on evaluation tweaks worth 17 to 42 Elo each. After gen-15 the steps shrank: five generations in two days, worth 17 to 32 Elo each.
+- The agent is Claude Haiku 5.5 running in pi at effort `high`. An iteration costs about 0.01-0.03 $; the first 67 sessions cost 0.67 $ in all. The bottleneck is the referee's CPU, not the budget.
+- No job has trained anything yet: the evaluation is still written by the agent by hand, not learned by the network the design calls for. The agent started its first two jobs on 2026-11-28, self-play games to collect positions for tuning, and both failed on a bug of ours in the build path, since fixed.
 
 ## Hardware and setup
 
@@ -51,18 +51,23 @@ Absolute Elo is the joint estimate the site shows (DECISIONS #29); the gain is t
 | Date | Champion | Absolute Elo | Change | Gain over parent |
 |---|---|---|---|---|
 | 2026-11-25 | gen-3 to gen-7 | between 1,117 and 1,213, ± 52-56 | small evaluation tweaks | +17 to +42 each |
-| 2026-11-25 | gen-8 | 1,487 ± 81 | iterative deepening with MVV-LVA ordering | +416 ± 149 |
-| 2026-11-25 | gen-9 | 1,685 ± 64 | quiescence search | +470 ± 1,047 (near-whitewash match) |
-| 2026-11-26 | gen-10 | 1,764 ± 53 | transposition table | +94 ± 36 |
-| 2026-11-26 | gen-11 | 1,818 ± 50 | null-move pruning | +61 ± 28 |
-| 2026-11-26 | gen-12 | 1,832 ± 50 | late move reductions | +16 ± 11 |
-| 2026-11-26 | gen-13 | 1,881 ± 52 | history heuristic for move ordering | +51 ± 24 |
-| 2026-11-26 | gen-14 | 2,006 ± 57 | tapered piece-square tables | +119 ± 37 |
-| 2026-11-26 | gen-15 | 2,079 ± 75 | repetitions scored as draws in the search | +84 ± 34 |
+| 2026-11-25 | gen-8 | 1,489 ± 82 | iterative deepening with MVV-LVA ordering | +416 ± 149 |
+| 2026-11-25 | gen-9 | 1,695 ± 64 | quiescence search | +470 ± 1,047 (near-whitewash match) |
+| 2026-11-26 | gen-10 | 1,776 ± 52 | transposition table | +94 ± 36 |
+| 2026-11-26 | gen-11 | 1,831 ± 48 | null-move pruning | +61 ± 28 |
+| 2026-11-26 | gen-12 | 1,846 ± 48 | late move reductions | +16 ± 11 |
+| 2026-11-26 | gen-13 | 1,899 ± 48 | history heuristic for move ordering | +51 ± 24 |
+| 2026-11-26 | gen-14 | 2,035 ± 47 | tapered piece-square tables | +119 ± 37 |
+| 2026-11-26 | gen-15 | 2,132 ± 43 | repetitions scored as draws in the search | +84 ± 34 |
+| 2026-11-26 | gen-16 | 2,169 ± 40 | larger bonus for advanced passed pawns | +32 ± 19 |
+| 2026-11-26 | gen-17 | 2,202 ± 38 | more time per move | +32 ± 19 |
+| 2026-11-27 | gen-18 | 2,222 ± 38 | more selective search of late moves | +17 ± 12 |
+| 2026-11-27 | gen-19 | 2,248 ± 39 | a faster engine that plays the same moves | +24 ± 15 |
+| 2026-11-28 | gen-20 | 2,265 ± 41 | prefers the fastest mate | +19 ± 13 |
 
 The agent spent four generations on small evaluation tweaks. Two changes came just before the jump: reasoning effort raised to `high` (DECISIONS #25), and the periodic reflection counted from the ledger: its in-memory counter reset at every restart, so the agent had never reflected. The first real reflection (experiment 25) was followed by iterative deepening (experiment 26), which became gen-8; the next seven champions came overnight, one classic technique each.
 
-Since gen-8 the referee has rejected no candidate it judged; the work lost is the work that went stale. 6 of the 17 iterations since then prepared their candidate while another was on trial, and their change no longer applied once that one became champion.
+From gen-8 to gen-15 the referee rejected no candidate it judged; the work lost was the work that went stale. 6 of those 17 iterations prepared their candidate while another was on trial, and their change no longer applied once that one became champion. After gen-15 the referee rejects again: of the next 20 iterations, 5 were accepted, 7 rejected, 5 abandoned (the session ended without submitting), 1 went stale and 2 were still on trial on 2026-11-28.
 
 Each champion is also rated on its own against the Stockfish ladder; the site shows that number next to the joint estimate. gen-15 alone scores 1,919 ± 166, below gen-14 alone (2,108 ± 130), although it beat gen-14 by +84 ± 34: with 40 games per rung the single ratings are noisy, and the joint fit borrows the hundreds of games of the matches between champions.
 
@@ -89,7 +94,7 @@ make dev                       # API on :4730, dashboard on :4731
 ## Limits
 
 - One run, one model, one machine: the results are a single trajectory, not a distribution.
-- The absolute Elo is measured against Stockfish at limited strength; it is not a FIDE or Lichess rating. Its margins of ± 50-80 come from a joint fit that takes a gain over the parent to be worth the same against Stockfish: self-play gains often shrink against other opponents, and an SPRT stopped early overstates its gain, so the margins leave that error out.
+- The absolute Elo is measured against Stockfish at limited strength; it is not a FIDE or Lichess rating. Its margins of ± 40-80 come from a joint fit that takes a gain over the parent to be worth the same against Stockfish: self-play gains often shrink against other opponents, and an SPRT stopped early overstates its gain, so the margins leave that error out.
 - Matches use a short time control (8+0.08): gains there may not carry over to slower games.
 - Haiku knows engine techniques from its training: what the experiment measures is how well an agent applies known ideas under a strict referee, not discovery.
 - The opening book is generated by the referee (random moves at equal material), not yet filtered by Stockfish.
